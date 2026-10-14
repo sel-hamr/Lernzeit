@@ -185,13 +185,44 @@ function Prompt({ card, review, listening, onPlay }: { card: Card; review: CardR
   }
 }
 
+const SPEEDS = [0.6, 0.8, 1, 1.2]
+
+/** Speed buttons beside the speaker. A speed set with the Settings slider (e.g. 0.95) lights up the closest one. */
+function SpeedButtons({ rate, onChange }: { rate: number; onChange: (rate: number) => void }) {
+  const active = SPEEDS.reduce((best, s) => (Math.abs(s - rate) < Math.abs(best - rate) ? s : best))
+  return (
+    <div role="radiogroup" aria-label="Speaking speed" className="flex items-center gap-0.5 rounded-full bg-field p-0.5">
+      {SPEEDS.map((s) => (
+        <button
+          key={s}
+          type="button"
+          role="radio"
+          aria-checked={s === active}
+          title={s === 1 ? 'Normal speed' : `${s}× speed`}
+          onClick={(e) => {
+            onChange(s)
+            // After a mouse click, hand focus back so Space keeps revealing and rating.
+            if (e.detail > 0) e.currentTarget.blur()
+          }}
+          className={clsx(
+            'h-7 min-w-9 rounded-full px-2 text-chip font-medium tabular-nums transition-[background-color,color,box-shadow] duration-150',
+            s === active ? 'bg-main text-ink shadow-tab' : 'text-muted hover:text-ink',
+          )}
+        >
+          {s}×
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function Answer({ card, review, listening }: { card: Card; review: CardReview; listening: boolean }) {
   const showImage = (listening || review.direction === 'deToEn') && hasPicture(card) && card.type === 'word'
   if (review.direction === 'deToEn' && !listening) {
     return (
       <div className="flex flex-col items-center gap-1.5 text-center">
         <div className={clsx('font-semibold tracking-[-0.01em]', card.type === 'word' ? 'text-[26px]' : 'text-[20px] leading-snug')}>{card.english}</div>
-        {card.exampleEn && <div className="text-small text-muted">{card.exampleEn}</div>}
+        {card.exampleEn && <div className="text-[15px] leading-snug text-pretty text-muted">{card.exampleEn}</div>}
       </div>
     )
   }
@@ -201,7 +232,7 @@ function Answer({ card, review, listening }: { card: Card; review: CardReview; l
       <div className={clsx('font-semibold tracking-[-0.01em]', card.type === 'word' ? 'text-[30px]' : 'text-[22px] leading-snug')} lang="de">
         {card.type === 'cloze' ? <ClozeSentence text={card.german} reveal /> : <CardGerman card={card} />}
       </div>
-      <div className="flex flex-col gap-1 text-body text-muted">
+      <div className="flex flex-col gap-1 text-[16px] leading-snug text-muted">
         {card.type === 'word' && (
           <span>
             {card.english}
@@ -217,9 +248,11 @@ function Answer({ card, review, listening }: { card: Card; review: CardReview; l
         {card.verbForms && <span>{card.verbForms}</span>}
       </div>
       {card.type === 'word' && card.exampleDe && (
-        <div className="flex flex-col gap-0.5 rounded-row bg-soft px-4 py-2.5 text-small">
-          <span lang="de">{card.exampleDe}</span>
-          {card.exampleEn && <span className="text-muted">{card.exampleEn}</span>}
+        <div className="mt-1 flex max-w-md flex-col gap-1 rounded-row bg-soft px-5 py-3.5 text-pretty">
+          <span lang="de" className="text-[18px] leading-snug">
+            {card.exampleDe}
+          </span>
+          {card.exampleEn && <span className="text-[15px] leading-snug text-muted">{card.exampleEn}</span>}
         </div>
       )}
     </div>
@@ -290,7 +323,16 @@ export default function ReviewPage() {
     if (card) speak(germanText(card), { voiceURI: settings.voiceURI, rate: settings.speechRate })
   }, [card, settings.voiceURI, settings.speechRate])
 
+  // Saves the speed (the same setting as in Settings) and replays the word so the change is heard,
+  // but only when the German is already on screen or is the question, so it never gives the answer away.
+  const changeRate = (rate: number) => {
+    void updateSettings({ speechRate: rate })
+    const germanShown = revealed || listening || review?.direction === 'deToEn'
+    if (card && germanShown) speak(germanText(card), { voiceURI: settings.voiceURI, rate })
+  }
+
   // New card on screen: reset, and in listening mode play it.
+  // Leaving a card stops its audio, so a word still being read never plays over the next question.
   const currentId = progress?.current ?? null
   useEffect(() => {
     shownAt.current = Date.now()
@@ -298,12 +340,14 @@ export default function ReviewPage() {
     setRevealed(false)
     setTyped('')
     setCheck(null)
-    if (currentId && listening) setTimeout(play, 250)
+    const listen = currentId && listening ? setTimeout(play, 250) : undefined
     if (currentId && typing) setTimeout(() => inputRef.current?.focus(), 30)
+    return () => {
+      clearTimeout(listen)
+      stopSpeaking()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentId])
-
-  useEffect(() => () => stopSpeaking(), [])
 
   const reveal = useCallback(() => {
     if (!card || !review || revealed) return
@@ -488,14 +532,16 @@ export default function ReviewPage() {
       ) : (
         <>
           <article key={review.id + progress.reviewed} className="flex animate-flip-in flex-col gap-5 rounded-flash border border-line bg-main p-3 pb-6 shadow-panel sm:p-4 sm:pb-7">
-            <div className="flex items-center justify-between px-1 text-chip text-muted">
-              <span>
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-1 text-chip text-muted">
+              <span className="min-w-0">
                 {deck?.name} · {listening ? 'Listening' : directionLabel(review.direction)}
               </span>
-              <div className="flex items-center gap-1">
+              <div className="ml-auto flex items-center gap-1">
                 <button type="button" onClick={play} aria-label="Play German audio" className="flex size-8 items-center justify-center rounded-full hover:bg-field hover:text-ink">
                   <Volume2 size={16} strokeWidth={1.8} />
                 </button>
+                <SpeedButtons rate={settings.speechRate} onChange={changeRate} />
+                <span aria-hidden className="mx-1 h-4 w-px bg-line" />
                 <button type="button" onClick={() => openCardEditor({ cardId: card.id })} aria-label="Edit card" className="flex size-8 items-center justify-center rounded-full hover:bg-field hover:text-ink">
                   <Pencil size={15} strokeWidth={1.8} />
                 </button>
@@ -577,7 +623,7 @@ export default function ReviewPage() {
                     onClick={() => void grade(g)}
                     className={clsx(
                       'flex h-14 flex-col items-center justify-center gap-0.5 rounded-row border text-body font-medium transition-[background-color,transform] active:scale-[0.98]',
-                      g === 3 ? 'border-button-dark bg-button-dark text-on-dark hover:opacity-90' : 'border-line-strong bg-main hover:bg-soft',
+                      g === 3 ? 'border-button-dark bg-button-dark text-on-dark hover:border-button-dark-hover hover:bg-button-dark-hover' : 'border-line-strong bg-main hover:bg-soft',
                       g === 1 && 'text-red-ink',
                       suggested === g && 'ring-2 ring-sage-dot ring-offset-2 ring-offset-main',
                     )}

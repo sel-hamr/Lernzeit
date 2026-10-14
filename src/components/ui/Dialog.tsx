@@ -68,7 +68,7 @@ export function Dialog({ open, onClose, title, description, children, footer, si
               <X size={18} strokeWidth={1.7} />
             </button>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-5">{children}</div>
+          <div className={clsx('min-h-0 flex-1 overflow-y-auto px-6', footer ? 'pb-5' : 'pb-[max(20px,env(safe-area-inset-bottom))]')}>{children}</div>
           {footer && (
             <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line bg-soft px-6 py-3.5 pb-[max(14px,env(safe-area-inset-bottom))]">
               {footer}

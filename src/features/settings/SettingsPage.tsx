@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Bell, Download, HardDriveDownload, Plus, Smartphone, Sparkles, Trash2, Upload, Volume2 } from 'lucide-react'
+import { Bell, ChevronRight, Download, HardDriveDownload, Plus, Smartphone, Sparkles, Trash2, Upload, Volume2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Chip, Dot, PageHeader, Section } from '@/components/ui/primitives'
 import { Field, Input, Segmented, Select, Switch } from '@/components/ui/form'
@@ -23,16 +23,25 @@ import { TopicDialog } from './TopicDialog'
 function Group({ title, description, children, action }: { title: string; description?: string; children: ReactNode; action?: ReactNode }) {
   return (
     <Section className="flex flex-col gap-4 px-6 py-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
+      {/* The actions wrap below the description on narrow cards, still right-aligned. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+        <div className="flex min-w-0 flex-[999_1_240px] flex-col gap-1">
           <h2 className="text-section font-semibold">{title}</h2>
           {description && <p className="text-small text-muted">{description}</p>}
         </div>
-        {action}
+        {action && <div className="flex min-w-0 flex-[1_1_auto] justify-end">{action}</div>}
       </div>
       {children}
     </Section>
   )
+}
+
+/* A list row that opens a dialog: an inset hover surface that leaves the dividers aligned, and a chevron. */
+const rowClass =
+  'group relative isolate flex items-center gap-3 border-t border-line py-3 text-left first:border-t-0 before:absolute before:-inset-x-3 before:inset-y-1 before:-z-10 before:rounded-row before:bg-field before:opacity-0 before:transition-opacity hover:before:opacity-100'
+
+function RowChevron() {
+  return <ChevronRight size={16} strokeWidth={1.8} aria-hidden className="-mr-1 shrink-0 text-muted transition-colors group-hover:text-ink" />
 }
 
 function useVoices() {
@@ -56,11 +65,12 @@ function TopicsGroup() {
     >
       <div className="flex flex-col">
         {topics.map((t) => (
-          <button key={t.id} type="button" onClick={() => setDialog({ id: t.id })} className="flex items-center gap-3 border-t border-line py-3 text-left first:border-t-0 hover:bg-soft">
+          <button key={t.id} type="button" onClick={() => setDialog({ id: t.id })} className={rowClass}>
             <Dot color={t.color} />
             <span className="flex-1 text-body font-medium">{t.name}</span>
             {t.archived && <Chip tone="soft">Archived</Chip>}
             <span className="text-small text-muted tabular-nums">{describeGoals(t.goalMinutes, formatHM)}</span>
+            <RowChevron />
           </button>
         ))}
         {topics.length === 0 && <p className="text-small text-muted">No topics yet.</p>}
@@ -114,7 +124,7 @@ function DecksGroup() {
           const topic = topics.find((t) => t.id === d.topicId)
           const cardCount = cards?.filter((c) => c.deckId === d.id).length ?? 0
           return (
-            <button key={d.id} type="button" onClick={() => setDialog({ id: d.id })} className="flex items-center gap-3 border-t border-line py-3 text-left first:border-t-0 hover:bg-soft">
+            <button key={d.id} type="button" onClick={() => setDialog({ id: d.id })} className={rowClass}>
               <Dot color={topic?.color} />
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="text-body font-medium">{d.name}</span>
@@ -123,6 +133,7 @@ function DecksGroup() {
                 </span>
               </span>
               <span className="hidden text-small text-muted sm:block">{topic ? `Counts toward ${topic.name}` : 'No topic'}</span>
+              <RowChevron />
             </button>
           )
         })}

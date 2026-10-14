@@ -51,11 +51,11 @@ export function CardImage({
           {emoji}
         </span>
       ) : label && !imageId && placeholder ? (
-        <span aria-hidden className="text-[min(46cqh,40cqw)] leading-none font-semibold text-ink/15 select-none">
+        <span aria-hidden className="text-[min(46cqh,40cqw)] leading-none font-semibold text-on-pastel/15 select-none">
           {initial(label)}
         </span>
       ) : (
-        placeholder && !imageId && <ImageOff size={22} strokeWidth={1.5} className="text-ink/25" aria-hidden />
+        placeholder && !imageId && <ImageOff size={22} strokeWidth={1.5} className="text-on-pastel/25" aria-hidden />
       )}
     </div>
   )

@@ -33,8 +33,9 @@ function GoalRow({ row, running, onStart }: { row: TopicProgress; running: boole
         </div>
         <ProgressBar value={goal ? done / goal : 0} color={topic.color} label={`${topic.name} progress`} />
       </div>
-      <div className="ml-auto flex items-center gap-4">
-        <div className="w-19 text-right text-body font-medium tabular-nums">
+      {/* Once this wraps under the bar (row narrower than 420px), spread it across the row. */}
+      <div className="ml-auto flex items-center gap-4 @max-[420px]:w-full @max-[420px]:justify-between">
+        <div className="w-19 text-right text-body font-medium tabular-nums @max-[420px]:w-auto @max-[420px]:text-left">
           {goal === 0 ? (
             <span className="text-muted">No goal</span>
           ) : hit ? (
@@ -64,7 +65,7 @@ function DailyGoals() {
   const startTimer = useStartTimer()
   const navigate = useNavigate()
   return (
-    <Section className="flex flex-col px-6 pt-5 pb-2">
+    <Section className="flex flex-col px-6 pt-5 pb-2 @container">
       <SectionHeader title="Daily goals" action={<span className="text-small text-muted">Resets at midnight</span>} className="pb-2" />
       {progress.topics.length === 0 ? (
         <EmptyState title="No topics yet" action={<Button onClick={() => navigate('/settings')}>Add a topic</Button>}>
@@ -99,9 +100,7 @@ function TodaysSessions() {
             <Button variant="quiet" size="sm" className="h-auto px-0" onClick={() => openLogTime()}>
               Log time
             </Button>
-            <span className="text-line-strong" aria-hidden>
-              ·
-            </span>
+            <span aria-hidden className="h-3.5 w-px bg-line-strong" />
             <Link to="/history" className="text-small text-sage-ink hover:text-ink">
               See history
             </Link>

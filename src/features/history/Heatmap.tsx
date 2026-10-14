@@ -22,34 +22,34 @@ export function Heatmap({ topics, index, today, topicId, weeks = 16, onOpenDay }
     } else monthLabels.push(null)
     lastMonth = month
   })
+  // Cells grow with the card, up to 20px, so the grid fills it on phones and desktops alike.
+  const columns = { gridTemplateColumns: `repeat(${grid.length}, minmax(0, 1fr))` }
   return (
     <div className="flex flex-col gap-3">
-      <div className="overflow-x-auto scrollbar-none">
-        <div className="inline-flex flex-col gap-1.5">
-          <div className="grid grid-flow-col gap-1 text-[10px] text-muted" style={{ gridAutoColumns: '13px' }}>
-            {monthLabels.map((label, w) => (
-              <span key={w} className="overflow-visible whitespace-nowrap">
-                {label ?? ''}
-              </span>
-            ))}
-          </div>
-          <div className="grid grid-flow-col grid-rows-[repeat(7,13px)] gap-1" style={{ gridAutoColumns: '13px' }} role="grid" aria-label="Study time per day, last 16 weeks">
-            {grid.flat().map((day) => {
-              if (day > today) return <span key={day} className="size-3.25" aria-hidden />
-              const heat = dayHeat(topics, index, day, topicId)
-              const label = `${formatDayMonthShort(day)} · ${formatHM(heat.minutes)} h${heat.goal ? (heat.hit ? ' · goal hit' : ` of ${formatHM(heat.goal)} h`) : ''}`
-              return (
-                <button
-                  key={day}
-                  type="button"
-                  title={label}
-                  aria-label={label}
-                  onClick={() => onOpenDay(day)}
-                  className={clsx('size-3.25 rounded-[3px] transition-transform hover:scale-125 focus-visible:scale-125', LEVEL_BG[heat.level], day === today && 'ring-1 ring-ink/40 ring-offset-1 ring-offset-main')}
-                />
-              )
-            })}
-          </div>
+      <div className="flex w-full flex-col gap-1.5" style={{ maxWidth: grid.length * 20 + (grid.length - 1) * 4 }}>
+        <div className="grid gap-1 text-[10px] text-muted" style={columns}>
+          {monthLabels.map((label, w) => (
+            <span key={w} className="overflow-visible whitespace-nowrap">
+              {label ?? ''}
+            </span>
+          ))}
+        </div>
+        <div className="grid grid-flow-col grid-rows-[repeat(7,auto)] gap-1" style={columns} role="grid" aria-label="Study time per day, last 16 weeks">
+          {grid.flat().map((day) => {
+            if (day > today) return <span key={day} className="aspect-square" aria-hidden />
+            const heat = dayHeat(topics, index, day, topicId)
+            const label = `${formatDayMonthShort(day)} · ${formatHM(heat.minutes)} h${heat.goal ? (heat.hit ? ' · goal hit' : ` of ${formatHM(heat.goal)} h`) : ''}`
+            return (
+              <button
+                key={day}
+                type="button"
+                title={label}
+                aria-label={label}
+                onClick={() => onOpenDay(day)}
+                className={clsx('aspect-square w-full rounded-sm transition-transform hover:scale-115 focus-visible:scale-115', LEVEL_BG[heat.level], day === today && 'ring-1 ring-ink/40 ring-offset-1 ring-offset-main')}
+              />
+            )
+          })}
         </div>
       </div>
       <div className="flex items-center gap-1.5 text-chip text-muted">

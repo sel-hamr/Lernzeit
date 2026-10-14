@@ -3,7 +3,7 @@ import clsx from 'clsx'
 import { ChevronDown } from 'lucide-react'
 
 const control =
-  'w-full rounded-img border border-line bg-main px-3 text-body text-ink outline-none transition-colors placeholder:text-muted hover:border-line-strong focus:border-sage-dot focus-visible:outline-none disabled:opacity-60'
+  'w-full rounded-img border border-line bg-main px-3 text-body text-ink outline-none transition-[border-color,box-shadow] placeholder:text-muted hover:border-line-strong focus:border-sage-dot focus:ring-3 focus:ring-sage-dot/15 focus-visible:outline-none disabled:opacity-60'
 
 export function Field({ label, hint, error, children, htmlFor, className }: { label: ReactNode; hint?: ReactNode; error?: ReactNode; children: ReactNode; htmlFor?: string; className?: string }) {
   return (
