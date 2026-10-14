@@ -7,7 +7,7 @@ import { db } from '@/db/db'
 import type { Card, Task } from '@/db/types'
 import { CardImage } from '@/components/CardImage'
 import { CardGerman } from '@/components/GermanWord'
-import { PriorityChip } from '@/components/ui/primitives'
+import { Kbd, PriorityChip } from '@/components/ui/primitives'
 import { wordKind } from '@/lib/german'
 import { STATUS_LABEL } from '@/data/tasks'
 
@@ -81,7 +81,7 @@ export function SearchBox({ inline = false, autoFocus = false, onDone }: { inlin
 
   return (
     <div className="relative">
-      <label className="flex h-10 items-center gap-2 rounded-img border border-line bg-main px-3 text-body text-muted transition-colors focus-within:border-line-strong">
+      <label className="flex h-10 items-center gap-2 rounded-img border border-line bg-main px-3 text-body text-muted transition-[border-color,box-shadow] hover:border-line-strong focus-within:border-sage-dot focus-within:ring-3 focus-within:ring-sage-dot/15">
         <Search size={16} strokeWidth={1.8} aria-hidden />
         <input
           ref={inputRef}
@@ -116,6 +116,11 @@ export function SearchBox({ inline = false, autoFocus = false, onDone }: { inlin
           }}
           className="w-full min-w-0 bg-transparent text-ink outline-none"
         />
+        {!inline && !focused && !query && (
+          <span title="Press / to search" className="flex shrink-0">
+            <Kbd>/</Kbd>
+          </span>
+        )}
       </label>
       {showList && (
         <div

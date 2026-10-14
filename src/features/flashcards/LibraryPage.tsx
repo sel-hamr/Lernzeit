@@ -255,9 +255,10 @@ export function LibraryPage() {
             {deckFilter === 'all' ? <FolderPlus size={17} strokeWidth={1.7} /> : <Settings2 size={17} strokeWidth={1.7} />}
           </Button>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="flex h-8.5 w-45 items-center gap-2 rounded-img border border-line bg-main px-2.5 text-muted focus-within:border-line-strong">
-            <Search size={14} strokeWidth={1.8} aria-hidden />
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          {/* Same height and fill as the deck tabs beside it. */}
+          <label className="flex h-10.5 min-w-0 flex-1 items-center gap-2 rounded-row border border-transparent bg-field px-3 text-muted transition-[background-color,border-color,box-shadow] hover:bg-track focus-within:border-sage-dot focus-within:bg-main focus-within:ring-3 focus-within:ring-sage-dot/15 sm:w-52 sm:flex-none">
+            <Search size={15} strokeWidth={1.8} aria-hidden />
             <input
               type="search"
               aria-label="Filter cards"

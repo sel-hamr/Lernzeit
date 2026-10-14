@@ -103,12 +103,25 @@ function DailyPlan() {
 function Sidebar() {
   const { pathname } = useLocation()
   const { total } = useStudyQueue()
+  const { openQuickAdd } = useUI()
   const onFlashcards = pathname.startsWith('/flashcards')
   return (
     <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-4.5 overflow-y-auto px-3.5 py-5 md:flex">
-      <Link to="/" aria-label="Lernzeit home">
-        <Logo />
-      </Link>
+      <div className="flex items-center justify-between gap-2">
+        <Link to="/" aria-label="Lernzeit home" className="rounded-img">
+          <Logo />
+        </Link>
+        {/* On desktop the quick add lives here, so no floating button covers the page. */}
+        <button
+          type="button"
+          onClick={openQuickAdd}
+          aria-label="Quick add card"
+          title="Quick add card"
+          className="flex size-8.5 items-center justify-center rounded-full border border-line bg-main text-ink-2 shadow-nav transition-[border-color,color,scale] hover:border-line-strong hover:text-ink active:scale-95"
+        >
+          <Plus size={17} strokeWidth={1.9} />
+        </button>
+      </div>
       <SearchBox />
       <nav aria-label="Main" className="flex flex-col gap-0.5">
         <div className="px-3 pb-1.5 text-chip text-muted">Workspace</div>
@@ -183,12 +196,12 @@ function BottomNav() {
         >
           {({ isActive }) => (
             <>
-              <span className={clsx('flex h-7 w-12 items-center justify-center rounded-full transition-colors', isActive && 'bg-main shadow-nav')}>
+              <span className={clsx('flex h-7 w-12 items-center justify-center rounded-full transition-colors', isActive && 'bg-main shadow-nav ring-1 ring-line')}>
                 <Icon size={19} strokeWidth={isActive ? 1.9 : 1.7} />
               </span>
               {short}
               {to === '/flashcards' && total > 0 && (
-                <span className="absolute top-1.5 left-[calc(50%+8px)] min-w-4.5 rounded-full bg-sage-dot px-1 text-center text-[10px] leading-[16px] font-semibold text-on-dark tabular-nums">
+                <span className="absolute top-1 left-[calc(50%+7px)] min-w-4.5 rounded-full bg-sage-dot px-1 text-center text-[10px] leading-4 font-semibold text-on-dark tabular-nums ring-2 ring-sidebar">
                   {total > 99 ? '99+' : total}
                 </span>
               )}
@@ -211,7 +224,7 @@ function QuickAddButton() {
       onClick={openQuickAdd}
       aria-label="Quick add card"
       title="Quick add card"
-      className="fixed right-4 bottom-[calc(76px+env(safe-area-inset-bottom))] z-30 flex size-12 items-center justify-center rounded-full bg-button-dark text-on-dark shadow-popup transition-transform hover:scale-105 active:scale-95 md:right-6 md:bottom-6"
+      className="fixed right-4 bottom-[calc(76px+env(safe-area-inset-bottom))] z-30 flex size-12 items-center justify-center rounded-full bg-button-dark text-on-dark shadow-popup transition-transform hover:scale-105 active:scale-95 md:hidden"
     >
       <Plus size={22} strokeWidth={2} />
     </button>

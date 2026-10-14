@@ -7,7 +7,7 @@ const base =
   'inline-flex shrink-0 select-none items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium transition-[background-color,border-color,color,opacity,transform] duration-150 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-45'
 
 const variants: Record<ButtonVariant, string> = {
-  primary: 'bg-button-dark text-on-dark hover:opacity-90',
+  primary: 'bg-button-dark text-on-dark hover:bg-button-dark-hover',
   outline: 'border border-line-strong bg-main text-ink hover:bg-soft hover:border-muted/40',
   soft: 'bg-button-soft text-ink hover:brightness-[0.97]',
   ghost: 'text-ink-2 hover:bg-field hover:text-ink',

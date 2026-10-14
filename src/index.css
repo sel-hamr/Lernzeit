@@ -20,8 +20,11 @@
   --color-line: #ecece6;
   --color-line-strong: #dcdcd5;
   --color-button-dark: #22302a;
+  --color-button-dark-hover: #33463d;
   --color-on-dark: #ffffff;
   --color-button-soft: #faf5dc;
+  /* Ink on the card-image pastels, which stay light in both themes. */
+  --color-on-pastel: #1c211e;
   --color-sage: #e3ecda;
   --color-sage-border: #cfddc2;
   --color-sage-ink: #3e5a33;
@@ -133,6 +136,7 @@
   --color-line: #2a302c;
   --color-line-strong: #3a423d;
   --color-button-dark: #dfe9d5;
+  --color-button-dark-hover: #eef4e8;
   --color-on-dark: #18201b;
   --color-button-soft: #39351f;
   --color-sage: #25321f;
@@ -196,6 +200,18 @@
     @apply bg-sidebar text-body text-ink antialiased;
     font-family: var(--font-sans);
     min-height: 100dvh;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Even line breaks: no one-word last lines in headings, fewer orphans in prose. */
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
   }
 
   :focus-visible {

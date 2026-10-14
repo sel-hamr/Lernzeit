@@ -1,6 +1,7 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from 'react'
 import clsx from 'clsx'
 import { Link } from 'react-router'
+import { ChevronRight } from 'lucide-react'
 import type { Priority, TopicColor } from '@/db/types'
 import { PRIORITY_LABEL, topicVars } from '@/lib/colors'
 
@@ -15,12 +16,13 @@ export function Section({ className, children, ...rest }: HTMLAttributes<HTMLEle
 
 export function SectionHeader({ title, subtitle, action, className }: { title: ReactNode; subtitle?: ReactNode; action?: ReactNode; className?: string }) {
   return (
-    <div className={clsx('flex items-start justify-between gap-3', className)}>
-      <div className="flex min-w-0 flex-col gap-1">
+    // Wraps: on a narrow card the actions drop below the title (still right-aligned) instead of squeezing it.
+    <div className={clsx('flex flex-wrap items-start justify-between gap-x-4 gap-y-1.5', className)}>
+      <div className="flex min-w-0 flex-[999_1_auto] flex-col gap-1">
         <h2 className="text-section font-semibold">{title}</h2>
-        {subtitle && <div className="text-small text-muted">{subtitle}</div>}
+        {subtitle && <div className="text-small text-pretty text-muted">{subtitle}</div>}
       </div>
-      {action && <div className="flex shrink-0 items-center gap-2 pt-0.5">{action}</div>}
+      {action && <div className="flex min-w-0 flex-[1_1_auto] items-center justify-end gap-2.5 pt-0.5">{action}</div>}
     </div>
   )
 }
@@ -43,14 +45,22 @@ export function StatStrip({ items, className }: { items: { value: ReactNode; lab
     <div className={clsx('grid grid-cols-3 overflow-hidden rounded-section border border-line bg-main', className)}>
       {items.map((item, i) => {
         const cls = clsx(
-          'flex min-w-0 flex-col gap-1 px-3.5 py-4 sm:gap-1.5 sm:px-6 sm:py-5',
+          'relative flex min-w-0 flex-col gap-1 px-3.5 py-4 sm:gap-1.5 sm:px-6 sm:py-5',
           i > 0 && 'border-l border-line',
-          item.to && 'transition-colors hover:bg-soft',
+          item.to && 'group transition-colors hover:bg-soft focus-visible:-outline-offset-2',
         )
         const body = (
           <>
-            <div className="truncate text-[24px] leading-tight font-normal tracking-[-0.03em] tabular-nums sm:text-stat">{item.value}</div>
-            <div className="text-chip text-muted sm:text-body">{item.label}</div>
+            <div className={clsx('truncate text-[24px] leading-tight font-normal tracking-[-0.03em] tabular-nums sm:text-stat', item.to && 'pr-4')}>{item.value}</div>
+            <div className="text-chip text-pretty text-muted sm:text-body">{item.label}</div>
+            {item.to && (
+              <ChevronRight
+                size={16}
+                strokeWidth={1.8}
+                aria-hidden
+                className="absolute top-3.5 right-3 text-muted transition-[color,translate] group-hover:translate-x-0.5 group-hover:text-ink sm:top-5 sm:right-5"
+              />
+            )}
           </>
         )
         return item.to ? (
@@ -146,8 +156,8 @@ export function EmptyState({ icon, title, children, action, className }: { icon?
   return (
     <div className={clsx('flex flex-col items-center gap-2 px-6 py-8 text-center', className)}>
       {icon && <div className="mb-1 flex size-11 items-center justify-center rounded-full bg-field text-muted">{icon}</div>}
-      <div className="text-body font-medium">{title}</div>
-      {children && <div className="max-w-sm text-small text-muted">{children}</div>}
+      <div className="text-body font-medium text-balance">{title}</div>
+      {children && <div className="max-w-sm text-small text-pretty text-muted">{children}</div>}
       {action && <div className="mt-2">{action}</div>}
     </div>
   )
