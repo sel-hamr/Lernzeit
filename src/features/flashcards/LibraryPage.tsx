@@ -1,0 +1,345 @@
+import { useDeferredValue, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router'
+import clsx from 'clsx'
+import { Copy, FolderPlus, Plus, Search, Settings2, Upload, Volume2 } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
+import { Chip, EmptyState, PageHeader } from '@/components/ui/primitives'
+import { Segmented, TextSelect } from '@/components/ui/form'
+import { Dialog } from '@/components/ui/Dialog'
+import { CardImage } from '@/components/CardImage'
+import { CardGerman } from '@/components/GermanWord'
+import { useUI } from '@/app/ui'
+import { INCOMPLETE_TAG } from '@/data/cards'
+import { useAllReviews, useCards, useDecks, useLogsForCard, useNow, useSettings, useStudyQueue, useTopics } from '@/data/hooks'
+import type { Card, CardReview, Deck, Topic } from '@/db/types'
+import { useMediaQuery } from '@/lib/browser'
+import { GENDER_LABEL, germanText, stripCloze, wordKind } from '@/lib/german'
+import { speak } from '@/lib/speech'
+import { DIRECTION_LABEL } from '@/lib/srs'
+import { formatDueLabel, formatNextReview } from '@/lib/time'
+import { DeckDialog } from './DeckDialog'
+import { ImportCsvDialog } from './ImportCsvDialog'
+import { deckChipLabel, groupByCard, reviewScore, summarizeCard, type CardSummary } from './summary'
+
+type SortKey = 'due' | 'newest' | 'az' | 'incomplete'
+const PAGE = 120
+
+function CardTitle({ card, className }: { card: Card; className?: string }) {
+  return <CardGerman card={card} className={className} />
+}
+
+function CardTile({ card, deck, topic, summary, selected, now, onSelect }: { card: Card; deck?: Deck; topic?: Topic; summary: CardSummary; selected: boolean; now: number; onSelect: () => void }) {
+  const due = summary.isNew ? { label: 'New', isDue: false } : formatDueLabel(summary.due, now)
+  const incomplete = card.tags.includes(INCOMPLETE_TAG)
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={clsx(
+        'flex flex-col gap-2.5 rounded-flash border p-1.5 pb-3 text-left transition-colors',
+        selected ? 'border-line-strong bg-sidebar' : 'border-transparent hover:bg-soft',
+      )}
+    >
+      <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt={card.english} className="h-29.5" />
+      <div className="flex min-w-0 flex-col gap-0.5 px-1.5">
+        <CardTitle card={card} className={clsx('font-semibold', card.type === 'word' ? 'text-[15px]' : 'line-clamp-2 text-small')} />
+        <div className="truncate text-small text-muted">
+          {card.type === 'word' ? card.english : wordKind(card)}
+          {card.type === 'word' && ` · ${wordKind(card)}`}
+        </div>
+      </div>
+      <div className="mt-auto flex items-center justify-between gap-2 px-1.5 text-chip">
+        <span className={clsx(due.isDue ? 'font-medium text-red-ink' : summary.isNew ? 'text-sage-ink' : 'text-muted')}>{due.label}</span>
+        {incomplete ? (
+          <Chip tone="neutral" className="px-2 py-0.5">
+            Incomplete
+          </Chip>
+        ) : (
+          <Chip tone="topic" color={topic?.color} className="max-w-22.5 truncate px-2 py-0.5 font-normal">
+            {deckChipLabel(card, deck)}
+          </Chip>
+        )}
+      </div>
+    </button>
+  )
+}
+
+function CardDetail({ card, deck, reviews, now }: { card: Card; deck?: Deck; reviews: CardReview[]; now: number }) {
+  const settings = useSettings()
+  const logs = useLogsForCard(card.id)
+  const navigate = useNavigate()
+  const { openCardEditor } = useUI()
+  const summary = summarizeCard(card, deck, reviews)
+  const allDirections = card.type === 'cloze' ? (['cloze'] as const) : (['imageToDe', 'enToDe', 'deToEn'] as const)
+  const say = () => speak(germanText(card), { voiceURI: settings.voiceURI, rate: settings.speechRate })
+
+  const rows: [string, React.ReactNode][] = []
+  if (card.type === 'word') {
+    rows.push(['English', card.english])
+    if (card.plural) rows.push(['Plural', card.plural])
+    if (card.verbForms) rows.push(['Verb forms', card.verbForms])
+    if (card.exampleDe) rows.push(['Example', card.exampleDe])
+    if (card.exampleEn) rows.push(['Translation', card.exampleEn])
+  } else {
+    rows.push(['English', card.english])
+  }
+  if (card.tags.length) rows.push(['Tags', card.tags.join(', ')])
+  rows.push(['Next review', summary.isNew ? 'New card' : formatNextReview(summary.due, now)])
+  rows.push(['Reviews', reviewScore(logs)])
+
+  const kind = card.type === 'word' ? [card.english, wordKind(card) + (card.gender ? `, ${GENDER_LABEL[card.gender]}` : '')].join(' · ') : wordKind(card)
+
+  return (
+    <div className="flex flex-col gap-4">
+      <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt={card.english} className="h-47.5" />
+      <div className="flex items-start justify-between gap-3 px-2">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h2 className="text-[22px] leading-tight font-semibold tracking-[-0.01em]">
+            <CardTitle card={card} />
+          </h2>
+          <div className="text-small text-muted">{kind}</div>
+        </div>
+        <Button variant="outline" iconOnly aria-label="Play German audio" onClick={say}>
+          <Volume2 size={18} strokeWidth={1.8} />
+        </Button>
+      </div>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 px-2 text-small">
+        {rows.map(([label, value]) => (
+          <div key={label} className="contents">
+            <dt className="text-muted">{label}</dt>
+            <dd className="text-right tabular-nums">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="mx-2 flex flex-col gap-2.5 border-t border-line pt-3.5">
+        <div className="text-small font-medium">Practice directions</div>
+        <div className="flex flex-wrap gap-1.5">
+          {allDirections.map((d) => {
+            const on = summary.directions.includes(d)
+            return (
+              <Chip key={d} tone={on ? 'sage' : 'soft'} className={clsx('py-1', !on && 'font-normal')}>
+                {DIRECTION_LABEL[d]}
+              </Chip>
+            )
+          })}
+        </div>
+      </div>
+      <div className="flex gap-2 px-2">
+        <Button variant="outline" className="flex-1" onClick={() => openCardEditor({ cardId: card.id })}>
+          Edit card
+        </Button>
+        <Button variant="primary" className="flex-1" onClick={() => navigate(`/flashcards/review?card=${card.id}`)}>
+          Review now
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+export function LibraryPage() {
+  const [params, setParams] = useSearchParams()
+  const navigate = useNavigate()
+  const { openCardEditor } = useUI()
+  const cards = useCards()
+  const decks = useDecks()
+  const topics = useTopics(true)
+  const reviews = useAllReviews()
+  const queue = useStudyQueue()
+  const now = useNow(60_000)
+  const wide = useMediaQuery('(min-width: 1100px)')
+  const [sort, setSort] = useState<SortKey>('due')
+  const [filter, setFilter] = useState('')
+  const [shown, setShown] = useState(PAGE)
+  const [deckDialog, setDeckDialog] = useState<{ id: string | null } | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
+  const deferredFilter = useDeferredValue(filter)
+
+  const deckParam = params.get('deck')
+  const deckFilter = decks.some((d) => d.id === deckParam) ? deckParam! : 'all'
+  const deckById = useMemo(() => new Map(decks.map((d) => [d.id, d])), [decks])
+  const reviewsByCard = useMemo(() => groupByCard(reviews ?? []), [reviews])
+
+  const summaries = useMemo(() => {
+    const map = new Map<string, CardSummary>()
+    for (const c of cards ?? []) map.set(c.id, summarizeCard(c, deckById.get(c.deckId), reviewsByCard.get(c.id) ?? []))
+    return map
+  }, [cards, deckById, reviewsByCard])
+
+  const visible = useMemo(() => {
+    const q = deferredFilter.trim().toLowerCase()
+    const list = (cards ?? []).filter(
+      (c) =>
+        (deckFilter === 'all' || c.deckId === deckFilter) &&
+        (!q || `${c.german} ${c.english} ${c.tags.join(' ')} ${c.plural ?? ''}`.toLowerCase().includes(q)),
+    )
+    const due = (c: Card) => {
+      const s = summaries.get(c.id)!
+      // Due cards first, then new ones, then the rest by date.
+      return s.isNew ? (s.due <= now ? now + 1 : s.due) : s.due
+    }
+    switch (sort) {
+      case 'newest':
+        return list.sort((a, b) => b.createdAt - a.createdAt)
+      case 'az':
+        return list.sort((a, b) => stripCloze(a.german).localeCompare(stripCloze(b.german), 'de'))
+      case 'incomplete':
+        return list.sort((a, b) => Number(b.tags.includes(INCOMPLETE_TAG)) - Number(a.tags.includes(INCOMPLETE_TAG)) || b.createdAt - a.createdAt)
+      default:
+        return list.sort((a, b) => due(a) - due(b) || a.createdAt - b.createdAt)
+    }
+  }, [cards, deckFilter, deferredFilter, sort, summaries, now])
+
+  const selectedId = params.get('card')
+  const selected = (cards ?? []).find((c) => c.id === selectedId) ?? (wide ? visible[0] : undefined)
+
+  const select = (id: string | null) => {
+    const next = new URLSearchParams(params)
+    if (id) next.set('card', id)
+    else next.delete('card')
+    setParams(next, { replace: true })
+  }
+  const setDeck = (id: string) => {
+    const next = new URLSearchParams(params)
+    if (id === 'all') next.delete('deck')
+    else next.set('deck', id)
+    next.delete('card')
+    setParams(next, { replace: true })
+    setShown(PAGE)
+  }
+
+  const total = cards?.length ?? 0
+  const dueHere = deckFilter === 'all' ? queue.total : (queue.byDeck.get(deckFilter) ?? 0)
+  const reviewHref = deckFilter === 'all' ? '/flashcards/review' : `/flashcards/review?deck=${deckFilter}`
+  const topicOf = (deck?: Deck) => topics.find((t) => t.id === deck?.topicId)
+
+  return (
+    <>
+      <PageHeader
+        title="Flashcards"
+        subtitle={`${total} ${total === 1 ? 'card' : 'cards'} in ${decks.length} ${decks.length === 1 ? 'deck' : 'decks'} · ${queue.total} due today`}
+        actions={
+          <>
+            <Button variant="ghost" iconOnly aria-label="Import cards" title="Import cards (CSV or card pack)" onClick={() => setImportOpen(true)}>
+              <Upload size={18} strokeWidth={1.7} />
+            </Button>
+            <Button variant="soft" icon={<Plus size={16} strokeWidth={1.8} />} onClick={() => openCardEditor({ deckId: deckFilter === 'all' ? undefined : deckFilter })}>
+              Add card
+            </Button>
+            <Button variant="primary" disabled={!dueHere} onClick={() => navigate(reviewHref)}>
+              {dueHere ? `Review ${dueHere} ${dueHere === 1 ? 'card' : 'cards'}` : 'Nothing due'}
+            </Button>
+          </>
+        }
+      />
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex max-w-full min-w-0 items-center gap-1.5">
+          <Segmented
+            label="Decks"
+            value={deckFilter}
+            onChange={setDeck}
+            options={[
+              { value: 'all', label: 'All', count: total },
+              ...decks.map((d) => ({ value: d.id, label: d.name, count: cards?.filter((c) => c.deckId === d.id).length ?? 0 })),
+            ]}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            iconOnly
+            aria-label={deckFilter === 'all' ? 'New deck' : 'Deck settings'}
+            title={deckFilter === 'all' ? 'New deck' : 'Deck settings'}
+            onClick={() => setDeckDialog({ id: deckFilter === 'all' ? null : deckFilter })}
+          >
+            {deckFilter === 'all' ? <FolderPlus size={17} strokeWidth={1.7} /> : <Settings2 size={17} strokeWidth={1.7} />}
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="flex h-8.5 w-45 items-center gap-2 rounded-img border border-line bg-main px-2.5 text-muted focus-within:border-line-strong">
+            <Search size={14} strokeWidth={1.8} aria-hidden />
+            <input
+              type="search"
+              aria-label="Filter cards"
+              placeholder="Filter"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="w-full min-w-0 bg-transparent text-small text-ink outline-none"
+            />
+          </label>
+          <TextSelect label="Sort cards" value={sort} onChange={(v) => setSort(v as SortKey)}>
+            <option value="due">Due first</option>
+            <option value="newest">Newest</option>
+            <option value="az">A to Z</option>
+            <option value="incomplete">Incomplete first</option>
+          </TextSelect>
+        </div>
+      </div>
+
+      {cards && visible.length === 0 ? (
+        <div className="rounded-section border border-line">
+          <EmptyState
+            icon={<Copy size={20} strokeWidth={1.6} />}
+            title={filter ? 'No cards match' : 'No cards here yet'}
+            action={
+              !filter && (
+                <div className="flex gap-2">
+                  <Button variant="outline" icon={<Upload size={15} strokeWidth={1.8} />} onClick={() => setImportOpen(true)}>
+                    Import cards
+                  </Button>
+                  <Button variant="soft" icon={<Plus size={16} strokeWidth={1.8} />} onClick={() => openCardEditor({ deckId: deckFilter === 'all' ? undefined : deckFilter })}>
+                    Add card
+                  </Button>
+                </div>
+              )
+            }
+          >
+            {filter ? 'Try another word.' : 'Add a word with its picture, or import a list from a spreadsheet.'}
+          </EmptyState>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-start gap-6">
+          <div className="flex min-w-0 flex-[999_1_480px] flex-col gap-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3.5 sm:grid-cols-[repeat(auto-fill,minmax(170px,1fr))]">
+              {visible.slice(0, shown).map((card) => (
+                <CardTile
+                  key={card.id}
+                  card={card}
+                  deck={deckById.get(card.deckId)}
+                  topic={topicOf(deckById.get(card.deckId))}
+                  summary={summaries.get(card.id)!}
+                  selected={selected?.id === card.id}
+                  now={now}
+                  onSelect={() => select(card.id)}
+                />
+              ))}
+            </div>
+            {visible.length > shown && (
+              <Button variant="outline" className="self-center" onClick={() => setShown((n) => n + PAGE)}>
+                Show more ({visible.length - shown})
+              </Button>
+            )}
+          </div>
+          {wide && selected && (
+            <section className="sticky top-8 flex min-w-0 flex-[1_1_280px] flex-col rounded-section border border-line bg-main p-2.5 pb-4 shadow-panel">
+              <CardDetail card={selected} deck={deckById.get(selected.deckId)} reviews={reviewsByCard.get(selected.id) ?? []} now={now} />
+            </section>
+          )}
+        </div>
+      )}
+
+      {!wide && (
+        <Dialog open={!!selectedId && !!selected} onClose={() => select(null)} title="Card">
+          {selected && <CardDetail card={selected} deck={deckById.get(selected.deckId)} reviews={reviewsByCard.get(selected.id) ?? []} now={now} />}
+        </Dialog>
+      )}
+      <DeckDialog
+        open={!!deckDialog}
+        deckId={deckDialog?.id ?? null}
+        onClose={() => setDeckDialog(null)}
+        onCreated={(deck) => setDeck(deck.id)}
+      />
+      <ImportCsvDialog open={importOpen} onClose={() => setImportOpen(false)} defaultDeckId={deckFilter === 'all' ? undefined : deckFilter} />
+    </>
+  )
+}

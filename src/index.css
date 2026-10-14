@@ -1,0 +1,261 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/*
+ * Design tokens from the spec (section 11). Utilities such as `bg-sidebar`,
+ * `text-muted` or `border-line` read these variables, so the dark theme only
+ * has to redefine the variables below.
+ */
+@theme {
+  --color-*: initial;
+  --color-sidebar: #f7f7f4;
+  --color-main: #ffffff;
+  --color-soft: #fafaf8;
+  --color-field: #f4f4f0;
+  --color-track: #f1f1ec;
+  --color-ink: #1c211e;
+  --color-ink-2: #3a3f3b;
+  --color-muted: #70746f;
+  --color-line: #ecece6;
+  --color-line-strong: #dcdcd5;
+  --color-button-dark: #22302a;
+  --color-on-dark: #ffffff;
+  --color-button-soft: #faf5dc;
+  --color-sage: #e3ecda;
+  --color-sage-border: #cfddc2;
+  --color-sage-ink: #3e5a33;
+  --color-sage-bar: #8fb27c;
+  --color-sage-dot: #5f8f4e;
+  --color-blue-soft: #e4e9f2;
+  --color-blue-border: #cbd5e8;
+  --color-blue-ink: #34477a;
+  --color-blue-bar: #9eadd0;
+  --color-blue-dot: #6d7fae;
+  --color-red-soft: #f7e5e0;
+  --color-red-ink: #9a3a2a;
+  --color-clock-red: #c8412f;
+  --color-neutral-chip: #f1f1ec;
+  --color-neutral-ink: #4a4f4b;
+  --color-der: #2d5ea8;
+  --color-die: #b5422e;
+  --color-das: #3e7b3b;
+  --color-heat-0: #f1f1ec;
+  --color-heat-1: #d6e4ca;
+  --color-heat-2: #afc99c;
+  --color-heat-3: #7fa66a;
+  --color-heat-4: #4e7a3e;
+  --color-scrim: rgb(28 33 30 / 0.28);
+
+  --font-sans: 'Geist', 'Helvetica Neue', system-ui, sans-serif;
+  --font-emoji: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', 'Twemoji Mozilla', sans-serif;
+
+  --text-title: 28px;
+  --text-title--line-height: 1.15;
+  --text-title--letter-spacing: -0.02em;
+  --text-stat: 40px;
+  --text-stat--line-height: 1.1;
+  --text-stat--letter-spacing: -0.03em;
+  --text-timer: 72px;
+  --text-timer--line-height: 1;
+  --text-timer--letter-spacing: -0.04em;
+  --text-section: 17px;
+  --text-section--line-height: 1.35;
+  --text-body: 14px;
+  --text-body--line-height: 1.45;
+  --text-small: 13px;
+  --text-small--line-height: 1.4;
+  --text-chip: 12px;
+  --text-chip--line-height: 1.35;
+
+  --radius-section: 16px;
+  --radius-flash: 14px;
+  --radius-row: 12px;
+  --radius-img: 10px;
+
+  --shadow-nav: 0 1px 2px rgb(28 33 30 / 0.05);
+  --shadow-tab: 0 1px 2px rgb(28 33 30 / 0.08);
+  --shadow-panel: 0 8px 24px rgb(28 33 30 / 0.04);
+  --shadow-popup: 0 12px 32px rgb(28 33 30 / 0.08);
+
+  --animate-fade-in: fade-in 160ms ease-out;
+  --animate-rise: rise 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-flip-in: flip-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes flip-in {
+    from { opacity: 0; transform: translateY(4px) scale(0.99); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+/* Topic colour sets. Each topic picks one by key; see src/lib/colors.ts. */
+:root {
+  --t-sage-dot: #5f8f4e; --t-sage-bar: #8fb27c; --t-sage-soft: #e3ecda; --t-sage-border: #cfddc2; --t-sage-ink: #3e5a33;
+  --t-blue-dot: #6d7fae; --t-blue-bar: #9eadd0; --t-blue-soft: #e4e9f2; --t-blue-border: #cbd5e8; --t-blue-ink: #34477a;
+  --t-clay-dot: #c0674f; --t-clay-bar: #dda08e; --t-clay-soft: #f6e6e1; --t-clay-border: #ebcfc6; --t-clay-ink: #8a3f2c;
+  --t-sand-dot: #c49a3a; --t-sand-bar: #dec27e; --t-sand-soft: #faf1d6; --t-sand-border: #eedfaf; --t-sand-ink: #7a5c17;
+  --t-rose-dot: #b0607e; --t-rose-bar: #d59ab1; --t-rose-soft: #f4e4ea; --t-rose-border: #e8cad6; --t-rose-ink: #7e3a55;
+  --t-teal-dot: #4f8c88; --t-teal-bar: #8dbdb8; --t-teal-soft: #dfeeec; --t-teal-border: #c2deda; --t-teal-ink: #2f5e5a;
+  --t-lilac-dot: #8a72b0; --t-lilac-bar: #b9a8d3; --t-lilac-soft: #ece7f4; --t-lilac-border: #d9cfea; --t-lilac-ink: #55437a;
+  --t-stone-dot: #8a8579; --t-stone-bar: #bdb8ac; --t-stone-soft: #efe7de; --t-stone-border: #e0d6c9; --t-stone-ink: #5a5246;
+
+  /* Soft pastel backgrounds behind card images (section 11.6). */
+  --pastel-0: #f6e6e1; --pastel-1: #e3ecda; --pastel-2: #faf1d6; --pastel-3: #e4e9f2;
+  --pastel-4: #efe7de; --pastel-5: #f4e4ea; --pastel-6: #f1f1ec;
+
+  --clock-rim: #e2e2dc;
+  --clock-tick: #9a9d97;
+  --clock-arc: #b9d0aa;
+  --clock-arc-break: #e8d18f;
+
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-sidebar: #141816;
+  --color-main: #1a1f1c;
+  --color-soft: #171b19;
+  --color-field: #232925;
+  --color-track: #262c28;
+  --color-ink: #e6e9e4;
+  --color-ink-2: #c2c7c0;
+  --color-muted: #8f958d;
+  --color-line: #2a302c;
+  --color-line-strong: #3a423d;
+  --color-button-dark: #dfe9d5;
+  --color-on-dark: #18201b;
+  --color-button-soft: #39351f;
+  --color-sage: #25321f;
+  --color-sage-border: #34462b;
+  --color-sage-ink: #b4d2a1;
+  --color-sage-bar: #6f9c5d;
+  --color-sage-dot: #82b36d;
+  --color-blue-soft: #222939;
+  --color-blue-border: #323d55;
+  --color-blue-ink: #b6c3e6;
+  --color-blue-bar: #7b8cba;
+  --color-blue-dot: #91a3d4;
+  --color-red-soft: #3b2420;
+  --color-red-ink: #eb9c8b;
+  --color-clock-red: #dc5a42;
+  --color-neutral-chip: #2a302c;
+  --color-neutral-ink: #c2c7c0;
+  --color-der: #84aaea;
+  --color-die: #ee8a74;
+  --color-das: #85c27f;
+  --color-heat-0: #242a26;
+  --color-heat-1: #2f4128;
+  --color-heat-2: #46623a;
+  --color-heat-3: #638c50;
+  --color-heat-4: #88bb72;
+  --color-scrim: rgb(0 0 0 / 0.5);
+
+  --shadow-nav: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-tab: 0 1px 2px rgb(0 0 0 / 0.35);
+  --shadow-panel: 0 8px 24px rgb(0 0 0 / 0.2);
+  --shadow-popup: 0 12px 32px rgb(0 0 0 / 0.35);
+
+  --t-sage-dot: #82b36d; --t-sage-bar: #6f9c5d; --t-sage-soft: #25321f; --t-sage-border: #34462b; --t-sage-ink: #b4d2a1;
+  --t-blue-dot: #91a3d4; --t-blue-bar: #7b8cba; --t-blue-soft: #222939; --t-blue-border: #323d55; --t-blue-ink: #b6c3e6;
+  --t-clay-dot: #dd8a72; --t-clay-bar: #b9705c; --t-clay-soft: #382420; --t-clay-border: #4f322b; --t-clay-ink: #f0b3a2;
+  --t-sand-dot: #dcb55a; --t-sand-bar: #b4964f; --t-sand-soft: #352e1b; --t-sand-border: #4b4127; --t-sand-ink: #ecd398;
+  --t-rose-dot: #d384a2; --t-rose-bar: #ac6f87; --t-rose-soft: #362229; --t-rose-border: #4c303a; --t-rose-ink: #efb6cb;
+  --t-teal-dot: #6fb1ac; --t-teal-bar: #5b8f8a; --t-teal-soft: #1d302e; --t-teal-border: #2b4542; --t-teal-ink: #a7dad5;
+  --t-lilac-dot: #a991d0; --t-lilac-bar: #8a76aa; --t-lilac-soft: #2a2438; --t-lilac-border: #3d3450; --t-lilac-ink: #d2c4ec;
+  --t-stone-dot: #aaa496; --t-stone-bar: #8a8579; --t-stone-soft: #2c2925; --t-stone-border: #3e3a34; --t-stone-ink: #d9d2c5;
+
+  --pastel-0: #f3e3de; --pastel-1: #dfe8d6; --pastel-2: #f4ebd0; --pastel-3: #dfe4ee;
+  --pastel-4: #eae2d9; --pastel-5: #efdfe5; --pastel-6: #e7e7e1;
+
+  --logo-face: #e3ecda;
+  --logo-hands: #18201b;
+
+  --clock-rim: #333a35;
+  --clock-tick: #6f756e;
+  --clock-arc: #5d8550;
+  --clock-arc-break: #9b8646;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-sidebar text-body text-ink antialiased;
+    font-family: var(--font-sans);
+    min-height: 100dvh;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-sage-dot);
+    outline-offset: 2px;
+  }
+
+  button,
+  [role='button'],
+  label[for],
+  select {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  input,
+  textarea,
+  select {
+    color: inherit;
+  }
+
+  ::placeholder {
+    color: var(--color-muted);
+    opacity: 1;
+  }
+
+  ::selection {
+    background: var(--color-sage);
+    color: var(--color-ink);
+  }
+
+  dialog::backdrop {
+    background: var(--color-scrim);
+    animation: fade-in 160ms ease-out;
+  }
+
+  input[type='search']::-webkit-search-cancel-button {
+    display: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 1ms !important;
+      transition-duration: 1ms !important;
+    }
+  }
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}

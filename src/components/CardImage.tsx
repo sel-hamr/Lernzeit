@@ -1,0 +1,68 @@
+import clsx from 'clsx'
+import { ImageOff } from 'lucide-react'
+import { useImage } from '@/data/hooks'
+import { pastelFor } from '@/lib/colors'
+
+/**
+ * A card's picture on its soft pastel background (10px radius): the uploaded
+ * image if there is one, otherwise its emoji, otherwise a quiet initial of
+ * `label`. Everything is sized to fit the box.
+ */
+export function CardImage({
+  imageId,
+  emoji,
+  label,
+  seed,
+  alt,
+  className,
+  imgClassName,
+  placeholder = true,
+}: {
+  imageId?: string
+  emoji?: string
+  /** Its first letter stands in when there is no picture (usually the German word). */
+  label?: string
+  /** Picks the pastel background; use the card id. */
+  seed: string
+  alt: string
+  className?: string
+  imgClassName?: string
+  placeholder?: boolean
+}) {
+  const { url, fit } = useImage(imageId)
+  return (
+    <div
+      className={clsx('flex items-center justify-center overflow-hidden rounded-img @container-size', className)}
+      style={{ background: pastelFor(seed) }}
+    >
+      {url ? (
+        <img
+          src={url}
+          alt={alt}
+          draggable={false}
+          className={clsx('size-full', fit === 'cover' ? 'object-cover' : 'object-contain p-[6%]', imgClassName)}
+        />
+      ) : emoji && !imageId ? (
+        <span
+          role="img"
+          aria-label={alt}
+          className="font-emoji text-[min(56cqh,48cqw)] leading-none select-none"
+        >
+          {emoji}
+        </span>
+      ) : label && !imageId && placeholder ? (
+        <span aria-hidden className="text-[min(46cqh,40cqw)] leading-none font-semibold text-ink/15 select-none">
+          {initial(label)}
+        </span>
+      ) : (
+        placeholder && !imageId && <ImageOff size={22} strokeWidth={1.5} className="text-ink/25" aria-hidden />
+      )}
+    </div>
+  )
+}
+
+/** First letter of the word, skipping articles: "der Hund" -> "H". */
+function initial(text: string): string {
+  const word = text.replace(/^(der|die|das)\s+/i, '').trim()
+  return [...word][0]?.toUpperCase() ?? ''
+}
