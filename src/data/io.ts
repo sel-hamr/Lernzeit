@@ -1,6 +1,6 @@
 import Papa from 'papaparse'
 import { db, getSettings, KV_KEYS, newId, type LernzeitDB } from '@/db/db'
-import type { Card, CardType, Deck, DeckDirections, Gender, KV, ReviewLog, Session, Settings, StoredImage, Task, Topic, CardReview } from '@/db/types'
+import type { Card, CardType, Deck, DeckDirections, Gender, KV, ReviewLog, Session, Settings, StoredImage, Story, Task, Topic, CardReview } from '@/db/types'
 import { splitArticle } from '@/lib/german'
 import { blobToDataUrl, dataUrlToBlob } from '@/lib/image'
 import { directionsFor, newReview } from '@/lib/srs'
@@ -342,12 +342,14 @@ export interface Backup {
   reviews: CardReview[]
   reviewLogs: ReviewLog[]
   tasks: Task[]
+  /** Missing in backups made before stories were added. */
+  stories?: Story[]
   images: BackupImage[]
   settings: Settings
 }
 
 export async function exportBackup(database: LernzeitDB = db): Promise<Backup> {
-  const [topics, sessions, decks, cards, reviews, reviewLogs, tasks, images, settings] = await Promise.all([
+  const [topics, sessions, decks, cards, reviews, reviewLogs, tasks, stories, images, settings] = await Promise.all([
     database.topics.toArray(),
     database.sessions.toArray(),
     database.decks.toArray(),
@@ -355,6 +357,7 @@ export async function exportBackup(database: LernzeitDB = db): Promise<Backup> {
     database.reviews.toArray(),
     database.reviewLogs.toArray(),
     database.tasks.toArray(),
+    database.stories.toArray(),
     database.images.toArray(),
     getSettings(database),
   ])
@@ -369,6 +372,7 @@ export async function exportBackup(database: LernzeitDB = db): Promise<Backup> {
     reviews,
     reviewLogs,
     tasks,
+    stories,
     images: await Promise.all(
       images.map(async (img) => ({ id: img.id, width: img.width, height: img.height, fit: img.fit, dataUrl: await blobToDataUrl(img.blob) })),
     ),
@@ -382,6 +386,7 @@ function assertBackup(value: unknown): asserts value is Backup {
   if (!b || b.app !== 'lernzeit' || typeof b.version !== 'number') throw new Error('This is not a Lernzeit backup file')
   if (b.version > 1) throw new Error('This backup comes from a newer version of Lernzeit')
   for (const key of arrays) if (!Array.isArray(b[key])) throw new Error(`The backup is missing "${key}"`)
+  if (b.stories !== undefined && !Array.isArray(b.stories)) throw new Error('The backup has broken "stories"')
 }
 
 /** Replaces all data with the backup. */
@@ -393,7 +398,7 @@ export async function restoreBackup(raw: unknown, database: LernzeitDB = db): Pr
   )
   const tables = [
     database.topics, database.sessions, database.decks, database.cards, database.reviews,
-    database.reviewLogs, database.tasks, database.images, database.kv,
+    database.reviewLogs, database.tasks, database.stories, database.images, database.kv,
   ]
   await database.transaction('rw', tables, async () => {
     // The AI connection belongs to this browser, not to the backup.
@@ -406,6 +411,7 @@ export async function restoreBackup(raw: unknown, database: LernzeitDB = db): Pr
     await database.reviews.bulkAdd(backup.reviews)
     await database.reviewLogs.bulkAdd(backup.reviewLogs)
     await database.tasks.bulkAdd(backup.tasks)
+    await database.stories.bulkAdd(backup.stories ?? [])
     await database.images.bulkAdd(images)
     const kv: KV[] = [{ key: KV_KEYS.seeded, value: Date.now() }]
     if (backup.settings) kv.push({ key: KV_KEYS.settings, value: backup.settings })
@@ -417,15 +423,9 @@ export async function restoreBackup(raw: unknown, database: LernzeitDB = db): Pr
 
 /** Wipes everything; the starter data is created again on next launch. */
 export async function resetAllData(database: LernzeitDB = db) {
-  await database.transaction(
-    'rw',
-    [database.topics, database.sessions, database.decks, database.cards, database.reviews, database.reviewLogs, database.tasks, database.images, database.kv],
-    async () => {
-      await Promise.all(
-        [database.topics, database.sessions, database.decks, database.cards, database.reviews, database.reviewLogs, database.tasks, database.images, database.kv].map((t) => t.clear()),
-      )
-    },
-  )
+  await database.transaction('rw', database.tables, async () => {
+    await Promise.all(database.tables.map((t) => t.clear()))
+  })
 }
 
 export function downloadFile(name: string, content: string | Blob, type = 'application/json') {

@@ -6,7 +6,10 @@ import { MINUTE } from '@/lib/time'
 import { completePhase, pauseTimer, resumeTimer, startTimer, stopTimer, getPendingNote, resolvePendingNote, recordReviewTime } from './timer'
 import { gradeReview, quickAddCard, saveCard, undoGrade } from './cards'
 import { createTask, setColumnOrder, toggleTaskDone } from './tasks'
-import { importCsvRows, parseCardPack, parseCardsCsv, prepareCardPack, writeCardPack } from './io'
+import { exportBackup, importCsvRows, parseCardPack, parseCardsCsv, prepareCardPack, restoreBackup, writeCardPack } from './io'
+import { deleteStory, installStarterStories, markStoryOpened, markStoryRead, parseLevel, saveStory } from './stories'
+import { recordReadingTime } from './timer'
+import { alignTranslation, annotate, buildLexicon, coverage, splitParagraphs } from '@/lib/reader'
 
 let database: LernzeitDB
 let counter = 0
@@ -278,5 +281,82 @@ describe('tasks', () => {
     const done = await database.tasks.get(a.id)
     expect(done?.status).toBe('done')
     expect(done?.doneAt).toBeDefined()
+  })
+})
+
+describe('stories', () => {
+  it('seeds the starter stories once, linked to German, and adds back deleted ones', async () => {
+    const stories = await database.stories.orderBy('createdAt').reverse().toArray()
+    expect(stories).toHaveLength(103)
+    // Newest first keeps the list's order: the longer first stories, then the easy ones by theme.
+    expect(stories.slice(0, 4).map((s) => s.title)).toEqual(['Ein Tag in Berlin', 'Im Café', 'Der verlorene Schlüssel', 'Meine Familie'])
+    expect(stories.at(-1)?.id).toBe('story-0103')
+    expect(stories.every((s) => s.topicId === stories[0].topicId && s.readCount === 0)).toBe(true)
+    expect(stories[0].topicId).toBe(await germanId())
+    expect(await installStarterStories(database)).toBe(0)
+    await deleteStory('story-0002', database)
+    expect(await installStarterStories(database)).toBe(1)
+    expect(await database.stories.count()).toBe(103)
+  })
+
+  it('writes every starter story with starter words and a translation that lines up', async () => {
+    const lexicon = buildLexicon(await database.cards.toArray())
+    let words = 0
+    let inDecks = 0
+    for (const story of await database.stories.toArray()) {
+      const result = coverage(splitParagraphs(story.text).map((p) => annotate(p, lexicon)), (piece) => (piece.cardIds.length ? 'new' : 'unknown'))
+      // The rest are names and a few new words to add from the reader.
+      expect(result.new / result.words, story.title).toBeGreaterThan(0.8)
+      expect(alignTranslation(story.text, story.translation), story.title).not.toBeNull()
+      words += result.words
+      inDecks += result.new
+    }
+    expect(inDecks / words).toBeGreaterThan(0.9)
+  })
+
+  it('saves a story tidied up, and keeps its history when edited', async () => {
+    expect(parseLevel(' b1')).toBe('B1')
+    expect(parseLevel('D7')).toBeUndefined()
+    const story = await saveStory({ title: '  Mein Tag ', text: '\nIch lerne Deutsch.\n', translation: '   ', level: 'B1', topicId: '', tags: ['me', ' me ', ''] }, undefined, database)
+    expect(story).toMatchObject({ title: 'Mein Tag', text: 'Ich lerne Deutsch.', translation: undefined, level: 'B1', topicId: undefined, tags: ['me'], readCount: 0 })
+    await markStoryRead(story.id, database)
+    await markStoryOpened(story.id, database)
+    vi.setSystemTime(at(2026, 10, 15, 9, 0))
+    const edited = await saveStory({ title: 'Mein Tag', text: 'Ich lerne viel Deutsch.', level: undefined, tags: [] }, story.id, database)
+    expect(edited).toMatchObject({ id: story.id, createdAt: story.createdAt, readCount: 1, text: 'Ich lerne viel Deutsch.' })
+    expect(edited.updatedAt).toBeGreaterThan(story.updatedAt)
+    expect(edited.openedAt).toBe(at(2026, 10, 14, 14, 2).getTime())
+    await expect(saveStory({ title: ' ', text: 'x', tags: [] }, undefined, database)).rejects.toThrow('title')
+    await expect(saveStory({ title: 'x', text: ' ', tags: [] }, undefined, database)).rejects.toThrow('German text')
+  })
+
+  it('records reading time as one session that grows', async () => {
+    const topicId = await germanId()
+    const start = Date.now()
+    const run = { runId: 'reading:1', topicId, start, title: 'Im Café' }
+    await recordReadingTime({ ...run, end: start + 3 * MINUTE, minutes: 2 }, database)
+    await recordReadingTime({ ...run, end: start + 6 * MINUTE, minutes: 5 }, database)
+    const sessions = await database.sessions.where('runId').equals('reading:1').toArray()
+    expect(sessions).toHaveLength(1)
+    expect(sessions[0]).toMatchObject({ minutes: 5, source: 'reading', note: 'Reading: Im Café', topicId })
+  })
+
+  it('backs up stories and restores backups made before stories', async () => {
+    // Images go through FileReader, which Node does not have.
+    await database.images.clear()
+    const backup = await exportBackup(database)
+    expect(backup.stories).toHaveLength(await database.stories.count())
+
+    const other = new LernzeitDB(`test-${counter++}`)
+    try {
+      await restoreBackup(JSON.parse(JSON.stringify(backup)), other)
+      expect((await other.stories.get('story-0001'))?.title).toBe('Ein Tag in Berlin')
+      // JSON drops undefined fields, like a backup file from before stories.
+      await restoreBackup(JSON.parse(JSON.stringify({ ...backup, stories: undefined })), other)
+      expect(await other.stories.count()).toBe(0)
+      expect(await other.cards.count()).toBe(backup.cards.length)
+    } finally {
+      await other.delete()
+    }
   })
 })
