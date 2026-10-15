@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
-import clsx from 'clsx'
 import { BookOpen, Check, ChevronLeft, Highlighter, Languages, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { EmptyState, PageHeader, Section } from '@/components/ui/primitives'
+import { PillToggle } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
 import { useSettings, useStory } from '@/data/hooks'
 import { markStoryOpened, markStoryRead } from '@/data/stories'
 import type { Story } from '@/db/types'
-import { isTypingTarget, storage, useMediaQuery } from '@/lib/browser'
+import { isTypingTarget, useMediaQuery, useStoredToggle } from '@/lib/browser'
 import { readingMinutes, sentenceAt } from '@/lib/reader'
 import { speak, stopSpeaking } from '@/lib/speech'
 import { count } from '@/lib/text'
@@ -20,39 +20,6 @@ import { StoryEditorDialog } from './StoryEditor'
 import { useReadingTime } from './useReadingTime'
 import { annotateStory, useVocabulary } from './vocabulary'
 import { WordPanel } from './WordPanel'
-
-/** A reader preference kept in this browser. */
-function useStoredToggle(key: string, initial: boolean): [boolean, (value: boolean) => void] {
-  const [value, setValue] = useState(() => {
-    const stored = storage.get(key)
-    return stored === null ? initial : stored === '1'
-  })
-  const set = useCallback(
-    (next: boolean) => {
-      setValue(next)
-      storage.set(key, next ? '1' : '0')
-    },
-    [key],
-  )
-  return [value, set]
-}
-
-function Toggle({ pressed, onChange, icon, children }: { pressed: boolean; onChange: (value: boolean) => void; icon: ReactNode; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={pressed}
-      onClick={() => onChange(!pressed)}
-      className={clsx(
-        'inline-flex h-8.5 items-center gap-1.5 rounded-full border px-3 text-small transition-colors',
-        pressed ? 'border-line-strong bg-field font-medium text-ink' : 'border-line text-muted hover:text-ink',
-      )}
-    >
-      {icon}
-      {children}
-    </button>
-  )
-}
 
 function Reader({ story }: { story: Story }) {
   const vocabulary = useVocabulary()
@@ -144,13 +111,13 @@ function Reader({ story }: { story: Story }) {
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Toggle pressed={highlights} onChange={setHighlights} icon={<Highlighter size={15} strokeWidth={1.8} aria-hidden />}>
+            <PillToggle pressed={highlights} onChange={setHighlights} icon={<Highlighter size={15} strokeWidth={1.8} aria-hidden />}>
               Highlights
-            </Toggle>
+            </PillToggle>
             {story.translation && (
-              <Toggle pressed={showTranslation} onChange={setShowTranslation} icon={<Languages size={15} strokeWidth={1.8} aria-hidden />}>
+              <PillToggle pressed={showTranslation} onChange={setShowTranslation} icon={<Languages size={15} strokeWidth={1.8} aria-hidden />}>
                 Translation
-              </Toggle>
+              </PillToggle>
             )}
           </div>
         </div>

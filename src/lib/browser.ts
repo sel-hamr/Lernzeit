@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react'
+import { useCallback, useState, useSyncExternalStore } from 'react'
 
 export function useMediaQuery(query: string): boolean {
   return useSyncExternalStore(
@@ -41,4 +41,20 @@ export function isTypingTarget(target: EventTarget | null): boolean {
     return !['checkbox', 'radio', 'button', 'submit', 'range'].includes(type)
   }
   return false
+}
+
+/** An on/off preference kept in this browser, e.g. "show the translation". */
+export function useStoredToggle(key: string, initial: boolean): [boolean, (value: boolean) => void] {
+  const [value, setValue] = useState(() => {
+    const stored = storage.get(key)
+    return stored === null ? initial : stored === '1'
+  })
+  const set = useCallback(
+    (next: boolean) => {
+      setValue(next)
+      storage.set(key, next ? '1' : '0')
+    },
+    [key],
+  )
+  return [value, set]
 }

@@ -1,18 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import clsx from 'clsx'
-import { Check, Headphones, Keyboard, Pencil, Undo2, Volume2, X } from 'lucide-react'
+import { Check, Headphones, Keyboard, Pencil, Undo2, Volume2, VolumeX, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { EmptyState, Kbd } from '@/components/ui/primitives'
 import { CardImage } from '@/components/CardImage'
 import { CardGerman } from '@/components/GermanWord'
+import { Diff } from '@/components/Diff'
 import { useUI } from '@/app/ui'
 import { db, newId, updateSettings } from '@/db/db'
 import type { Card, CardReview, Deck, Grade } from '@/db/types'
 import { gradeReview, undoGrade } from '@/data/cards'
 import { useActiveTimer, useAllReviews, useCards, useDecks, useSettings, useStudyQueue } from '@/data/hooks'
 import { recordReviewTime } from '@/data/timer'
-import { checkAnswer, type CheckResult, type DiffPart } from '@/lib/answer'
+import { checkAnswer, type CheckResult } from '@/lib/answer'
 import { isTypingTarget } from '@/lib/browser'
 import { germanText, isPluralOnly, parseCloze, stripCloze, wordKind } from '@/lib/german'
 import { LEARN_AHEAD_MS } from '@/lib/queue'
@@ -64,25 +65,6 @@ function checkTyped(typed: string, expected: { text: string; german: boolean }):
   const rank = { exact: 0, close: 1, wrong: 2 }
   const best = results.sort((a, b) => rank[a.verdict] - rank[b.verdict])[0]
   return { ...best, diff: checkAnswer(typed, expected.text).diff }
-}
-
-function Diff({ parts }: { parts: DiffPart[] }) {
-  return (
-    <span className="font-medium tracking-[0.01em]">
-      {parts.map((p, i) => (
-        <span
-          key={i}
-          className={clsx(
-            p.kind === 'wrong' && 'rounded-[3px] bg-red-soft text-red-ink',
-            p.kind === 'extra' && 'rounded-[3px] bg-red-soft text-red-ink line-through',
-            p.kind === 'missing' && 'rounded-[3px] bg-sage text-sage-ink underline decoration-dotted underline-offset-4',
-          )}
-        >
-          {p.text}
-        </span>
-      ))}
-    </span>
-  )
 }
 
 function ClozeSentence({ text, reveal }: { text: string; reveal: boolean }) {
@@ -485,8 +467,17 @@ export default function ReviewPage() {
   const pct = progress.reviewed + remaining ? progress.reviewed / (progress.reviewed + remaining) : 1
   const suggested: Grade | null = check ? (check.verdict === 'wrong' ? 1 : 3) : null
 
+  // Mute turns off the audio that plays when the answer is shown (the same switch as in Settings).
+  // Listening mode keeps its sound, since hearing the word is the question.
+  const muted = !settings.autoPlayAudio
+  const toggleMute = () => {
+    if (!muted) stopSpeaking()
+    void updateSettings({ autoPlayAudio: muted })
+  }
+
   const toggles = (
     <div className="flex items-center gap-1">
+      {!listening && <ModeToggle on={muted} label="Mute" icon={<VolumeX size={16} strokeWidth={1.7} />} onClick={toggleMute} />}
       <ModeToggle
         on={settings.typingMode}
         label="Typing"

@@ -201,3 +201,21 @@ export function DurationInput({ minutes, onChange, id, max = 24 * 60 }: { minute
     </div>
   )
 }
+
+/** A pill that stays pressed while its option is on (the reader's Translation, practice's English). */
+export function PillToggle({ pressed, onChange, icon, children }: { pressed: boolean; onChange: (value: boolean) => void; icon: ReactNode; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      onClick={() => onChange(!pressed)}
+      className={clsx(
+        'inline-flex h-8.5 items-center gap-1.5 rounded-full border px-3 text-small transition-colors',
+        pressed ? 'border-line-strong bg-field font-medium text-ink' : 'border-line text-muted hover:text-ink',
+      )}
+    >
+      {icon}
+      {children}
+    </button>
+  )
+}
