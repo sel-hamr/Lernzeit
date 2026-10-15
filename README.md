@@ -15,7 +15,7 @@ Everything lives in your browser, works offline, and installs on your phone.
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-22302A?style=flat-square&logo=tailwindcss&logoColor=white)
 ![PWA](https://img.shields.io/badge/PWA-offline_ready-22302A?style=flat-square&logo=pwa&logoColor=white)
 
-[Features](#features) · [Quick start](#quick-start) · [Install on your phone](#install-on-your-phone) · [Shortcuts](#keyboard-shortcuts) · [Project structure](#project-structure)
+[Features](#features) · [Quick start](#quick-start) · [Install on your phone](#install-on-your-phone) · [AI connection](#ai-connection) · [Shortcuts](#keyboard-shortcuts) · [Project structure](#project-structure)
 
 <br />
 
@@ -134,6 +134,12 @@ Then open [http://localhost:5173](http://localhost:5173).
 > [!NOTE]
 > The app uses client-side routing, so the host must serve `index.html` for every unknown path.
 
+## AI connection
+
+An AI app such as Claude Code can add decks, cards, tasks and study time to Lernzeit through the MCP server in [`mcp/`](mcp). It never reads your cards or history, and it cannot edit or delete anything. Your data stays in the browser: the server passes each request to the open Lernzeit tab, which saves it.
+
+Set it up in two steps: add the server to your AI app with a token, then turn on **Settings → AI connection** in the browser you want. [docs/mcp-bridge.md](docs/mcp-bridge.md) has the details.
+
 ## Starter content
 
 On first launch Lernzeit creates two topics, **German** (150 min a day) and **AI** (120 min a day), plus these decks:
@@ -169,7 +175,8 @@ Deleted some starter cards? **Settings → Decks → Starter decks** adds them b
 
 ```
 src/
-├── app/          App shell, routing, global dialogs, background engines (timer, reminders, theme)
+├── app/          App shell, routing, global dialogs, background engines (timer, reminders, theme, AI bridge)
+├── bridge/       The AI connection: messages shared with mcp/, actions, WebSocket client
 ├── components/   Shared UI: buttons, dialogs, form controls, chips, station clock, card image
 ├── data/         Database actions (timer, cards, topics, tasks, import/export) and React hooks
 ├── db/           Dexie schema, types, first-run seed
@@ -177,6 +184,7 @@ src/
 ├── lib/          Pure logic: time maths, goals and streaks, FSRS wrapper, review queue,
 │                 answer checking, German helpers, image resizing, speech, sounds
 └── index.css     Design tokens (colours, type scale, radii) for light and dark themes
+mcp/              MCP server for AI apps (an npm workspace)
 ```
 
 The logic that decides correctness lives in `src/lib` and `src/data` as plain functions, covered by `src/lib/core.test.ts` and `src/data/data.test.ts`. The data tests run against an in-memory IndexedDB.

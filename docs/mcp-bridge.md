@@ -1,8 +1,6 @@
 # MCP bridge
 
-Lets an AI app (Claude Desktop, Claude Code, Cursor) add cards, decks, tasks and study time to Lernzeit.
-
-**Status:** planned, not built yet · October 2026
+Lets an AI app (Claude Code, Claude Desktop, Cursor) add cards, decks, tasks and study time to Lernzeit.
 
 ## Why a bridge
 
@@ -19,9 +17,9 @@ So the server never touches the data. It passes each request to the open Lernzei
 
 | Part | Runs in | Job |
 |---|---|---|
-| AI app | Claude Desktop, Claude Code… | Picks a tool and calls it |
-| MCP server (`mcp/`) | Node, started by the AI app | Offers the tools and waits for Lernzeit on a WebSocket |
-| Bridge (`src/bridge/`) | The Lernzeit tab | Connects to the server, runs each request, sends back the result |
+| AI app | Claude Code, Claude Desktop… | Picks a tool and calls it |
+| MCP server ([mcp/](../mcp)) | Node, started by the AI app | Offers the tools and waits for Lernzeit on a WebSocket |
+| Bridge ([src/bridge/](../src/bridge)) | The Lernzeit tab | Connects to the server, runs each request, sends back the result |
 
 ```mermaid
 sequenceDiagram
@@ -38,7 +36,7 @@ sequenceDiagram
     AI-->>You: Done
 ```
 
-The app opens the connection, not the server. The server listens on `127.0.0.1:47821`. When Lernzeit is open and the switch is on, the app connects. If the server is not running yet, the app tries again every 5 seconds.
+The app opens the connection, not the server. The server listens on `127.0.0.1:47821`. When Lernzeit is open and the switch is on, the app connects. If the server is not running, the app tries again after 5 seconds, then less often, up to every 30 seconds.
 
 ## Choosing a browser
 
@@ -47,18 +45,30 @@ Each browser, and each Chrome profile, has its own data. You choose which ones c
 ### Settings → AI connection
 
 - **Connect to AI:** off by default. Turn it on only where you want it.
-- **Browser name:** for example `Chrome Personal`. The app fills in the browser type (Chrome, Edge, Firefox) and you add the rest. A website cannot read the Chrome profile name, so you type it.
-- **Token:** the same secret as in the server config (see [Safety](#safety)).
+- **Browser name:** for example `Chrome Personal`. Empty means the browser type (Chrome, Edge, Firefox). A website cannot read the Chrome profile name, so you type it.
 - **Port:** `47821` unless you changed it on the server.
-- **Status:** Connected · Waiting for the AI app · Wrong token.
+- **Token:** the same secret as `LERNZEIT_TOKEN` in the server config (see [Safety](#safety)).
 
-These values are saved under their own `kv` key, `bridge`, not inside `Settings`. That way a backup never copies them to another browser.
+The status chip shows one of:
+
+| Status | Meaning |
+|---|---|
+| Connected | The AI can use this browser |
+| Waiting for the AI app | The server is not running; the tab keeps trying |
+| Connected in another tab | Another Lernzeit tab in this browser holds the connection |
+| Wrong token | The token does not match the server's |
+| Name in use | Another browser connected with the same name |
+| Version mismatch | The app and the server speak different protocol versions |
+
+After **Wrong token**, **Name in use** or **Version mismatch** the tab stops trying until you change a setting.
+
+These values are saved under their own `kv` key, `bridge`, not inside `Settings`. A backup never contains them, and restoring a backup keeps them.
 
 ### How the server picks
 
 | Connected | You named a browser? | Result |
 |---|---|---|
-| none | – | Error: "Open Lernzeit and turn on Connect to AI in Settings." |
+| none | – | Error: "Open Lernzeit and turn on Connect to AI." |
 | one | no | Uses it |
 | two or more | no | Error with the list of names; the AI asks you which one |
 | any | yes | Uses that one. An unknown name gives an error with the list |
@@ -67,7 +77,7 @@ Names are matched without caring about upper or lower case.
 
 ### Many tabs in one browser
 
-Only one tab connects. The tabs share a lock (`navigator.locks`), and when that tab closes, another one takes over. So a request never runs twice.
+Only one tab connects. The tabs share a Web Lock (`navigator.locks`), and when that tab closes, another one takes over. So a request never runs twice.
 
 ## Tools
 
@@ -78,25 +88,28 @@ Every tool except `list_browsers` takes an optional `browser` (its name).
 | `list_browsers` | – | name, kind, connected since | – |
 | `list_topics` | – | id, name | `db.topics` |
 | `list_decks` | – | id, name, topic, card count | `db.decks`, `db.cards` |
-| `create_deck` | `name`, `topic`? | the new deck | `createDeck` |
-| `create_cards` | `deck` (name or id), `cards[]` | added, skipped | `writeCardPack` |
+| `create_deck` | `name`, `topic`? | the deck, and whether it was created | `createDeck` |
+| `create_cards` | `deck` (name or id), `cards[]` | added count, skipped words | `writeCardPack` |
 | `create_task` | `title`, `description`?, `priority`?, `status`?, `dueDate`?, `topic`? | the new task | `createTask` |
 | `log_study_time` | `topic`, `minutes`, `start`?, `note`? | the saved session | `logManualSession` |
 
-A `topic` is given by name. The bridge looks up its id and returns `topic_not_found` if there is no match.
+- A `topic` is given by name. The bridge looks up its id and returns `topic_not_found`, with the real names, if there is no match.
+- `create_deck` returns the existing deck when the name is taken.
+- `create_task` defaults to priority `medium` and status `todo`.
+- `log_study_time` takes `start` in local time (`2026-10-15T08:30`). Without it, the session ends now. Time in the future is refused, and a session over midnight is split between the two days.
 
 ### `create_cards`
 
-- Each card has `english` and `german`, plus any of `type` (`word`, `sentence`, `cloze`), `gender`, `plural`, `verbForms`, `exampleDe`, `exampleEn`, `tags`, `emoji` and `imageQuery`. These are the `CardPackCard` fields in [src/data/io.ts](../src/data/io.ts).
-- The bridge builds a `lernzeit-cards` pack and saves it with `writeCardPack`.
+- Each card has `english` and `german`, plus any of `type` (`word`, `sentence`, `cloze`), `gender`, `plural`, `verbForms`, `partOfSpeech`, `exampleDe`, `exampleEn`, `tags`, `emoji` and `imageQuery`.
+- A leading article moves into `gender` ("der Hund" becomes `Hund`, `der`). Text with `{{…}}` becomes a cloze card.
 - Every card gets the tag `ai`, so you can find and check them in the Library.
-- A card whose German text is already in that deck (ignoring case) is skipped and counted in `skipped`.
+- A card whose German text is already in the deck (ignoring case) is skipped and listed in `skipped`.
 - Up to 100 cards per call.
-- No image uploads. `emoji` and `imageQuery` work.
+- No image uploads. `emoji` and `imageQuery` work, and only nouns are practised from the picture.
 
 ## Messages
 
-Server and app send JSON text over the WebSocket.
+Server and app send JSON text over the WebSocket. The types and their parsers live in [src/bridge/protocol.ts](../src/bridge/protocol.ts), and both sides import that file.
 
 **1. Hello.** The app sends this right after it connects:
 
@@ -104,36 +117,34 @@ Server and app send JSON text over the WebSocket.
 { "type": "hello", "version": 1, "token": "…", "name": "Chrome Personal", "kind": "Chrome" }
 ```
 
-**2. Welcome or reject.** The server answers `{ "type": "welcome" }`, or `{ "type": "rejected", "reason": "wrong_token" }` and closes the connection.
+**2. Welcome or reject.** The server answers `{ "type": "welcome" }`, or `{ "type": "rejected", "reason": "wrong_token" }` and closes the connection. The reasons are `wrong_token`, `unsupported_version` and `invalid_hello`.
 
 **3. Request.** The server sends one per tool call:
 
 ```json
-{ "type": "request", "id": "r7", "action": "create_cards", "params": { "deck": "German", "cards": [] } }
+{ "type": "request", "id": "…", "action": "create_cards", "params": { "deck": "German", "cards": [] } }
 ```
 
 **4. Response.** The app answers with the same `id`:
 
 ```json
-{ "type": "response", "id": "r7", "ok": true, "result": { "added": 10, "skipped": 0 } }
+{ "type": "response", "id": "…", "ok": true, "result": { "deck": "German", "added": 10, "skipped": [] } }
 ```
 
 ```json
-{ "type": "response", "id": "r7", "ok": false, "error": { "code": "deck_not_found", "message": "No deck named \"German\"" } }
+{ "type": "response", "id": "…", "ok": false, "error": { "code": "deck_not_found", "message": "No deck named \"German\". Decks: My Words, Food." } }
 ```
 
-If no answer arrives within 15 seconds, the tool fails with "Lernzeit did not answer."
+If no answer arrives within 15 seconds, the tool fails with `timeout`. When a second browser connects with the same name, the server closes the first one with code `4000`.
 
-Error codes: `no_browser`, `pick_browser`, `unknown_browser`, `deck_not_found`, `topic_not_found`, `invalid_input`, `timeout`.
-
-The message types live in `src/bridge/protocol.ts`, and both sides import them.
+Error codes: `no_browser`, `pick_browser`, `unknown_browser`, `disconnected`, `timeout`, `port_in_use`, `deck_not_found`, `topic_not_found`, `invalid_input`, `internal`. Messages are written for the AI to read and act on.
 
 ## Limits
 
 - Lernzeit must be open in a browser with the switch on.
 - The AI app and the browser must be on the same computer.
 - Data lands in one browser only. To get it onto your phone, use backup and restore. Real sync needs a cloud database, which is a separate project.
-- Only one AI app can use the bridge at a time. A second server cannot take the port, and its tools say so.
+- Only one AI app can use the bridge at a time. A second server cannot take the port; its tools return `port_in_use`, and it keeps trying in case the port frees up.
 - When Lernzeit runs from a hosted `https` address, Chrome may ask to allow access to local devices. Click Allow.
 - The AI can list decks and topics, but it cannot read your cards, history or notes.
 
@@ -141,27 +152,26 @@ The message types live in `src/bridge/protocol.ts`, and both sides import them.
 
 - The server listens on `127.0.0.1` only, never on your network.
 - The switch is off in every browser until you turn it on.
-- **Token:** a secret you put in the server config and paste in Settings. The server drops any connection with the wrong token.
-- **Origin check:** any website can try to open a WebSocket to localhost. The server only accepts the addresses in `LERNZEIT_ORIGINS`.
+- **Token:** a secret you put in the server config and paste in Settings. The server drops any connection with the wrong token, comparing in constant time.
+- **Origin check:** any website can try to open a WebSocket to localhost, so the server only accepts pages from the local dev and preview addresses and from `LERNZEIT_ORIGINS`.
 - There are no delete or edit tools. The AI can only add things and list decks and topics.
 - The server writes logs to stderr only, because stdout carries the MCP messages.
 
 ## Setup
 
-1. Make a token:
+1. Install, from the repo root (it also installs `mcp/`, an npm workspace):
+
+   ```sh
+   npm install
+   ```
+
+2. Make a token:
 
    ```sh
    node -e "console.log(crypto.randomUUID())"
    ```
 
-2. Install the server:
-
-   ```sh
-   cd mcp
-   npm install
-   ```
-
-3. Add it to your AI app.
+3. Add the server to your AI app. It needs Node 22.18 or newer, which runs the TypeScript directly.
 
    Claude Code:
 
@@ -183,7 +193,7 @@ The message types live in `src/bridge/protocol.ts`, and both sides import them.
    }
    ```
 
-4. In Lernzeit, open **Settings → AI connection**. Turn the switch on, type a browser name and paste the token.
+4. In Lernzeit, open **Settings → AI connection**. Turn the switch on, type a browser name and paste the token. The status turns to **Connected** once the AI app is running.
 5. Ask the AI: "Which Lernzeit browsers are connected?"
 
 ### Server settings
@@ -191,38 +201,26 @@ The message types live in `src/bridge/protocol.ts`, and both sides import them.
 | Variable | Default | What it does |
 |---|---|---|
 | `LERNZEIT_TOKEN` | none (required) | Shared secret |
-| `LERNZEIT_PORT` | `47821` | WebSocket port |
-| `LERNZEIT_ORIGINS` | `http://localhost:5173,http://localhost:4173` | Addresses allowed to connect. Add your hosted address here |
+| `LERNZEIT_PORT` | `47821` | WebSocket port. Change it in Settings too |
+| `LERNZEIT_ORIGINS` | none | Extra page addresses allowed to connect, comma-separated, e.g. your hosted Lernzeit. `localhost` and `127.0.0.1` on ports 5173 and 4173 are always allowed |
 
-## Build plan
+## Code
 
 ```
 mcp/
-  package.json         @modelcontextprotocol/server (SDK v2), ws, zod 4
-  src/index.ts         starts the MCP server on stdio and the hub
-  src/hub.ts           WebSocket server: hello, token and origin check, pick a browser, send and wait
-  src/tools.ts         tool names, input schemas, descriptions
+  src/index.ts          starts the hub and serves the MCP server on stdio
+  src/hub.ts            WebSocket server: origin and token checks, picking a browser, requests and answers
+  src/tools.ts          the seven tools, their zod inputs and descriptions
+  src/config.ts         reads the environment variables
+  src/*.test.ts         node:test
 src/bridge/
-  protocol.ts          message types, shared with mcp/
-  actions.ts           one function per action, calls src/data
-  actions.test.ts
-  connection.ts        WebSocket client, reconnect, tab lock
-src/app/engines.tsx    adds BridgeEngine next to TimerEngine
-src/features/settings/SettingsPage.tsx   adds the "AI connection" group
+  protocol.ts           message and action types, shared with mcp/
+  actions.ts            one handler per action, built on src/data
+  connection.ts         WebSocket client: hello, retries, the tab lock
+  config.ts             the per-browser settings
+  status.ts             connection status for the Settings page
+  bridge.test.ts        end to end: the real hub, the connection and the actions on a fake database
+src/app/engines.tsx     BridgeEngine keeps the tab connected while the switch is on
 ```
 
-Node 24 runs `.ts` files directly, so `mcp/` needs no build step.
-
-Steps, in order:
-
-- [ ] `protocol.ts`: the message types.
-- [ ] `actions.ts` with tests, using `fake-indexeddb` like [src/data/data.test.ts](../src/data/data.test.ts).
-- [ ] `hub.ts`, `tools.ts`, `index.ts`. Unit-test the browser-picking rules. Try the tools with the MCP Inspector: `npx @modelcontextprotocol/inspector node mcp/src/index.ts`.
-- [ ] `connection.ts` and `BridgeEngine`.
-- [ ] The Settings group.
-- [ ] End to end in Claude Code: add 5 cards, one task and 20 minutes of study, then check each one in the app.
-
-## Open questions
-
-- What is the hosted address of Lernzeit, so it can go in the default `LERNZEIT_ORIGINS`?
-- Should the AI also see due cards and today's progress, through a `get_today` tool?
+`npm test` and `npm run typecheck` at the root cover both the app and `mcp/`. `npm run lint` lints both.
