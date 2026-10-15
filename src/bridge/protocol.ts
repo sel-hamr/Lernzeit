@@ -12,6 +12,9 @@ export const DEFAULT_PORT = 47821
 export const MAX_CARDS_PER_CALL = 100
 export const MAX_STUDY_MINUTES = 12 * 60
 
+/** WebSocket close code sent to a tab when another browser connects with the same name. */
+export const CLOSE_REPLACED = 4000
+
 /* ------------------------------------------------------------- Actions ---- */
 
 export interface TopicSummary {
