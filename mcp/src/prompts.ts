@@ -49,6 +49,28 @@ export function registerGuide(server: McpServer) {
   )
 
   server.registerPrompt(
+    'write_story',
+    {
+      title: 'Write a German story',
+      description: 'Writes a short German story at your level and adds it to Lernzeit to read.',
+      argsSchema: z.object({
+        theme: z.string().describe('What the story is about, e.g. "a day at the market"'),
+        level: z.string().optional().describe('CEFR level, e.g. A1 or B1. Default A2'),
+        words: z.string().optional().describe('About how many words. Default 150'),
+      }),
+    },
+    ({ theme, level = 'A2', words = '150' }) =>
+      withGuide(
+        [
+          `Write a German story of about ${words} words about "${theme}" at level ${level}, following the guide.`,
+          'Give it a German title, three to five paragraphs, and an English translation with the same paragraphs.',
+          'Add it with create_story, then tell me its title and word count.',
+          'Finally, suggest five to eight useful words from the story that I may not know yet, and offer to add them as cards.',
+        ].join('\n'),
+      ),
+  )
+
+  server.registerPrompt(
     'plan_tasks',
     {
       title: 'Plan study tasks',

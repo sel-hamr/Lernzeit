@@ -2,12 +2,15 @@ import type { CallToolResult, McpServer, ToolAnnotations } from '@modelcontextpr
 import * as z from 'zod'
 import {
   MAX_CARDS_PER_CALL,
+  MAX_STORY_CHARS,
+  MAX_STORY_TITLE,
   MAX_STUDY_MINUTES,
   toErrorBody,
   type ActionName,
   type ActionParams,
   type NewCard,
 } from '../../src/bridge/protocol.ts'
+import type { StoryLevel } from '../../src/db/types.ts'
 import type { BrowserHub } from './hub.ts'
 
 const browserField = z
@@ -36,7 +39,9 @@ const newCard = z.object({
   imageQuery: z.string().optional().describe('Search words for finding a photo later.'),
 }) satisfies z.ZodType<NewCard>
 
-const look: ToolAnnotations = { readOnlyHint: true, openWorldHint: false }
+const storyLevel = z.enum(['A1', 'A2', 'B1', 'B2', 'C1', 'C2']) satisfies z.ZodType<StoryLevel>
+
+const look: ToolAnnotations ={ readOnlyHint: true, openWorldHint: false }
 const add: ToolAnnotations = { readOnlyHint: false, destructiveHint: false, openWorldHint: false }
 
 function reply(value: unknown): CallToolResult {
@@ -117,6 +122,30 @@ export function registerTools(server: McpServer, hub: BrowserHub) {
       annotations: { ...add, idempotentHint: true },
     },
     ({ browser, ...params }) => forward(browser, 'create_cards', params),
+  )
+
+  server.registerTool(
+    'create_story',
+    {
+      title: 'Add a story',
+      description:
+        'Adds a short German story to read in Lernzeit. In the reader, words from the user\'s decks are highlighted, and tapping any word shows its card or adds it to a deck. Each story is tagged "ai". If a story with the same text exists, it is returned instead.',
+      inputSchema: z.object({
+        browser: browserField,
+        title: z.string().min(1).max(MAX_STORY_TITLE).describe('German title, e.g. "Im Café".'),
+        text: z.string().min(1).max(MAX_STORY_CHARS).describe('The story in German. Separate paragraphs with an empty line.'),
+        translation: z
+          .string()
+          .max(MAX_STORY_CHARS)
+          .optional()
+          .describe('English translation with the same paragraphs, so each one can show under its German paragraph.'),
+        level: storyLevel.optional().describe('CEFR level of the text.'),
+        tags: z.array(z.string()).optional().describe('Extra tags, e.g. ["food"]. The tag "ai" is always added.'),
+        topic: topicField.optional().describe('Topic that reading time counts toward. Defaults to the topic of the first deck, usually German.'),
+      }),
+      annotations: { ...add, idempotentHint: true },
+    },
+    ({ browser, ...params }) => forward(browser, 'create_story', params),
   )
 
   server.registerTool(

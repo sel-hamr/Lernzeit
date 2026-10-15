@@ -5,12 +5,15 @@
  * outside the Vite build, so it uses relative imports with extensions and only
  * erasable TypeScript.
  */
-import type { CardType, Gender, Priority, TaskStatus } from '../db/types.ts'
+import type { CardType, Gender, Priority, StoryLevel, TaskStatus } from '../db/types.ts'
 
 export const PROTOCOL_VERSION = 1
 export const DEFAULT_PORT = 47821
 export const MAX_CARDS_PER_CALL = 100
 export const MAX_STUDY_MINUTES = 12 * 60
+export const MAX_STORY_TITLE = 120
+/** For the text and for the translation, each. About 3,000 words. */
+export const MAX_STORY_CHARS = 20_000
 
 /** Page origins the server always accepts: the Vite dev server and `vite preview`. */
 export const LOCAL_ORIGINS: readonly string[] = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:4173', 'http://127.0.0.1:4173']
@@ -75,6 +78,34 @@ export interface CreateCardsResult {
   skipped: string[]
 }
 
+export interface CreateStoryParams {
+  title: string
+  /** German text; an empty line starts a new paragraph. */
+  text: string
+  /** English translation with the same paragraphs. */
+  translation?: string
+  level?: StoryLevel
+  tags?: string[]
+  /** Topic name or id that reading time counts toward. */
+  topic?: string
+}
+
+export interface StorySummary {
+  id: string
+  title: string
+  level?: StoryLevel
+  words: number
+  paragraphs: number
+  /** Topic name. */
+  topic?: string
+}
+
+export interface CreateStoryResult {
+  story: StorySummary
+  /** False when a story with the same text already existed. */
+  created: boolean
+}
+
 export interface CreateTaskParams {
   title: string
   description?: string
@@ -120,6 +151,7 @@ export interface ActionMap {
   list_decks: { params: NoParams; result: DeckSummary[] }
   create_deck: { params: CreateDeckParams; result: CreateDeckResult }
   create_cards: { params: CreateCardsParams; result: CreateCardsResult }
+  create_story: { params: CreateStoryParams; result: CreateStoryResult }
   create_task: { params: CreateTaskParams; result: TaskSummary }
   log_study_time: { params: LogStudyTimeParams; result: SessionSummary }
 }

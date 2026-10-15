@@ -2,7 +2,7 @@
   "name": "lernzeit-mcp",
   "private": true,
   "version": "1.0.0",
-  "description": "MCP server that lets AI apps add cards, decks, tasks and study time to Lernzeit",
+  "description": "MCP server that lets AI apps add cards, decks, stories, tasks and study time to Lernzeit",
   "type": "module",
   "engines": {
     "node": ">=22.18"
