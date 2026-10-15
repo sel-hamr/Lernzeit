@@ -47,12 +47,16 @@ Each browser, and each Chrome profile, has its own data. You choose which ones c
 - **Connect to AI:** off by default. Turn it on only where you want it.
 - **Browser name:** for example `Chrome Personal`. Empty means the browser type (Chrome, Edge, Firefox). A website cannot read the Chrome profile name, so you type it.
 - **Port:** `47821` unless you changed it on the server.
-- **Token:** the same secret as `LERNZEIT_TOKEN` in the server config (see [Safety](#safety)).
+- **Token:** the same secret as `LERNZEIT_TOKEN` in the server config (see [Safety](#safety)). **Generate** makes a new one, and the eye button shows it.
+- **Set up your AI app:** **Copy for Claude Desktop** copies the `"lernzeit"` entry for `claude_desktop_config.json`, and **Copy for Claude Code** copies the `claude mcp add` command. Both include the token, and the port and this page's address when they differ from the defaults. The dev server knows the path to `mcp/src/index.ts`; a build shows a placeholder instead.
+
+While the switch is on, the sidebar shows an **AI** row with the status, and on phones a dot on the Settings icon. Both link to this card.
 
 The status chip shows one of:
 
 | Status | Meaning |
 |---|---|
+| Needs a token | The switch is on, but the token is empty |
 | Connected | The AI can use this browser |
 | Waiting for the AI app | The server is not running; the tab keeps trying |
 | Connected in another tab | Another Lernzeit tab in this browser holds the connection |
@@ -165,13 +169,9 @@ Error codes: `no_browser`, `pick_browser`, `unknown_browser`, `disconnected`, `t
    npm install
    ```
 
-2. Make a token:
+2. In Lernzeit, open **Settings → AI connection**, turn the switch on, type a browser name and click **Generate** for a token. (Or make one in a terminal: `node -e "console.log(crypto.randomUUID())"`.)
 
-   ```sh
-   node -e "console.log(crypto.randomUUID())"
-   ```
-
-3. Add the server to your AI app. It needs Node 22.18 or newer, which runs the TypeScript directly.
+3. Add the server to your AI app. **Copy for Claude Desktop** and **Copy for Claude Code** give you the lines below with your token and path filled in. It needs Node 22.18 or newer, which runs the TypeScript directly.
 
    Claude Code:
 
@@ -193,7 +193,7 @@ Error codes: `no_browser`, `pick_browser`, `unknown_browser`, `disconnected`, `t
    }
    ```
 
-4. In Lernzeit, open **Settings → AI connection**. Turn the switch on, type a browser name and paste the token. The status turns to **Connected** once the AI app is running.
+4. Restart the AI app. The status turns to **Connected** once it is running.
 5. Ask the AI: "Which Lernzeit browsers are connected?"
 
 ### Server settings
@@ -218,6 +218,7 @@ src/bridge/
   actions.ts            one handler per action, built on src/data
   connection.ts         WebSocket client: hello, retries, the tab lock
   config.ts             the per-browser settings
+  setup.ts              token and the copy-paste setup for Claude Desktop and Claude Code
   status.ts             connection status for the Settings page
   bridge.test.ts        end to end: the real hub, the connection and the actions on a fake database
 src/app/engines.tsx     BridgeEngine keeps the tab connected while the switch is on
