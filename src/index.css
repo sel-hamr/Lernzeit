@@ -49,6 +49,12 @@
   --color-heat-3: #7fa66a;
   --color-heat-4: #4e7a3e;
   --color-scrim: rgb(28 33 30 / 0.28);
+  /* Story reader: words in a deck but not studied yet, being learned, and known. */
+  --color-word-new: var(--t-sand-soft);
+  --color-word-new-line: var(--t-sand-bar);
+  --color-word-learning: var(--t-sage-soft);
+  --color-word-learning-line: var(--t-sage-bar);
+  --color-word-known-line: var(--t-sage-border);
 
   --font-sans: 'Geist', 'Helvetica Neue', system-ui, sans-serif;
   --font-emoji: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', 'Twemoji Mozilla', sans-serif;

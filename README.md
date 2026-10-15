@@ -40,6 +40,7 @@ Everything lives in your browser, works offline, and installs on your phone.
 | **Today** | Progress per topic with time left, today's sessions, cards due, word of the day, tasks due today |
 | **Focus timer** | Countdown, Pomodoro and free mode. Keeps running through a refresh, a closed tab or a sleeping phone |
 | **Flashcards** | Word, sentence and cloze cards, three practice directions, typing and listening modes |
+| **Stories** | Short German stories read with your decks: words light up by how well you know them, and any word can become a card |
 | **History** | Week calendar, 16-week heatmap, streaks, hours per topic and flashcard stats |
 | **Board** | Backlog, To do, Doing and Done, with drag and drop on desktop and touch |
 | **Settings** | Goals per weekday, decks, voice and speed, themes, reminders, backup and restore |
@@ -74,6 +75,20 @@ Shows progress per topic with the time left, start buttons, today's sessions, ca
 - Add images by uploading, pasting with <kbd>Ctrl</kbd>+<kbd>V</kbd> or dropping a file. They are resized to 600 px wide WebP before saving. A card can use an emoji instead, and the editor links to an image search for the word.
 - The **+** button quick-adds an English and German pair, tagged `incomplete`.
 - Review time can count toward the deck's topic automatically.
+
+</details>
+
+<details>
+<summary><b>Stories</b></summary>
+<br />
+
+- Every word that is in one of your decks is highlighted by how well you know it: <b>yellow</b> for new, <b>green</b> for learning, a thin underline once it is known (next review three weeks or more away). Nouns take their gender colour.
+- Words are found in their forms too: plurals, verb endings, past tenses from the card's verb forms, adjective endings, *im* for *in*, *ihn* for *er*.
+- Tap a word to see its card with the picture, the English and the audio. A word that is not in a deck can be added in one step, with the story's sentence as its example.
+- A bar shows how much of the story you know, are learning, have in a deck but not studied yet, or do not have. Reading is easy from about 95% known.
+- Listen to each paragraph, show the English translation under it, and mark the story as read. Active reading time can count toward the story's topic.
+- **Write with AI** builds a prompt with every word of the deck you pick, marking the ones you know or are learning, at your level and theme. Paste it into Claude Desktop or Claude Code: Claude writes the story and saves it here through the [AI connection](#ai-connection).
+- Write or paste your own stories, or let your AI app add them directly (see [AI connection](#ai-connection)). [docs/stories.md](docs/stories.md) explains how words are matched.
 
 </details>
 
@@ -136,7 +151,7 @@ Then open [http://localhost:5173](http://localhost:5173).
 
 ## AI connection
 
-An AI app such as Claude Code can add decks, cards, tasks and study time to Lernzeit through the MCP server in [`mcp/`](mcp). It never reads your cards or history, and it cannot edit or delete anything. Your data stays in the browser: the server passes each request to the open Lernzeit tab, which saves it.
+An AI app such as Claude Code can add decks, cards, stories, tasks and study time to Lernzeit through the MCP server in [`mcp/`](mcp). It never reads your cards or history, and it cannot edit or delete anything. Your data stays in the browser: the server passes each request to the open Lernzeit tab, which saves it.
 
 Set it up in two steps: add the server to your AI app with a token, then turn on **Settings → AI connection** in the browser you want. [docs/mcp-bridge.md](docs/mcp-bridge.md) has the details.
 
@@ -154,6 +169,8 @@ On first launch Lernzeit creates two topics, **German** (150 min a day) and **AI
 Each card uses its emoji as its picture. Nine words use the illustrations from the design mockups instead, and cards without a picture show their first letter. Image → German is only asked for nouns, because an emoji for a verb or adjective could mean several words. A **Show a hint** link helps when a picture is ambiguous.
 
 Deleted some starter cards? **Settings → Decks → Starter decks** adds them back without creating duplicates.
+
+There are also 103 short stories written with these words: three longer ones to start with, then 100 easy A1 stories about home and family, food, town and travel, and work, school and free time. **Stories → Starter stories** adds back any that are missing.
 
 ### Bring your own cards
 
@@ -180,14 +197,14 @@ src/
 ├── components/   Shared UI: buttons, dialogs, form controls, chips, station clock, card image
 ├── data/         Database actions (timer, cards, topics, tasks, import/export) and React hooks
 ├── db/           Dexie schema, types, first-run seed
-├── features/     One folder per page: today, timer, flashcards, history, board, settings
+├── features/     One folder per page: today, timer, flashcards, stories, history, board, settings
 ├── lib/          Pure logic: time maths, goals and streaks, FSRS wrapper, review queue,
-│                 answer checking, German helpers, image resizing, speech, sounds
+│                 answer checking, German helpers, story word matching, image resizing, speech, sounds
 └── index.css     Design tokens (colours, type scale, radii) for light and dark themes
 mcp/              MCP server for AI apps (an npm workspace)
 ```
 
-The logic that decides correctness lives in `src/lib` and `src/data` as plain functions, covered by `src/lib/core.test.ts` and `src/data/data.test.ts`. The data tests run against an in-memory IndexedDB.
+The logic that decides correctness lives in `src/lib` and `src/data` as plain functions, covered by `src/lib/core.test.ts`, `src/lib/reader.test.ts` and `src/data/data.test.ts`. The data tests run against an in-memory IndexedDB.
 
 ## Tech stack
 
