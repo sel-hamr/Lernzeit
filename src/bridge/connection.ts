@@ -1,7 +1,8 @@
 import { CLOSE_REPLACED, parseServerMessage, PROTOCOL_VERSION, type AppMessage, type RequestMessage, type ResponseMessage } from './protocol'
 import type { BridgeStatus } from './status'
 
-const RETRY_MS = 5_000
+/** Retries start fast and slow down, since each failed attempt logs an error in the console. */
+const RETRY_MS = { first: 5_000, max: 30_000 }
 /** Only the tab holding this lock connects, so a request never runs in two tabs. */
 const LOCK_NAME = 'lernzeit-bridge'
 
@@ -35,6 +36,7 @@ function stayConnected({ port, token, name, kind, onRequest, onStatus }: BridgeO
     if (signal.aborted) return resolve()
     let socket: WebSocket | undefined
     let retry: ReturnType<typeof setTimeout> | undefined
+    let retryMs = RETRY_MS.first
     // After a refusal, retrying cannot help until the settings change, which starts a new connection.
     let refused = false
 
@@ -51,6 +53,7 @@ function stayConnected({ port, token, name, kind, onRequest, onStatus }: BridgeO
       ws.addEventListener('message', (event) => {
         const message = typeof event.data === 'string' ? parseServerMessage(event.data) : undefined
         if (message?.type === 'welcome') {
+          retryMs = RETRY_MS.first
           onStatus('connected')
         } else if (message?.type === 'rejected') {
           refused = true
@@ -67,7 +70,8 @@ function stayConnected({ port, token, name, kind, onRequest, onStatus }: BridgeO
         }
         if (refused) return
         onStatus('waiting')
-        retry = setTimeout(open, RETRY_MS)
+        retry = setTimeout(open, retryMs)
+        retryMs = Math.min(retryMs * 2, RETRY_MS.max)
       })
     }
 
