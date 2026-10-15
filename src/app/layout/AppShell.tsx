@@ -247,8 +247,8 @@ function BottomNav() {
 function QuickAddButton() {
   const { openQuickAdd } = useUI()
   const { pathname } = useLocation()
-  // The review screen has its own controls along the bottom.
-  if (pathname.startsWith('/flashcards/review')) return null
+  // The review and practice screens have their own controls along the bottom.
+  if (pathname.startsWith('/flashcards/review') || pathname.startsWith('/questions/practice')) return null
   return (
     <button
       type="button"

@@ -41,6 +41,7 @@ Everything lives in your browser, works offline, and installs on your phone.
 | **Focus timer** | Countdown, Pomodoro and free mode. Keeps running through a refresh, a closed tab or a sleeping phone |
 | **Flashcards** | Word, sentence and cloze cards, three practice directions, typing and listening modes |
 | **Stories** | Short German stories read with your decks: words light up by how well you know them, and any word can become a card |
+| **Questions** | German questions like in the speaking part of an exam: write your own answer once, then answer from memory and compare |
 | **History** | Week calendar, 16-week heatmap, streaks, hours per topic and flashcard stats |
 | **Board** | Backlog, To do, Doing and Done, with drag and drop on desktop and touch |
 | **Settings** | Goals per weekday, decks, voice and speed, themes, reminders, backup and restore |
@@ -72,6 +73,7 @@ Shows progress per topic with the time left, start buttons, today's sessions, ca
 - Three practice directions per deck: Image → German, English → German and German → English. Scheduling uses FSRS ([ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs)). Daily limits are set per deck and count new words, not directions.
 - **Typing mode** accepts small slips (`ue` for `ü`, a missing umlaut, lowercase, a missing article), then shows the exact spelling and highlights the wrong letters.
 - **Listening mode** plays the German and you type what you hear. Speed buttons (0.6×, 0.8×, 1×, 1.2×) sit next to the speaker.
+- **Mute** stops the German from playing by itself when the answer is shown. The speaker button still plays it when you tap it. It is the same switch as *Play audio when the answer is shown* in Settings.
 - Add images by uploading, pasting with <kbd>Ctrl</kbd>+<kbd>V</kbd> or dropping a file. They are resized to 600 px wide WebP before saving. A card can use an emoji instead, and the editor links to an image search for the word.
 - The **+** button quick-adds an English and German pair, tagged `incomplete`.
 - Review time can count toward the deck's topic automatically.
@@ -89,6 +91,20 @@ Shows progress per topic with the time left, start buttons, today's sessions, ca
 - Listen to each paragraph, show the English translation under it, and mark the story as read. Active reading time can count toward the story's topic.
 - **Write with AI** builds a prompt with every word of the deck you pick, marking the ones you know or are learning, at your level and theme. Paste it into Claude Desktop or Claude Code: Claude writes the story and saves it here through the [AI connection](#ai-connection).
 - Write or paste your own stories, or let your AI app add them directly (see [AI connection](#ai-connection)). [docs/stories.md](docs/stories.md) explains how words are matched.
+
+</details>
+
+<details>
+<summary><b>Questions</b></summary>
+<br />
+
+- Each question has the German, the English, **your answer** (your real answer, about your life) and a **suggested answer** that shows the sentence pattern. Questions are grouped in sets, such as *Sich vorstellen* or *Arbeit und Schule*.
+- Each set is a card: **Show questions** opens its list, **Add** adds one, **Practise** starts a round.
+- Practise a set or all of them. **English** shows the translation of the question, and **Words** offers words you can use, which you tap to add. Type your answer, then tap **Answer** to see it next to your answer and the suggested one. Small slips are marked letter by letter, the way typing mode marks them. **Show answer** shows the answers without typing first, and **Skip** moves on.
+- Every answer you type is kept. Under the answers, **Old responses** lists the last three with their date, and **Show all** the rest, so you can see how your answer improved.
+- There is no grading. Questions you have not answered come first, then the ones you answered longest ago.
+- Listen to the question and the answers. Active practice time can count toward German.
+- Your AI app can add questions with a suggested answer, never your own (see [AI connection](#ai-connection)). [docs/questions.md](docs/questions.md) has the details.
 
 </details>
 
@@ -114,7 +130,7 @@ Four columns: Backlog, To do, Doing and Done. Drag cards between columns and reo
 <summary><b>Settings</b></summary>
 <br />
 
-Topics and per-weekday goals, decks, Pomodoro lengths, end sound, German voice and speed, typing and listening modes, light/dark/system theme, goal reminders, JSON backup and restore, "protect storage" and reset.
+Topics and per-weekday goals, decks, Pomodoro lengths, end sound, German voice and speed, typing and listening modes, which study time counts automatically (reviews, reading, question practice), light/dark/system theme, goal reminders, JSON backup and restore, "protect storage" and reset.
 
 </details>
 
@@ -151,7 +167,7 @@ Then open [http://localhost:5173](http://localhost:5173).
 
 ## AI connection
 
-An AI app such as Claude Code can add decks, cards, stories, tasks and study time to Lernzeit through the MCP server in [`mcp/`](mcp). It never reads your cards or history, and it cannot edit or delete anything. Your data stays in the browser: the server passes each request to the open Lernzeit tab, which saves it.
+An AI app such as Claude Code can add decks, cards, stories, practice questions, tasks and study time to Lernzeit through the MCP server in [`mcp/`](mcp). It never reads your cards or history, and it cannot edit or delete anything. Your data stays in the browser: the server passes each request to the open Lernzeit tab, which saves it.
 
 Set it up in two steps: add the server to your AI app with a token, then turn on **Settings → AI connection** in the browser you want. [docs/mcp-bridge.md](docs/mcp-bridge.md) has the details.
 
@@ -172,6 +188,8 @@ Deleted some starter cards? **Settings → Decks → Starter decks** adds them b
 
 There are also 103 short stories written with these words: three longer ones to start with, then 100 easy A1 stories about home and family, food, town and travel, and work, school and free time. **Stories → Starter stories** adds back any that are missing.
 
+And 45 questions in six sets, each with its English, a suggested answer and useful words: *Sich vorstellen*, *Familie und Freunde*, *Freizeit*, *Arbeit und Schule*, *Wohnen und Alltag* and *Beim Arzt und auf dem Amt*. **Questions → Starter questions** adds back any that are missing.
+
 ### Bring your own cards
 
 - **CSV** with the columns `english, german, gender, plural, example_de, example_en, tags, deck`, plus an optional `emoji` column.
@@ -187,6 +205,9 @@ There are also 103 short stories written with these words: three longer ones to 
 | <kbd>1</kbd> – <kbd>4</kbd> | Review | Rate Again, Hard, Good or Easy |
 | <kbd>Z</kbd> | Review | Undo the last rating |
 | <kbd>Esc</kbd> | Review | Back to the library |
+| <kbd>Enter</kbd> | Questions practice | Answer, then go to the next question |
+| <kbd>Shift</kbd> + <kbd>Enter</kbd> | Questions practice | New line in your answer |
+| <kbd>Esc</kbd> | Questions practice | Back to the questions |
 
 ## Project structure
 
@@ -197,14 +218,14 @@ src/
 ├── components/   Shared UI: buttons, dialogs, form controls, chips, station clock, card image
 ├── data/         Database actions (timer, cards, topics, tasks, import/export) and React hooks
 ├── db/           Dexie schema, types, first-run seed
-├── features/     One folder per page: today, timer, flashcards, stories, history, board, settings
+├── features/     One folder per page: today, timer, flashcards, stories, questions, history, board, settings
 ├── lib/          Pure logic: time maths, goals and streaks, FSRS wrapper, review queue,
-│                 answer checking, German helpers, story word matching, image resizing, speech, sounds
+│                 answer checking, German helpers, story word matching, question practice order, image resizing, speech, sounds
 └── index.css     Design tokens (colours, type scale, radii) for light and dark themes
 mcp/              MCP server for AI apps (an npm workspace)
 ```
 
-The logic that decides correctness lives in `src/lib` and `src/data` as plain functions, covered by `src/lib/core.test.ts`, `src/lib/reader.test.ts` and `src/data/data.test.ts`. The data tests run against an in-memory IndexedDB.
+The logic that decides correctness lives in `src/lib` and `src/data` as plain functions, covered by `src/lib/core.test.ts`, `src/lib/reader.test.ts`, `src/lib/questions.test.ts` and `src/data/data.test.ts`. The data tests run against an in-memory IndexedDB.
 
 ## Tech stack
 
