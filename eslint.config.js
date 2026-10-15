@@ -16,4 +16,9 @@ export default tseslint.config(
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
+  {
+    // The MCP server runs in Node, not the browser.
+    files: ['mcp/**/*.ts'],
+    languageOptions: { globals: globals.node },
+  },
 )

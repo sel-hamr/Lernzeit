@@ -4,7 +4,7 @@ import { FeedbackProvider } from '@/components/ui/feedback'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { UIProvider } from './ui'
 import { AppShell } from './layout/AppShell'
-import { ReminderEngine, SessionNoteDialog, ThemeSync, TimerEngine } from './engines'
+import { BridgeEngine, ReminderEngine, SessionNoteDialog, ThemeSync, TimerEngine } from './engines'
 import { useSeed } from './useSeed'
 import { TodayPage } from '@/features/today/TodayPage'
 import { TimerPage } from '@/features/timer/TimerPage'
@@ -50,6 +50,7 @@ export function App() {
             <>
               <TimerEngine />
               <ReminderEngine />
+              <BridgeEngine />
               <SessionNoteDialog />
             </>
           )}

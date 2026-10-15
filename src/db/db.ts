@@ -63,6 +63,7 @@ export const KV_KEYS = {
   pendingNote: 'pendingNote',
   seeded: 'seeded',
   remindersFired: 'remindersFired',
+  bridge: 'bridge',
 } as const
 
 export async function getSettings(database: LernzeitDB = db): Promise<Settings> {
