@@ -135,9 +135,10 @@ export function BridgeEngine() {
 
   useEffect(() => {
     if (!enabled || !token.trim()) {
-      setBridgeStatus('off')
+      setBridgeStatus(enabled ? 'no_token' : 'off')
       return
     }
+    setBridgeStatus('waiting')
     let disconnect: (() => void) | undefined
     // The settings fields save on every key, so reconnect only once typing pauses.
     const start = setTimeout(() => {
