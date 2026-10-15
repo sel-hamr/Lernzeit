@@ -2,6 +2,10 @@ import type { CallToolResult, McpServer, ToolAnnotations } from '@modelcontextpr
 import * as z from 'zod'
 import {
   MAX_CARDS_PER_CALL,
+  MAX_HINT_WORDS,
+  MAX_QUESTION_CHARS,
+  MAX_QUESTIONS_PER_CALL,
+  MAX_SET_NAME,
   MAX_STORY_CHARS,
   MAX_STORY_TITLE,
   MAX_STUDY_MINUTES,
@@ -9,6 +13,7 @@ import {
   type ActionName,
   type ActionParams,
   type NewCard,
+  type NewQuestion,
 } from '../../src/bridge/protocol.ts'
 import type { StoryLevel } from '../../src/db/types.ts'
 import type { BrowserHub } from './hub.ts'
@@ -40,6 +45,23 @@ const newCard = z.object({
 }) satisfies z.ZodType<NewCard>
 
 const storyLevel = z.enum(['A1', 'A2', 'B1', 'B2', 'C1', 'C2']) satisfies z.ZodType<StoryLevel>
+
+const newQuestion = z.object({
+  question: z.string().min(1).max(MAX_QUESTION_CHARS).describe('German question, e.g. "Was ist dein Beruf?"'),
+  english: z.string().max(MAX_QUESTION_CHARS).optional().describe('Its English translation.'),
+  suggested: z
+    .string()
+    .max(MAX_QUESTION_CHARS)
+    .optional()
+    .describe('A short model answer in German that shows the sentence pattern, e.g. "Ich bin Lehrerin."'),
+  words: z
+    .array(z.string().min(1).max(60))
+    .max(MAX_HINT_WORDS)
+    .optional()
+    .describe('A few useful words for answering, shown as hints, e.g. ["Lehrer", "Ärztin", "arbeiten als"]. Nouns with their article.'),
+  level: storyLevel.optional().describe('CEFR level of the question.'),
+  tags: z.array(z.string()).optional().describe('Extra tags. The tag "ai" is always added.'),
+}) satisfies z.ZodType<NewQuestion>
 
 const look: ToolAnnotations ={ readOnlyHint: true, openWorldHint: false }
 const add: ToolAnnotations = { readOnlyHint: false, destructiveHint: false, openWorldHint: false }
@@ -146,6 +168,21 @@ export function registerTools(server: McpServer, hub: BrowserHub) {
       annotations: { ...add, idempotentHint: true },
     },
     ({ browser, ...params }) => forward(browser, 'create_story', params),
+  )
+
+  server.registerTool(
+    'create_questions',
+    {
+      title: 'Add practice questions',
+      description: `Adds up to ${MAX_QUESTIONS_PER_CALL} German questions to a set. The user practises them by typing an answer and comparing it with their own answer and the suggested one. Each question is tagged "ai". A question already in the set is skipped and listed under "skipped".`,
+      inputSchema: z.object({
+        browser: browserField,
+        set: z.string().min(1).max(MAX_SET_NAME).describe('Set name, e.g. "Arbeit". A new name starts a new set.'),
+        questions: z.array(newQuestion).min(1).max(MAX_QUESTIONS_PER_CALL),
+      }),
+      annotations: { ...add, idempotentHint: true },
+    },
+    ({ browser, ...params }) => forward(browser, 'create_questions', params),
   )
 
   server.registerTool(

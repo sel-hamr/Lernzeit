@@ -1,11 +1,11 @@
-import { DEFAULT_PORT, MAX_CARDS_PER_CALL, MAX_STORY_CHARS, MAX_STUDY_MINUTES } from '../../src/bridge/protocol.ts'
+import { DEFAULT_PORT, MAX_CARDS_PER_CALL, MAX_QUESTIONS_PER_CALL, MAX_STORY_CHARS, MAX_STUDY_MINUTES } from '../../src/bridge/protocol.ts'
 
 export const GUIDE_URI = 'lernzeit://guide'
 
 /** Everything an AI needs to use the Lernzeit tools well, served as a resource and inside the prompts. */
 export const GUIDE = `# Lernzeit guide
 
-Lernzeit is the user's study app for daily German and AI learning: flashcards with spaced repetition (FSRS), short German stories to read with the decks, a daily goal in minutes per topic, a focus timer and a task board.
+Lernzeit is the user's study app for daily German and AI learning: flashcards with spaced repetition (FSRS), short German stories to read with the decks, German questions to practise answering, a daily goal in minutes per topic, a focus timer and a task board.
 
 ## How the tools reach the app
 
@@ -13,7 +13,7 @@ The data lives in the user's browser, not on a server. Each tool call goes to a 
 
 - No browser connected: ask the user to open Lernzeit and turn on Connect to AI.
 - Several browsers connected (each browser and profile has its own data): ask which one, then pass its name as \`browser\`. \`list_browsers\` shows the names.
-- The tools only add things. Nothing can be edited or deleted, and cards, stories, history and notes cannot be read.
+- The tools only add things. Nothing can be edited or deleted, and cards, stories, questions, answers, history and notes cannot be read.
 
 ## Tools
 
@@ -25,6 +25,7 @@ The data lives in the user's browser, not on a server. Each tool call goes to a 
 | \`create_deck\` | Make a deck, optionally linked to a topic. Returns the existing deck if the name is taken |
 | \`create_cards\` | Add up to ${MAX_CARDS_PER_CALL} cards to a deck |
 | \`create_story\` | Add a German story to read, with its English translation |
+| \`create_questions\` | Add up to ${MAX_QUESTIONS_PER_CALL} German questions to practise answering, in a set |
 | \`create_task\` | Add a task to the board |
 | \`log_study_time\` | Save study time done away from the timer |
 
@@ -58,6 +59,16 @@ In the reader, every word that is in one of the user's decks is highlighted by h
 - Set \`level\` (A1 to C2) and a German \`title\`. Text and translation can each have up to ${MAX_STORY_CHARS} characters.
 - Every story gets the tag "ai". Sending the same text again returns the saved story instead of a copy.
 - Afterwards, offer to add the story's most useful new words as cards with \`create_cards\`, using the sentence from the story as \`exampleDe\`.
+
+## Writing questions
+
+The user practises a question by typing an answer from memory, then comparing it with **their own answer** (which they write in the app, about their real life) and the **suggested answer** you give. There is no grading.
+
+- Ask what people really get asked: the speaking part of the Goethe or telc exam, small talk, the doctor, the Bürgeramt. Use du for personal questions and Sie for formal situations.
+- \`suggested\` is one short, correct sentence at the user's level that shows the pattern ("Ich arbeite als Lehrerin."). It is an example, not the user's answer; they write their own.
+- \`words\` are three to six words someone may need for their own answer, shown as hints: other choices than the suggested answer uses ("Lehrer", "die Ärztin", "arbeiten als"). Nouns with their article.
+- Group questions by theme in a \`set\`, e.g. "Arbeit". A set name that already exists, in any case, adds to that set. Set \`level\` and give \`english\`.
+- Every question gets the tag "ai". A question already in the set is skipped and listed under "skipped"; that is not an error.
 
 ## Tasks and study time
 

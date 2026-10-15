@@ -2,6 +2,7 @@ import { db, type LernzeitDB } from '@/db/db'
 import type { Deck, Story, Topic } from '@/db/types'
 import { createDeck } from '@/data/cards'
 import { writeCardPack, type CardPack, type CardPackCard } from '@/data/io'
+import { saveQuestion } from '@/data/questions'
 import { defaultStoryTopicId, parseLevel, saveStory } from '@/data/stories'
 import { createTask } from '@/data/tasks'
 import { logManualSession } from '@/data/topics'
@@ -11,6 +12,10 @@ import { dateKey, MINUTE } from '@/lib/time'
 import {
   BridgeError,
   MAX_CARDS_PER_CALL,
+  MAX_HINT_WORDS,
+  MAX_QUESTION_CHARS,
+  MAX_QUESTIONS_PER_CALL,
+  MAX_SET_NAME,
   MAX_STORY_CHARS,
   MAX_STORY_TITLE,
   MAX_STUDY_MINUTES,
@@ -22,6 +27,8 @@ import {
   type CreateCardsResult,
   type CreateDeckParams,
   type CreateDeckResult,
+  type CreateQuestionsParams,
+  type CreateQuestionsResult,
   type CreateStoryParams,
   type CreateStoryResult,
   type CreateTaskParams,
@@ -36,7 +43,7 @@ import {
   type TopicSummary,
 } from './protocol'
 
-/** Every card and story added through the bridge gets this tag, so it is easy to find and check. */
+/** Every card, story and question added through the bridge gets this tag, so it is easy to find and check. */
 export const AI_TAG = 'ai'
 
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -185,6 +192,46 @@ async function createStory({ title, text, translation, level, tags, topic }: Cre
   })
 }
 
+async function createQuestions({ set, questions }: CreateQuestionsParams, database: LernzeitDB): Promise<CreateQuestionsResult> {
+  const name = set.trim().replace(/\s+/g, ' ')
+  if (!name) throw invalid('A set needs a name.')
+  if (name.length > MAX_SET_NAME) throw invalid(`Keep the set name under ${MAX_SET_NAME} characters.`)
+  if (!questions.length) throw invalid('Send at least one question.')
+  if (questions.length > MAX_QUESTIONS_PER_CALL) throw invalid(`Send at most ${MAX_QUESTIONS_PER_CALL} questions per call.`)
+  questions.forEach((q, i) => {
+    if (!q.question.trim()) throw invalid(`Question ${i + 1} needs German text.`)
+    if ([q.question, q.english, q.suggested].some((text) => (text?.length ?? 0) > MAX_QUESTION_CHARS)) {
+      throw invalid(`Keep question ${i + 1} and its answers under ${MAX_QUESTION_CHARS} characters each.`)
+    }
+    if (q.level !== undefined && !parseLevel(q.level)) throw invalid(`Question ${i + 1}: level must be one of A1, A2, B1, B2, C1 or C2.`)
+    if ((q.words?.length ?? 0) > MAX_HINT_WORDS) throw invalid(`Give question ${i + 1} at most ${MAX_HINT_WORDS} words.`)
+  })
+
+  return database.transaction('rw', database.questions, async () => {
+    // Sets are matched without case, so "arbeit" adds to "Arbeit".
+    const existing = (await database.questions.toArray()).filter((q) => key(q.set) === key(name))
+    const setName = existing[0]?.set ?? name
+    const seen = new Set(existing.map((q) => key(q.question)))
+    const skipped: string[] = []
+    let added = 0
+    for (const q of questions) {
+      if (seen.has(key(q.question))) {
+        skipped.push(q.question.trim())
+        continue
+      }
+      seen.add(key(q.question))
+      // The user's own answer is theirs to write, so the AI never sets it.
+      await saveQuestion(
+        { set: setName, question: q.question, english: q.english, suggested: q.suggested, words: q.words, level: q.level, tags: [...(q.tags ?? []), AI_TAG] },
+        undefined,
+        database,
+      )
+      added++
+    }
+    return { set: setName, added, skipped }
+  })
+}
+
 async function createTaskAction(
   { title, description, priority = 'medium', status = 'todo', dueDate, topic }: CreateTaskParams,
   database: LernzeitDB,
@@ -218,6 +265,7 @@ const handlers: { [A in ActionName]: Handler<A> } = {
   create_deck: createDeckAction,
   create_cards: createCards,
   create_story: createStory,
+  create_questions: createQuestions,
   create_task: createTaskAction,
   log_study_time: logStudyTime,
 }

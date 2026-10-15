@@ -42,11 +42,11 @@ describe('MCP server', () => {
     if (child.exitCode === null) await once(child, 'exit')
   })
 
-  it('offers the eight tools', async () => {
+  it('offers the nine tools', async () => {
     const { tools } = await rpc('tools/list')
     assert.deepEqual(
       tools.map((t: Named) => t.name),
-      ['list_browsers', 'list_topics', 'list_decks', 'create_deck', 'create_cards', 'create_story', 'create_task', 'log_study_time'],
+      ['list_browsers', 'list_topics', 'list_decks', 'create_deck', 'create_cards', 'create_story', 'create_questions', 'create_task', 'log_study_time'],
     )
   })
 
@@ -61,12 +61,14 @@ describe('MCP server', () => {
     const { prompts } = await rpc('prompts/list')
     assert.deepEqual(
       prompts.map((p: Named) => p.name),
-      ['make_cards', 'write_story', 'plan_tasks', 'help'],
+      ['make_cards', 'write_story', 'make_questions', 'plan_tasks', 'help'],
     )
     const { messages } = await rpc('prompts/get', { name: 'make_cards', arguments: { theme: 'kitchen', count: '5' } })
     assert.equal(messages[0].content.resource.uri, 'lernzeit://guide')
     assert.match(messages[1].content.text, /Make 5 German flashcards about "kitchen" at level A2/)
     const story = await rpc('prompts/get', { name: 'write_story', arguments: { theme: 'the market', level: 'A1' } })
     assert.match(story.messages[1].content.text, /about 150 words about "the market" at level A1/)
+    const questions = await rpc('prompts/get', { name: 'make_questions', arguments: { theme: 'work' } })
+    assert.match(questions.messages[1].content.text, /Make 10 German questions about "work" at level A2/)
   })
 })
