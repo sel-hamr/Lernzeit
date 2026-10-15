@@ -122,6 +122,42 @@ describe('create_cards', () => {
   })
 })
 
+describe('create_story', () => {
+  const text = 'Ich koche heute Nudeln.\n\nDas Essen ist lecker.'
+
+  it('adds a story with the ai tag, read toward German by default', async () => {
+    const { story, created } = await runAction(
+      'create_story',
+      { title: ' In der Küche ', text, translation: 'I am cooking pasta today.\n\nThe food is tasty.', level: 'A1', tags: ['food'] },
+      database,
+    )
+    expect(created).toBe(true)
+    expect(story).toMatchObject({ title: 'In der Küche', level: 'A1', words: 8, paragraphs: 2, topic: 'German' })
+    expect(await database.stories.get(story.id)).toMatchObject({ tags: ['food', AI_TAG], readCount: 0 })
+  })
+
+  it('returns the existing story when the same text comes again', async () => {
+    const before = await database.stories.count()
+    const first = await runAction('create_story', { title: 'Küche', text }, database)
+    const again = await runAction('create_story', { title: 'Another title', text: `  ${text}\n` }, database)
+    expect(again).toEqual({ story: first.story, created: false })
+    expect(await database.stories.count()).toBe(before + 1)
+  })
+
+  it('links a topic by name and rejects bad input without saving', async () => {
+    const { story } = await runAction('create_story', { title: 'KI', text: 'Die KI lernt.', topic: 'ai' }, database)
+    expect(story.topic).toBe('AI')
+    const before = await database.stories.count()
+    await expectCode(runAction('create_story', { title: ' ', text }, database), 'invalid_input')
+    await expectCode(runAction('create_story', { title: 'x', text: '  ' }, database), 'invalid_input')
+    // An AI app could send any string; the type only covers well-formed calls.
+    await expectCode(runAction('create_story', { title: 'x', text, level: 'D1' as 'A1' }, database), 'invalid_input')
+    await expectCode(runAction('create_story', { title: 'x', text: 'a'.repeat(20_001) }, database), 'invalid_input')
+    await expectCode(runAction('create_story', { title: 'x', text, topic: 'Spanish' }, database), 'topic_not_found')
+    expect(await database.stories.count()).toBe(before)
+  })
+})
+
 describe('create_task', () => {
   it('adds a task to To do with medium priority by default', async () => {
     const task = await runAction('create_task', { title: 'Review food words', topic: 'German', dueDate: '2026-10-20' }, database)

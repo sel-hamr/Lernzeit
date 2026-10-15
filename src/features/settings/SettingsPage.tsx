@@ -320,6 +320,12 @@ export default function SettingsPage() {
               checked={settings.countReviewTime}
               onChange={(v) => void updateSettings({ countReviewTime: v })}
             />
+            <Switch
+              label="Count story reading as study time"
+              description="Active reading time goes to the story's topic, unless a timer is already running for it."
+              checked={settings.countReadingTime}
+              onChange={(v) => void updateSettings({ countReadingTime: v })}
+            />
           </Group>
 
           <AiConnectionGroup />

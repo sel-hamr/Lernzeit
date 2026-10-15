@@ -19,7 +19,7 @@ export interface Topic {
   createdAt: number
 }
 
-export type SessionSource = 'timer' | 'flashcards'
+export type SessionSource = 'timer' | 'flashcards' | 'reading'
 
 export interface Session {
   id: string
@@ -143,6 +143,27 @@ export interface ReviewLog {
   day: string
 }
 
+export type StoryLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'
+
+export interface Story {
+  id: string
+  title: string
+  /** German text. A blank line starts a new paragraph. */
+  text: string
+  /** English translation. Shown paragraph by paragraph when it has as many paragraphs as the text. */
+  translation?: string
+  level?: StoryLevel
+  /** Reading time counts toward this topic. */
+  topicId?: string
+  tags: string[]
+  createdAt: number
+  updatedAt: number
+  /** Last time the story was opened in the reader. */
+  openedAt?: number
+  /** How many times it was marked as read. */
+  readCount: number
+}
+
 export type ImageFit = 'contain' | 'cover'
 
 export interface StoredImage {
@@ -182,6 +203,7 @@ export interface Settings {
   speechRate: number
   autoPlayAudio: boolean
   countReviewTime: boolean
+  countReadingTime: boolean
   typingMode: boolean
   listeningMode: boolean
   theme: ThemePref

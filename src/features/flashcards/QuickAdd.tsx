@@ -7,6 +7,9 @@ import { createDeck, quickAddCard } from '@/data/cards'
 import { useDecks, useTopics } from '@/data/hooks'
 import { storage } from '@/lib/browser'
 
+/** The deck the last quick-added card went to; the story reader adds words there too. */
+export const LAST_DECK_KEY = 'lernzeit-quick-deck'
+
 /** The "+" button's form: English and German, saved in seconds, tagged incomplete. */
 export function QuickAddDialog({ open, onClose, onMore }: { open: boolean; onClose: () => void; onMore: (deckId?: string) => void }) {
   return (
@@ -22,7 +25,7 @@ function QuickAddForm({ onClose, onMore }: { onClose: () => void; onMore: (deckI
   const { toast } = useFeedback()
   const [english, setEnglish] = useState('')
   const [german, setGerman] = useState('')
-  const [deckId, setDeckId] = useState<string>(() => storage.get('lernzeit-quick-deck') ?? '')
+  const [deckId, setDeckId] = useState<string>(() => storage.get(LAST_DECK_KEY) ?? '')
   const [count, setCount] = useState(0)
   const englishRef = useRef<HTMLInputElement>(null)
   const effectiveDeck = decks.some((d) => d.id === deckId) ? deckId : (decks[0]?.id ?? '')
@@ -33,7 +36,7 @@ function QuickAddForm({ onClose, onMore }: { onClose: () => void; onMore: (deckI
     let target = effectiveDeck
     if (!target) target = (await createDeck({ name: 'German A1', topicId: topics[0]?.id })).id
     await quickAddCard({ english, german, deckId: target })
-    storage.set('lernzeit-quick-deck', target)
+    storage.set(LAST_DECK_KEY, target)
     setEnglish('')
     setGerman('')
     setCount((c) => c + 1)

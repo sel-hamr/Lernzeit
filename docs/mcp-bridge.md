@@ -1,6 +1,6 @@
 # MCP bridge
 
-Lets an AI app (Claude Code, Claude Desktop, Cursor) add cards, decks, tasks and study time to Lernzeit.
+Lets an AI app (Claude Code, Claude Desktop, Cursor) add cards, decks, stories, tasks and study time to Lernzeit.
 
 ## Why a bridge
 
@@ -94,6 +94,7 @@ Every tool except `list_browsers` takes an optional `browser` (its name).
 | `list_decks` | – | id, name, topic, card count | `db.decks`, `db.cards` |
 | `create_deck` | `name`, `topic`? | the deck, and whether it was created | `createDeck` |
 | `create_cards` | `deck` (name or id), `cards[]` | added count, skipped words | `writeCardPack` |
+| `create_story` | `title`, `text`, `translation`?, `level`?, `tags`?, `topic`? | the story, and whether it was created | `saveStory` |
 | `create_task` | `title`, `description`?, `priority`?, `status`?, `dueDate`?, `topic`? | the new task | `createTask` |
 | `log_study_time` | `topic`, `minutes`, `start`?, `note`? | the saved session | `logManualSession` |
 
@@ -111,6 +112,13 @@ Every tool except `list_browsers` takes an optional `browser` (its name).
 - Up to 100 cards per call.
 - No image uploads. `emoji` and `imageQuery` work, and only nouns are practised from the picture.
 
+### `create_story`
+
+- `text` is German, with an empty line between paragraphs. A `translation` with the same number of paragraphs shows under each one; otherwise it shows after the story.
+- `level` is A1, A2, B1, B2, C1 or C2. Reading time counts toward `topic`, or toward the topic of the first deck that has one (German, out of the box).
+- Every story gets the tag `ai`. A story whose text is already saved is returned with `created: false` instead of being added twice.
+- Text and translation can each have up to 20,000 characters, and the title up to 120.
+
 ## Guide and prompts
 
 Besides the tools, the server offers:
@@ -121,6 +129,7 @@ Besides the tools, the server offers:
 | Prompt | Asks for | Arguments |
 |---|---|---|
 | `make_cards` | A set of German cards on a theme | `theme`, `count`? (10), `level`? (A2), `deck`? |
+| `write_story` | A short German story with its translation, then useful words to add as cards | `theme`, `level`? (A2), `words`? (150) |
 | `plan_tasks` | A goal broken into board tasks, shown before they are added | `goal`, `until`?, `topic`? |
 | `help` | What the AI can do, plus a connection check | – |
 

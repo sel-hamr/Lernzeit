@@ -9,6 +9,7 @@ import type {
   Session,
   Settings,
   StoredImage,
+  Story,
   Task,
   Topic,
 } from './types'
@@ -22,6 +23,7 @@ export class LernzeitDB extends Dexie {
   reviewLogs!: EntityTable<ReviewLog, 'id'>
   images!: EntityTable<StoredImage, 'id'>
   tasks!: EntityTable<Task, 'id'>
+  stories!: EntityTable<Story, 'id'>
   kv!: EntityTable<KV, 'key'>
 
   constructor(name = 'lernzeit') {
@@ -37,6 +39,10 @@ export class LernzeitDB extends Dexie {
       tasks: 'id, status, order, dueDate, topicId',
       kv: 'key',
     })
+    // Later versions list only the tables they add or change.
+    this.version(2).stores({
+      stories: 'id, createdAt',
+    })
   }
 }
 
@@ -50,6 +56,7 @@ export const DEFAULT_SETTINGS: Settings = {
   speechRate: 0.95,
   autoPlayAudio: true,
   countReviewTime: true,
+  countReadingTime: true,
   typingMode: false,
   listeningMode: false,
   theme: 'light',

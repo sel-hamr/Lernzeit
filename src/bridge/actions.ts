@@ -1,14 +1,18 @@
 import { db, type LernzeitDB } from '@/db/db'
-import type { Deck, Topic } from '@/db/types'
+import type { Deck, Story, Topic } from '@/db/types'
 import { createDeck } from '@/data/cards'
 import { writeCardPack, type CardPack, type CardPackCard } from '@/data/io'
+import { defaultStoryTopicId, parseLevel, saveStory } from '@/data/stories'
 import { createTask } from '@/data/tasks'
 import { logManualSession } from '@/data/topics'
 import { splitArticle } from '@/lib/german'
+import { countWords, splitParagraphs } from '@/lib/reader'
 import { dateKey, MINUTE } from '@/lib/time'
 import {
   BridgeError,
   MAX_CARDS_PER_CALL,
+  MAX_STORY_CHARS,
+  MAX_STORY_TITLE,
   MAX_STUDY_MINUTES,
   toErrorBody,
   type ActionName,
@@ -18,6 +22,8 @@ import {
   type CreateCardsResult,
   type CreateDeckParams,
   type CreateDeckResult,
+  type CreateStoryParams,
+  type CreateStoryResult,
   type CreateTaskParams,
   type DeckSummary,
   type LogStudyTimeParams,
@@ -25,11 +31,12 @@ import {
   type RequestMessage,
   type ResponseMessage,
   type SessionSummary,
+  type StorySummary,
   type TaskSummary,
   type TopicSummary,
 } from './protocol'
 
-/** Every card added through the bridge gets this tag, so it is easy to find and check. */
+/** Every card and story added through the bridge gets this tag, so it is easy to find and check. */
 export const AI_TAG = 'ai'
 
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -69,6 +76,18 @@ async function describeDeck(database: LernzeitDB, deck: Deck): Promise<DeckSumma
     database.cards.where('deckId').equals(deck.id).count(),
   ])
   return { id: deck.id, name: deck.name, topic: topic?.name, cards }
+}
+
+async function describeStory(database: LernzeitDB, story: Story): Promise<StorySummary> {
+  const topic = story.topicId ? await database.topics.get(story.topicId) : undefined
+  return {
+    id: story.id,
+    title: story.title,
+    level: story.level,
+    words: countWords(story.text),
+    paragraphs: splitParagraphs(story.text).length,
+    topic: topic?.name,
+  }
 }
 
 /** Fills in the card type and moves a leading article into `gender`, as the CSV import does. */
@@ -137,6 +156,35 @@ async function createCards({ deck: deckRef, cards }: CreateCardsParams, database
   })
 }
 
+async function createStory({ title, text, translation, level, tags, topic }: CreateStoryParams, database: LernzeitDB): Promise<CreateStoryResult> {
+  if (!title.trim()) throw invalid('A story needs a title.')
+  if (title.length > MAX_STORY_TITLE) throw invalid(`Keep the title under ${MAX_STORY_TITLE} characters.`)
+  if (!text.trim()) throw invalid('A story needs German text.')
+  if (text.length > MAX_STORY_CHARS || (translation?.length ?? 0) > MAX_STORY_CHARS) {
+    throw invalid(`Keep the text and the translation under ${MAX_STORY_CHARS} characters each.`)
+  }
+  if (level !== undefined && !parseLevel(level)) throw invalid('level must be one of A1, A2, B1, B2, C1 or C2.')
+
+  return database.transaction('rw', [database.stories, database.topics, database.decks], async () => {
+    const linked = topic ? await findTopic(database, topic) : undefined
+    const existing = (await database.stories.toArray()).find((s) => s.text === text.trim())
+    if (existing) return { story: await describeStory(database, existing), created: false }
+    const story = await saveStory(
+      {
+        title,
+        text,
+        translation,
+        level,
+        topicId: linked?.id ?? (await defaultStoryTopicId(database)),
+        tags: [...(tags ?? []), AI_TAG],
+      },
+      undefined,
+      database,
+    )
+    return { story: await describeStory(database, story), created: true }
+  })
+}
+
 async function createTaskAction(
   { title, description, priority = 'medium', status = 'todo', dueDate, topic }: CreateTaskParams,
   database: LernzeitDB,
@@ -169,6 +217,7 @@ const handlers: { [A in ActionName]: Handler<A> } = {
   list_decks: listDecks,
   create_deck: createDeckAction,
   create_cards: createCards,
+  create_story: createStory,
   create_task: createTaskAction,
   log_study_time: logStudyTime,
 }

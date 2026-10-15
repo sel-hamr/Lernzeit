@@ -214,7 +214,7 @@ function BottomNav() {
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-sidebar/95 pb-safe backdrop-blur-md md:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 grid auto-cols-fr grid-flow-col border-t border-line bg-sidebar/95 pb-safe backdrop-blur-md md:hidden"
     >
       {NAV.map(({ to, short, icon: Icon }) => (
         <NavLink

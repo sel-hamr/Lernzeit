@@ -1,5 +1,5 @@
 import { db, getActiveTimer, getSettings, KV_KEYS, newId, type LernzeitDB } from '@/db/db'
-import type { ActiveTimer, Session, TimerMode } from '@/db/types'
+import type { ActiveTimer, Session, SessionSource, TimerMode } from '@/db/types'
 import { splitAtMidnight } from '@/lib/sessions'
 import { isPhaseComplete, pause, phaseEndAt, resume, studiedMinutes } from '@/lib/timer'
 
@@ -209,27 +209,42 @@ export async function resolvePendingNote(note: string | null, database: Lernzeit
 }
 
 /** Review time saved as a "flashcards" session; repeated calls update the same rows. */
-export async function recordReviewTime(
-  opts: { runId: string; topicId: string; start: number; end: number; minutes: number },
-  database: LernzeitDB = db,
-) {
-  const parts = splitAtMidnight(opts.start, opts.end, opts.minutes)
+interface MeasuredRun {
+  runId: string
+  topicId: string
+  start: number
+  end: number
+  minutes: number
+}
+
+/** Saves study time measured outside the timer. Saving the same run again replaces it. */
+async function saveMeasuredRun(run: MeasuredRun & { source: SessionSource; note: string }, database: LernzeitDB) {
+  const parts = splitAtMidnight(run.start, run.end, run.minutes)
   await database.transaction('rw', database.sessions, async () => {
-    await database.sessions.where('runId').equals(opts.runId).delete()
+    await database.sessions.where('runId').equals(run.runId).delete()
     await database.sessions.bulkPut(
       parts.map((p, i) => ({
-        id: `${opts.runId}:${i}`,
-        topicId: opts.topicId,
+        id: `${run.runId}:${i}`,
+        topicId: run.topicId,
         start: p.start,
         end: p.end,
         minutes: p.minutes,
         date: p.date,
-        note: 'Flashcard review',
-        source: 'flashcards' as const,
-        runId: opts.runId,
+        note: run.note,
+        source: run.source,
+        runId: run.runId,
       })),
     )
   })
+}
+
+export async function recordReviewTime(run: MeasuredRun, database: LernzeitDB = db) {
+  await saveMeasuredRun({ ...run, source: 'flashcards', note: 'Flashcard review' }, database)
+}
+
+export async function recordReadingTime(run: MeasuredRun & { title: string }, database: LernzeitDB = db) {
+  const { title, ...rest } = run
+  await saveMeasuredRun({ ...rest, source: 'reading', note: `Reading: ${title}` }, database)
 }
 
 export async function deleteSession(id: string, database: LernzeitDB = db) {
