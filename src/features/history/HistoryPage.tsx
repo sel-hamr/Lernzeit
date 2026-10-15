@@ -11,6 +11,7 @@ import { State } from '@/lib/srs'
 import { TOPIC_COLOR_NAME } from '@/lib/colors'
 import { addDays, formatDayMonth, formatHM, formatHours, startOfWeek, weekDays } from '@/lib/time'
 import { WeekCalendar } from './WeekCalendar'
+import { useWeekZoom } from './weekZoom'
 import { Heatmap } from './Heatmap'
 import { HoursChart, ReviewsChart } from './Charts'
 import { DayDialog } from './DayDialog'
@@ -94,6 +95,7 @@ export default function HistoryPage() {
   const thisMonday = startOfWeek(today)
   const [monday, setMonday] = useState(thisMonday)
   const [openDay, setOpenDay] = useState<string | null>(null)
+  const [zoom, setZoom] = useWeekZoom()
   const [heatTopic, setHeatTopic] = useState('all')
   const topics = useTopics()
   const allTopics = useTopics(true)
@@ -131,7 +133,7 @@ export default function HistoryPage() {
 
       <Section className="flex flex-col gap-4 px-6 pt-5 pb-6">
         <div className="flex flex-wrap justify-between gap-3">
-          <SectionHeader title="Your week" subtitle={topics.length ? `${colorNames}. A check means every goal was hit. Tap a day for details.` : 'Add topics in Settings to set goals.'} />
+          <SectionHeader title="Your week" subtitle={topics.length ? `${colorNames}. A check means every goal was hit. Tap a day for details, Ctrl + scroll to zoom.` : 'Add topics in Settings to set goals.'} />
           <div className="flex flex-wrap items-center gap-3.5 text-chip text-muted">
             {topics.map((t) => (
               <span key={t.id} className="flex items-center gap-1.5">
@@ -141,7 +143,7 @@ export default function HistoryPage() {
             ))}
           </div>
         </div>
-        <WeekCalendar days={days} results={summary.days} sessions={weekSessions} topics={allTopics} today={today} onOpenDay={setOpenDay} />
+        <WeekCalendar days={days} results={summary.days} sessions={weekSessions} topics={allTopics} today={today} zoom={zoom} onZoom={setZoom} onOpenDay={setOpenDay} />
       </Section>
 
       <div className="flex flex-wrap items-start gap-5">
