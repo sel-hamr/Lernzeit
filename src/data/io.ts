@@ -396,6 +396,8 @@ export async function restoreBackup(raw: unknown, database: LernzeitDB = db): Pr
     database.reviewLogs, database.tasks, database.images, database.kv,
   ]
   await database.transaction('rw', tables, async () => {
+    // The AI connection belongs to this browser, not to the backup.
+    const bridge = await database.kv.get(KV_KEYS.bridge)
     await Promise.all(tables.map((t) => t.clear()))
     await database.topics.bulkAdd(backup.topics)
     await database.sessions.bulkAdd(backup.sessions)
@@ -407,6 +409,7 @@ export async function restoreBackup(raw: unknown, database: LernzeitDB = db): Pr
     await database.images.bulkAdd(images)
     const kv: KV[] = [{ key: KV_KEYS.seeded, value: Date.now() }]
     if (backup.settings) kv.push({ key: KV_KEYS.settings, value: backup.settings })
+    if (bridge) kv.push(bridge)
     await database.kv.bulkAdd(kv)
   })
   return { cards: backup.cards.length, sessions: backup.sessions.length, tasks: backup.tasks.length }
