@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Bell, ChevronRight, Download, HardDriveDownload, Plus, Smartphone, Sparkles, Trash2, Upload, Volume2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { Chip, Dot, PageHeader, Section } from '@/components/ui/primitives'
+import { Chip, Dot, PageHeader, Section, type ChipTone } from '@/components/ui/primitives'
 import { Field, Input, Segmented, Select, Switch } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
+import { browserKind, updateBridgeConfig, useBridgeConfig } from '@/bridge/config'
+import { DEFAULT_PORT } from '@/bridge/protocol'
+import { useBridgeStatus, type BridgeStatus } from '@/bridge/status'
 import { db, updateSettings } from '@/db/db'
 import { installStarterPack } from '@/db/seed'
 import type { EndSound, ThemePref } from '@/db/types'
@@ -208,6 +211,58 @@ function StorageInfo() {
   )
 }
 
+const BRIDGE_STATUS: Record<BridgeStatus, { label: string; tone: ChipTone; hint?: string }> = {
+  off: { label: 'Off', tone: 'soft' },
+  standby: { label: 'Connected in another tab', tone: 'soft' },
+  waiting: { label: 'Waiting for the AI app', tone: 'neutral', hint: 'Start an AI app that has the Lernzeit MCP server, such as Claude Code.' },
+  connected: { label: 'Connected', tone: 'sage' },
+  wrong_token: { label: 'Wrong token', tone: 'red', hint: 'The token must match LERNZEIT_TOKEN in the server config.' },
+  outdated: { label: 'Version mismatch', tone: 'red', hint: 'Update Lernzeit and the MCP server to the same version.' },
+  name_taken: { label: 'Name in use', tone: 'red', hint: 'Another browser connected with this name. Pick a different one.' },
+}
+
+function AiConnectionGroup() {
+  const config = useBridgeConfig()
+  const status = BRIDGE_STATUS[useBridgeStatus()]
+  const active = config.enabled && !!config.token
+  return (
+    <Group
+      title="AI connection"
+      description="Lets an AI app such as Claude add cards, decks, tasks and study time to this browser. It needs the Lernzeit MCP server running on this computer."
+      action={active && <Chip tone={status.tone}>{status.label}</Chip>}
+    >
+      <Switch
+        label="Connect to AI"
+        description="Each browser and profile keeps its own data. Turn this on only where AI-made cards should go."
+        checked={config.enabled}
+        onChange={(v) => void updateBridgeConfig({ enabled: v })}
+      />
+      {config.enabled && (
+        <div className="grid gap-4 sm:grid-cols-[1fr_8rem]">
+          <Field label="Browser name" htmlFor="bridge-name" hint="Say it to the AI when several browsers are connected.">
+            <Input id="bridge-name" value={config.name} placeholder={browserKind()} maxLength={40} autoComplete="off" onChange={(e) => void updateBridgeConfig({ name: e.target.value })} />
+          </Field>
+          <Field label="Port" htmlFor="bridge-port">
+            <Input
+              id="bridge-port"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={65535}
+              value={config.port}
+              onChange={(e) => void updateBridgeConfig({ port: Math.min(65535, Math.max(1, Math.trunc(Number(e.target.value)) || DEFAULT_PORT)) })}
+            />
+          </Field>
+          <Field label="Token" htmlFor="bridge-token" className="sm:col-span-2" hint={config.token ? undefined : 'Paste LERNZEIT_TOKEN from your MCP server config.'}>
+            <Input id="bridge-token" type="password" value={config.token} autoComplete="off" spellCheck={false} onChange={(e) => void updateBridgeConfig({ token: e.target.value.trim() })} />
+          </Field>
+        </div>
+      )}
+      {active && status.hint && <p className="text-small text-muted">{status.hint}</p>}
+    </Group>
+  )
+}
+
 export default function SettingsPage() {
   const settings = useSettings()
   const voices = useVoices()
@@ -317,6 +372,8 @@ export default function SettingsPage() {
               onChange={(v) => void updateSettings({ countReviewTime: v })}
             />
           </Group>
+
+          <AiConnectionGroup />
         </div>
 
         <div className="flex flex-col gap-5">
