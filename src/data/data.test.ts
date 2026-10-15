@@ -8,7 +8,9 @@ import { gradeReview, quickAddCard, saveCard, undoGrade } from './cards'
 import { createTask, setColumnOrder, toggleTaskDone } from './tasks'
 import { exportBackup, importCsvRows, parseCardPack, parseCardsCsv, prepareCardPack, restoreBackup, writeCardPack } from './io'
 import { deleteStory, installStarterStories, markStoryOpened, markStoryRead, parseLevel, saveStory } from './stories'
-import { recordReadingTime } from './timer'
+import { recordQuestionTime, recordReadingTime } from './timer'
+import { DEFAULT_SET, deleteQuestion, installStarterQuestions, parseWords, saveQuestion, saveResponse } from './questions'
+import { groupBySet } from '@/lib/questions'
 import { alignTranslation, annotate, buildLexicon, coverage, splitParagraphs } from '@/lib/reader'
 
 let database: LernzeitDB
@@ -355,6 +357,99 @@ describe('stories', () => {
       await restoreBackup(JSON.parse(JSON.stringify({ ...backup, stories: undefined })), other)
       expect(await other.stories.count()).toBe(0)
       expect(await other.cards.count()).toBe(backup.cards.length)
+    } finally {
+      await other.delete()
+    }
+  })
+})
+
+describe('questions', () => {
+  it('seeds the starter questions once, in sets, and adds back deleted ones', async () => {
+    const questions = await database.questions.toArray()
+    expect(questions).toHaveLength(45)
+    expect(groupBySet(questions).map((g) => g.set)).toEqual([
+      'Sich vorstellen',
+      'Familie und Freunde',
+      'Freizeit',
+      'Arbeit und Schule',
+      'Wohnen und Alltag',
+      'Beim Arzt und auf dem Amt',
+    ])
+    expect(groupBySet(questions)[0].questions[0]).toMatchObject({ id: 'question-0001', question: 'Wie heißt du?', suggested: 'Ich heiße Anna.', level: 'A1' })
+    // Every one is a question with its English and an example answer, and none has the user's answer yet.
+    for (const q of questions) {
+      expect(q.question, q.id).toMatch(/\?$/)
+      expect(q.english && q.suggested, q.id).toBeTruthy()
+      expect(q.words?.length, q.id).toBeGreaterThanOrEqual(4)
+      expect(q.myAnswer).toBeUndefined()
+    }
+    expect(await installStarterQuestions(database)).toBe(0)
+    await deleteQuestion('question-0004', database)
+    expect(await installStarterQuestions(database)).toBe(1)
+    expect(await database.questions.count()).toBe(45)
+  })
+
+  it('saves a question tidied up, and keeps its date when edited', async () => {
+    const question = await saveQuestion(
+      { set: '  ', question: ' Was ist dein Beruf? ', english: ' ', myAnswer: ' Ich bin Entwickler. ', suggested: '', level: 'a2' as 'A2', tags: ['x', ' x'] },
+      undefined,
+      database,
+    )
+    expect(question).toMatchObject({ set: DEFAULT_SET, question: 'Was ist dein Beruf?', english: undefined, myAnswer: 'Ich bin Entwickler.', suggested: undefined, words: undefined, level: 'A2', tags: ['x'] })
+    expect(parseWords(' Lehrer, die  Ärztin;;\narbeiten als ')).toEqual(['Lehrer', 'die  Ärztin', 'arbeiten als'])
+    const withWords = await saveQuestion({ set: 'Arbeit', question: 'Wo arbeitest du?', words: ['bei', ' die  Firma ', 'Bei', ''], tags: [] }, undefined, database)
+    expect(withWords.words).toEqual(['bei', 'die Firma'])
+    vi.setSystemTime(at(2026, 10, 15, 9, 0))
+    const edited = await saveQuestion({ ...question, set: ' Arbeit  und Schule ', myAnswer: 'Ich bin Softwareentwickler.' }, question.id, database)
+    expect(edited).toMatchObject({ id: question.id, set: 'Arbeit und Schule', createdAt: question.createdAt, myAnswer: 'Ich bin Softwareentwickler.' })
+    expect(edited.updatedAt).toBeGreaterThan(question.updatedAt)
+    await expect(saveQuestion({ set: 'x', question: '  ', tags: [] }, undefined, database)).rejects.toThrow('German text')
+  })
+
+  it('keeps every typed answer, and deletes them with their question', async () => {
+    const { id } = await saveQuestion({ set: 'Arbeit', question: 'Wo arbeitest du?', tags: [] }, undefined, database)
+    expect(await saveResponse(id, '   ', database)).toBeUndefined()
+    const first = await saveResponse(id, ' Ich arbeite in Berlin. ', database)
+    vi.setSystemTime(at(2026, 10, 15, 9, 0))
+    await saveResponse(id, 'Ich arbeite bei einer Firma.', database)
+    await saveResponse('question-0001', 'Ich heiße Sam.', database)
+    expect(first).toMatchObject({ questionId: id, text: 'Ich arbeite in Berlin.', at: at(2026, 10, 14, 14, 2).getTime() })
+    expect(await database.responses.where('questionId').equals(id).count()).toBe(2)
+    await deleteQuestion(id, database)
+    expect(await database.responses.where('questionId').equals(id).count()).toBe(0)
+    expect(await database.responses.count()).toBe(1)
+  })
+
+  it('records practice time as one session that grows', async () => {
+    const topicId = await germanId()
+    const start = Date.now()
+    const run = { runId: 'questions:all:1', topicId, start, set: 'Freizeit' }
+    await recordQuestionTime({ ...run, end: start + 2 * MINUTE, minutes: 2 }, database)
+    await recordQuestionTime({ ...run, end: start + 4 * MINUTE, minutes: 4 }, database)
+    const sessions = await database.sessions.where('runId').equals('questions:all:1').toArray()
+    expect(sessions).toHaveLength(1)
+    expect(sessions[0]).toMatchObject({ minutes: 4, source: 'questions', note: 'Questions: Freizeit', topicId })
+    await recordQuestionTime({ runId: 'questions:all:2', topicId, start, end: start + 2 * MINUTE, minutes: 2 }, database)
+    expect((await database.sessions.where('runId').equals('questions:all:2').first())?.note).toBe('Questions')
+  })
+
+  it('backs up questions with their answers and restores backups made before questions', async () => {
+    await database.images.clear()
+    await saveResponse('question-0001', 'Ich heiße Sam.', database)
+    const backup = await exportBackup(database)
+    expect(backup.questions).toHaveLength(45)
+    expect(backup.responses).toHaveLength(1)
+
+    const other = new LernzeitDB(`test-${counter++}`)
+    try {
+      await restoreBackup(JSON.parse(JSON.stringify(backup)), other)
+      expect((await other.responses.toArray()).map((r) => r.text)).toEqual(['Ich heiße Sam.'])
+      expect(await other.questions.count()).toBe(45)
+      await restoreBackup(JSON.parse(JSON.stringify({ ...backup, questions: undefined, responses: undefined })), other)
+      expect(await other.questions.count()).toBe(0)
+      expect(await other.responses.count()).toBe(0)
+      expect(await other.stories.count()).toBe(backup.stories!.length)
+      await expect(restoreBackup({ ...backup, responses: 'oops' }, other)).rejects.toThrow('broken "responses"')
     } finally {
       await other.delete()
     }
