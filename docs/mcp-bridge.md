@@ -111,6 +111,21 @@ Every tool except `list_browsers` takes an optional `browser` (its name).
 - Up to 100 cards per call.
 - No image uploads. `emoji` and `imageQuery` work, and only nouns are practised from the picture.
 
+## Guide and prompts
+
+Besides the tools, the server offers:
+
+- **Resource `lernzeit://guide`:** everything the AI needs to know, in one page. It covers what Lernzeit is, each tool, how to write good German cards (article in `gender`, plural with its article, cloze gaps) and what each error means. In Claude Desktop, attach it from the **+** menu.
+- **Prompts:** ready-made requests that already include the guide. In Claude Desktop, pick them from the **+** menu.
+
+| Prompt | Asks for | Arguments |
+|---|---|---|
+| `make_cards` | A set of German cards on a theme | `theme`, `count`? (10), `level`? (A2), `deck`? |
+| `plan_tasks` | A goal broken into board tasks, shown before they are added | `goal`, `until`?, `topic`? |
+| `help` | What the AI can do, plus a connection check | – |
+
+The guide lives in [mcp/src/guide.ts](../mcp/src/guide.ts), and a test checks that it mentions every tool.
+
 ## Messages
 
 Server and app send JSON text over the WebSocket. The types and their parsers live in [src/bridge/protocol.ts](../src/bridge/protocol.ts), and both sides import that file.
@@ -211,6 +226,8 @@ mcp/
   src/index.ts          starts the hub and serves the MCP server on stdio
   src/hub.ts            WebSocket server: origin and token checks, picking a browser, requests and answers
   src/tools.ts          the seven tools, their zod inputs and descriptions
+  src/guide.ts          the guide resource
+  src/prompts.ts        the guide resource and the prompts
   src/config.ts         reads the environment variables
   src/*.test.ts         node:test
 src/bridge/
