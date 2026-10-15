@@ -4,7 +4,12 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  define: {
+    // Settings → AI connection shows the MCP server's path in its setup snippets.
+    // Only the dev server knows it; a build should not carry a local path.
+    __MCP_SERVER_PATH__: JSON.stringify(command === 'serve' ? fileURLToPath(new URL('./mcp/src/index.ts', import.meta.url)).replaceAll('\\', '/') : ''),
+  },
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
@@ -54,4 +59,4 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.test.ts'],
   },
-})
+}))

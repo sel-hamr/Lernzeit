@@ -1,12 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation } from 'react-router'
 import { Bell, ChevronRight, Download, HardDriveDownload, Plus, Smartphone, Sparkles, Trash2, Upload, Volume2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { Chip, Dot, PageHeader, Section, type ChipTone } from '@/components/ui/primitives'
+import { Chip, Dot, PageHeader } from '@/components/ui/primitives'
 import { Field, Input, Segmented, Select, Switch } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
-import { browserKind, updateBridgeConfig, useBridgeConfig } from '@/bridge/config'
-import { DEFAULT_PORT } from '@/bridge/protocol'
-import { useBridgeStatus, type BridgeStatus } from '@/bridge/status'
 import { db, updateSettings } from '@/db/db'
 import { installStarterPack } from '@/db/seed'
 import type { EndSound, ThemePref } from '@/db/types'
@@ -21,23 +19,9 @@ import { END_SOUND_LABEL, playEndSound, unlockAudio } from '@/lib/sound'
 import { germanVoices, onVoicesChanged, speak, speechSupported } from '@/lib/speech'
 import { dateKey, formatHM } from '@/lib/time'
 import { count } from '@/lib/text'
+import { AiConnectionGroup } from './AiConnectionGroup'
+import { Group } from './Group'
 import { TopicDialog } from './TopicDialog'
-
-function Group({ title, description, children, action }: { title: string; description?: string; children: ReactNode; action?: ReactNode }) {
-  return (
-    <Section className="flex flex-col gap-4 px-6 py-5">
-      {/* The actions wrap below the description on narrow cards, still right-aligned. */}
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
-        <div className="flex min-w-0 flex-[999_1_240px] flex-col gap-1">
-          <h2 className="text-section font-semibold">{title}</h2>
-          {description && <p className="text-small text-muted">{description}</p>}
-        </div>
-        {action && <div className="flex min-w-0 flex-[1_1_auto] justify-end">{action}</div>}
-      </div>
-      {children}
-    </Section>
-  )
-}
 
 /* A list row that opens a dialog: an inset hover surface that leaves the dividers aligned, and a chevron. */
 const rowClass =
@@ -211,58 +195,6 @@ function StorageInfo() {
   )
 }
 
-const BRIDGE_STATUS: Record<BridgeStatus, { label: string; tone: ChipTone; hint?: string }> = {
-  off: { label: 'Off', tone: 'soft' },
-  standby: { label: 'Connected in another tab', tone: 'soft' },
-  waiting: { label: 'Waiting for the AI app', tone: 'neutral', hint: 'Start an AI app that has the Lernzeit MCP server, such as Claude Code.' },
-  connected: { label: 'Connected', tone: 'sage' },
-  wrong_token: { label: 'Wrong token', tone: 'red', hint: 'The token must match LERNZEIT_TOKEN in the server config.' },
-  outdated: { label: 'Version mismatch', tone: 'red', hint: 'Update Lernzeit and the MCP server to the same version.' },
-  name_taken: { label: 'Name in use', tone: 'red', hint: 'Another browser connected with this name. Pick a different one.' },
-}
-
-function AiConnectionGroup() {
-  const config = useBridgeConfig()
-  const status = BRIDGE_STATUS[useBridgeStatus()]
-  const active = config.enabled && !!config.token
-  return (
-    <Group
-      title="AI connection"
-      description="Lets an AI app such as Claude add cards, decks, tasks and study time to this browser. It needs the Lernzeit MCP server running on this computer."
-      action={active && <Chip tone={status.tone}>{status.label}</Chip>}
-    >
-      <Switch
-        label="Connect to AI"
-        description="Each browser and profile keeps its own data. Turn this on only where AI-made cards should go."
-        checked={config.enabled}
-        onChange={(v) => void updateBridgeConfig({ enabled: v })}
-      />
-      {config.enabled && (
-        <div className="grid gap-4 sm:grid-cols-[1fr_8rem]">
-          <Field label="Browser name" htmlFor="bridge-name" hint="Say it to the AI when several browsers are connected.">
-            <Input id="bridge-name" value={config.name} placeholder={browserKind()} maxLength={40} autoComplete="off" onChange={(e) => void updateBridgeConfig({ name: e.target.value })} />
-          </Field>
-          <Field label="Port" htmlFor="bridge-port">
-            <Input
-              id="bridge-port"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={65535}
-              value={config.port}
-              onChange={(e) => void updateBridgeConfig({ port: Math.min(65535, Math.max(1, Math.trunc(Number(e.target.value)) || DEFAULT_PORT)) })}
-            />
-          </Field>
-          <Field label="Token" htmlFor="bridge-token" className="sm:col-span-2" hint={config.token ? undefined : 'Paste LERNZEIT_TOKEN from your MCP server config.'}>
-            <Input id="bridge-token" type="password" value={config.token} autoComplete="off" spellCheck={false} onChange={(e) => void updateBridgeConfig({ token: e.target.value.trim() })} />
-          </Field>
-        </div>
-      )}
-      {active && status.hint && <p className="text-small text-muted">{status.hint}</p>}
-    </Group>
-  )
-}
-
 export default function SettingsPage() {
   const settings = useSettings()
   const voices = useVoices()
@@ -270,6 +202,23 @@ export default function SettingsPage() {
   const { canInstall, install } = useInstallPrompt()
   const [permission, setPermission] = useState(notificationPermission())
   const restoreInput = useRef<HTMLInputElement>(null)
+  const { hash } = useLocation()
+
+  // Links such as /settings#ai-connection open on that card. The cards above it grow as
+  // their data loads, so it is kept in view until the layout settles.
+  useEffect(() => {
+    const target = hash ? document.getElementById(hash.slice(1)) : null
+    if (!target) return
+    const scroll = () => target.scrollIntoView({ block: 'start' })
+    scroll()
+    const observer = new ResizeObserver(scroll)
+    observer.observe(document.body)
+    const settle = setTimeout(() => observer.disconnect(), 1000)
+    return () => {
+      clearTimeout(settle)
+      observer.disconnect()
+    }
+  }, [hash])
 
   const exportData = async () => {
     const backup = await exportBackup()

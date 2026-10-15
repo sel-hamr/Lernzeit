@@ -1,4 +1,4 @@
-import { DEFAULT_PORT } from '../../src/bridge/protocol.ts'
+import { DEFAULT_PORT, LOCAL_ORIGINS } from '../../src/bridge/protocol.ts'
 
 export interface ServerConfig {
   token: string
@@ -6,9 +6,6 @@ export interface ServerConfig {
   /** Page origins allowed to connect, e.g. http://localhost:5173. */
   origins: ReadonlySet<string>
 }
-
-/** The Vite dev server and `vite preview`. */
-const LOCAL_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:4173', 'http://127.0.0.1:4173']
 
 const normalizeOrigin = (origin: string) => origin.trim().replace(/\/+$/, '')
 

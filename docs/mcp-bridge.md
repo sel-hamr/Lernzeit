@@ -47,12 +47,16 @@ Each browser, and each Chrome profile, has its own data. You choose which ones c
 - **Connect to AI:** off by default. Turn it on only where you want it.
 - **Browser name:** for example `Chrome Personal`. Empty means the browser type (Chrome, Edge, Firefox). A website cannot read the Chrome profile name, so you type it.
 - **Port:** `47821` unless you changed it on the server.
-- **Token:** the same secret as `LERNZEIT_TOKEN` in the server config (see [Safety](#safety)).
+- **Token:** the same secret as `LERNZEIT_TOKEN` in the server config (see [Safety](#safety)). **Generate** makes a new one, and the eye button shows it.
+- **Set up your AI app:** **Copy for Claude Desktop** copies the `"lernzeit"` entry for `claude_desktop_config.json`, and **Copy for Claude Code** copies the `claude mcp add` command. Both include the token, and the port and this page's address when they differ from the defaults. The dev server knows the path to `mcp/src/index.ts`; a build shows a placeholder instead.
+
+While the switch is on, the sidebar shows an **AI** row with the status, and on phones a dot on the Settings icon. Both link to this card.
 
 The status chip shows one of:
 
 | Status | Meaning |
 |---|---|
+| Needs a token | The switch is on, but the token is empty |
 | Connected | The AI can use this browser |
 | Waiting for the AI app | The server is not running; the tab keeps trying |
 | Connected in another tab | Another Lernzeit tab in this browser holds the connection |
@@ -106,6 +110,21 @@ Every tool except `list_browsers` takes an optional `browser` (its name).
 - A card whose German text is already in the deck (ignoring case) is skipped and listed in `skipped`.
 - Up to 100 cards per call.
 - No image uploads. `emoji` and `imageQuery` work, and only nouns are practised from the picture.
+
+## Guide and prompts
+
+Besides the tools, the server offers:
+
+- **Resource `lernzeit://guide`:** everything the AI needs to know, in one page. It covers what Lernzeit is, each tool, how to write good German cards (article in `gender`, plural with its article, cloze gaps) and what each error means. In Claude Desktop, attach it from the **+** menu.
+- **Prompts:** ready-made requests that already include the guide. In Claude Desktop, pick them from the **+** menu.
+
+| Prompt | Asks for | Arguments |
+|---|---|---|
+| `make_cards` | A set of German cards on a theme | `theme`, `count`? (10), `level`? (A2), `deck`? |
+| `plan_tasks` | A goal broken into board tasks, shown before they are added | `goal`, `until`?, `topic`? |
+| `help` | What the AI can do, plus a connection check | – |
+
+The guide lives in [mcp/src/guide.ts](../mcp/src/guide.ts), and a test checks that it mentions every tool.
 
 ## Messages
 
@@ -165,13 +184,9 @@ Error codes: `no_browser`, `pick_browser`, `unknown_browser`, `disconnected`, `t
    npm install
    ```
 
-2. Make a token:
+2. In Lernzeit, open **Settings → AI connection**, turn the switch on, type a browser name and click **Generate** for a token. (Or make one in a terminal: `node -e "console.log(crypto.randomUUID())"`.)
 
-   ```sh
-   node -e "console.log(crypto.randomUUID())"
-   ```
-
-3. Add the server to your AI app. It needs Node 22.18 or newer, which runs the TypeScript directly.
+3. Add the server to your AI app. **Copy for Claude Desktop** and **Copy for Claude Code** give you the lines below with your token and path filled in. It needs Node 22.18 or newer, which runs the TypeScript directly.
 
    Claude Code:
 
@@ -193,7 +208,7 @@ Error codes: `no_browser`, `pick_browser`, `unknown_browser`, `disconnected`, `t
    }
    ```
 
-4. In Lernzeit, open **Settings → AI connection**. Turn the switch on, type a browser name and paste the token. The status turns to **Connected** once the AI app is running.
+4. Restart the AI app. The status turns to **Connected** once it is running.
 5. Ask the AI: "Which Lernzeit browsers are connected?"
 
 ### Server settings
@@ -211,6 +226,8 @@ mcp/
   src/index.ts          starts the hub and serves the MCP server on stdio
   src/hub.ts            WebSocket server: origin and token checks, picking a browser, requests and answers
   src/tools.ts          the seven tools, their zod inputs and descriptions
+  src/guide.ts          the guide resource
+  src/prompts.ts        the guide resource and the prompts
   src/config.ts         reads the environment variables
   src/*.test.ts         node:test
 src/bridge/
@@ -218,6 +235,7 @@ src/bridge/
   actions.ts            one handler per action, built on src/data
   connection.ts         WebSocket client: hello, retries, the tab lock
   config.ts             the per-browser settings
+  setup.ts              token and the copy-paste setup for Claude Desktop and Claude Code
   status.ts             connection status for the Settings page
   bridge.test.ts        end to end: the real hub, the connection and the actions on a fake database
 src/app/engines.tsx     BridgeEngine keeps the tab connected while the switch is on

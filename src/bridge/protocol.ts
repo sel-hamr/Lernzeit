@@ -12,6 +12,9 @@ export const DEFAULT_PORT = 47821
 export const MAX_CARDS_PER_CALL = 100
 export const MAX_STUDY_MINUTES = 12 * 60
 
+/** Page origins the server always accepts: the Vite dev server and `vite preview`. */
+export const LOCAL_ORIGINS: readonly string[] = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:4173', 'http://127.0.0.1:4173']
+
 /** WebSocket close code sent to a tab when another browser connects with the same name. */
 export const CLOSE_REPLACED = 4000
 

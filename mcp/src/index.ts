@@ -3,12 +3,14 @@ import { serveStdio } from '@modelcontextprotocol/server/stdio'
 import pkg from '../package.json' with { type: 'json' }
 import { readConfig, type ServerConfig } from './config.ts'
 import { BrowserHub } from './hub.ts'
+import { registerGuide } from './prompts.ts'
 import { registerTools } from './tools.ts'
 
 const INSTRUCTIONS = `Lernzeit is the user's study app: flashcards for German, daily study goals per topic and a task board.
 Its data lives in the user's browser, so these tools work only while Lernzeit is open there with Settings → AI connection → Connect to AI on.
 Look before you add: call list_decks before create_cards, and list_topics before naming a topic.
-These tools only add things. Nothing can be edited or deleted through them.`
+These tools only add things. Nothing can be edited or deleted through them.
+The resource lernzeit://guide has the details, including how to write good German cards.`
 
 // stdout carries the MCP messages, so logs go to stderr.
 const log = (message: string) => console.error(`[lernzeit] ${message}`)
@@ -28,6 +30,7 @@ const stdio = serveStdio(
   () => {
     const server = new McpServer({ name: 'lernzeit', version: pkg.version }, { instructions: INSTRUCTIONS })
     registerTools(server, hub)
+    registerGuide(server)
     return server
   },
   { onerror: (error) => log(error.message) },

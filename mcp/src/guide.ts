@@ -1,0 +1,69 @@
+import { DEFAULT_PORT, MAX_CARDS_PER_CALL, MAX_STUDY_MINUTES } from '../../src/bridge/protocol.ts'
+
+export const GUIDE_URI = 'lernzeit://guide'
+
+/** Everything an AI needs to use the Lernzeit tools well, served as a resource and inside the prompts. */
+export const GUIDE = `# Lernzeit guide
+
+Lernzeit is the user's study app for daily German and AI learning: flashcards with spaced repetition (FSRS), a daily goal in minutes per topic, a focus timer and a task board.
+
+## How the tools reach the app
+
+The data lives in the user's browser, not on a server. Each tool call goes to a Lernzeit tab that has Settings → AI connection → Connect to AI turned on.
+
+- No browser connected: ask the user to open Lernzeit and turn on Connect to AI.
+- Several browsers connected (each browser and profile has its own data): ask which one, then pass its name as \`browser\`. \`list_browsers\` shows the names.
+- The tools only add things. Nothing can be edited or deleted, and cards, history and notes cannot be read.
+
+## Tools
+
+| Tool | Use it to |
+|---|---|
+| \`list_browsers\` | See which browsers are connected |
+| \`list_topics\` | Get the topic names, such as German and AI |
+| \`list_decks\` | Get the decks with their topic and card count |
+| \`create_deck\` | Make a deck, optionally linked to a topic. Returns the existing deck if the name is taken |
+| \`create_cards\` | Add up to ${MAX_CARDS_PER_CALL} cards to a deck |
+| \`create_task\` | Add a task to the board |
+| \`log_study_time\` | Save study time done away from the timer |
+
+Look before you add: call \`list_decks\` before \`create_cards\`, and \`list_topics\` before naming a topic.
+
+## Writing good cards
+
+| Field | Rule | Example |
+|---|---|---|
+| \`english\` | Short meaning; separate meanings with "; " | "woman; wife" |
+| \`german\` | Nouns without their article | "Hund" |
+| \`gender\` | Article of a noun: der, die or das | "der" |
+| \`plural\` | With its article | "die Hunde" |
+| \`verbForms\` | Infinitive – Präteritum – Perfekt | "gehen – ging – ist gegangen" |
+| \`partOfSpeech\` | noun, verb, adjective, adverb, phrase… | "noun" |
+| \`exampleDe\` / \`exampleEn\` | One short, everyday sentence and its translation | "Der Hund schläft." / "The dog is sleeping." |
+| \`emoji\` | One emoji, only when it clearly shows the word | "🐕" |
+| \`tags\` | Level and theme | ["A1", "animals"] |
+
+- Card types: \`word\` (default), \`sentence\` for a whole phrase, and \`cloze\` for a gap sentence. Mark the gap with double braces: "Ich {{gehe}} nach Hause." with english "I {{go}} home."
+- Only nouns are practised from the picture, so set \`partOfSpeech\` to "noun" for nouns.
+- Every card gets the tag "ai". A card whose German text is already in the deck is skipped and listed under "skipped"; that is not an error.
+- Match the user's level. Tell them how many cards were added and which were skipped.
+
+## Tasks and study time
+
+- \`create_task\`: priority is high, medium (default) or low. Status is the board column: backlog, todo (default), doing or done. \`dueDate\` is YYYY-MM-DD.
+- \`log_study_time\`: \`minutes\` from 1 to ${MAX_STUDY_MINUTES}. \`start\` is local time, YYYY-MM-DDTHH:MM; without it the session ends now. Time in the future is refused. It counts toward the topic's daily goal.
+
+## Errors
+
+Every error ends with a code in brackets, and its message says what to do.
+
+| Code | Meaning |
+|---|---|
+| no_browser | No Lernzeit tab is connected |
+| pick_browser | Several are connected; ask which one |
+| unknown_browser | No browser has that name; the message lists the real ones |
+| deck_not_found / topic_not_found | The message lists the real names |
+| invalid_input | Fix the input as the message says |
+| timeout / disconnected | The tab did not answer; ask the user to check that Lernzeit is open |
+| port_in_use | Another AI app runs the Lernzeit server on port ${DEFAULT_PORT}; only one can at a time |
+`
