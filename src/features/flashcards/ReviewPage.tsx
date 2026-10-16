@@ -15,8 +15,8 @@ import { useActiveTimer, useAllReviews, useCards, useDecks, useSettings, useStud
 import { recordReviewTime } from '@/data/timer'
 import { checkAnswer, type CheckResult } from '@/lib/answer'
 import { isTypingTarget } from '@/lib/browser'
-import { germanText, isPluralOnly, parseCloze, stripCloze, wordKind } from '@/lib/german'
-import { LEARN_AHEAD_MS } from '@/lib/queue'
+import { germanText, isPluralOnly, parseCloze, splitArticle, stripCloze, wordKind } from '@/lib/german'
+import { buildPracticeQueue, LEARN_AHEAD_MS } from '@/lib/queue'
 import { speak, stopSpeaking } from '@/lib/speech'
 import { directionsFor, GRADE_LABEL, GRADES, previewGrades, State } from '@/lib/srs'
 import { formatInterval, MINUTE } from '@/lib/time'
@@ -28,6 +28,8 @@ interface Progress {
   reviewed: number
   correct: number
   activeMs: number
+  /** Nothing was due, so this round practises cards ahead of schedule. */
+  practice: boolean
 }
 
 interface HistoryEntry {
@@ -133,9 +135,9 @@ function Prompt({ card, review, listening, onPlay }: { card: Card; review: CardR
     case 'enToDe':
       return (
         <div className="flex flex-col gap-4">
-          {card.type === 'sentence' && hasPicture(card) && <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="" className="h-40" />}
+          {card.type === 'sentence' && hasPicture(card) && <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="" className="h-45 sm:h-55" />}
           {card.type === 'word' && hasPicture(card) && (
-            <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="" className="mx-auto mt-2 h-24 w-32" />
+            <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="" className="h-45 sm:h-55" />
           )}
           <div className="flex flex-col items-center gap-2 px-2 py-4 text-center">
             <div className={clsx('font-semibold tracking-[-0.01em]', card.type === 'word' ? 'text-[30px]' : 'text-[22px] leading-snug')}>{card.english}</div>
@@ -155,7 +157,7 @@ function Prompt({ card, review, listening, onPlay }: { card: Card; review: CardR
     case 'cloze':
       return (
         <div className="flex flex-col gap-4">
-          {hasPicture(card) && <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="Hint" className="h-45" />}
+          {hasPicture(card) && <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="Hint" className="h-45 sm:h-55" />}
           <div className="flex flex-col items-center gap-2 px-2 py-2 text-center">
             <div className="text-[22px] leading-snug font-semibold tracking-[-0.01em]" lang="de">
               <ClozeSentence text={card.german} reveal={false} />
@@ -198,7 +200,59 @@ function SpeedButtons({ rate, onChange }: { rate: number; onChange: (rate: numbe
   )
 }
 
-function Answer({ card, review, listening }: { card: Card; review: CardReview; listening: boolean }) {
+const sameText = (a: string, b: string) => a.trim().toLowerCase().replace(/[.!?]+$/, '') === b.trim().toLowerCase().replace(/[.!?]+$/, '')
+
+/**
+ * The card's word inside its example sentence, marked so it stands out.
+ * The mark covers the whole word it sits in, so "Saft" marks all of "Orangensaft".
+ */
+function Highlighted({ sentence, word }: { sentence: string; word: string }) {
+  const at = word ? sentence.toLowerCase().indexOf(word.toLowerCase()) : -1
+  if (at < 0) return <>{sentence}</>
+  const letter = /[\p{L}\p{M}-]/u
+  let start = at
+  let end = at + word.length
+  while (start > 0 && letter.test(sentence[start - 1])) start--
+  while (end < sentence.length && letter.test(sentence[end])) end++
+  return (
+    <>
+      {sentence.slice(0, start)}
+      <mark className="rounded-sm bg-sage px-0.5 text-sage-ink">{sentence.slice(start, end)}</mark>
+      {sentence.slice(end)}
+    </>
+  )
+}
+
+/** The example sentence under a word's answer. Skipped when it only repeats the card. */
+function Example({ card, onSpeak }: { card: Card; onSpeak: (text: string) => void }) {
+  const de = card.exampleDe?.trim()
+  const en = card.exampleEn?.trim()
+  const repeats = (text?: string) => !!text && [card.german, card.english, germanText(card)].some((t) => sameText(text, t))
+  if (!de || repeats(de)) return null
+  return (
+    <figure className="mt-1 flex w-full flex-col gap-1.5 rounded-row border border-line bg-soft px-4 py-3.5 text-left">
+      <div className="flex items-start gap-3">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <figcaption className="text-chip font-medium text-muted">Example</figcaption>
+          <p lang="de" className="text-[18px] leading-snug text-pretty">
+            <Highlighted sentence={de} word={splitArticle(card.german).word} />
+          </p>
+          {en && !repeats(en) && <p className="text-[15px] leading-snug text-pretty text-muted">{en}</p>}
+        </div>
+        <button
+          type="button"
+          onClick={() => onSpeak(de)}
+          aria-label="Play the example"
+          className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-field hover:text-ink"
+        >
+          <Volume2 size={16} strokeWidth={1.8} />
+        </button>
+      </div>
+    </figure>
+  )
+}
+
+function Answer({ card, review, listening, onSpeak }: { card: Card; review: CardReview; listening: boolean; onSpeak: (text: string) => void }) {
   const showImage = (listening || review.direction === 'deToEn') && hasPicture(card) && card.type === 'word'
   if (review.direction === 'deToEn' && !listening) {
     return (
@@ -210,7 +264,7 @@ function Answer({ card, review, listening }: { card: Card; review: CardReview; l
   }
   return (
     <div className="flex flex-col items-center gap-3 text-center">
-      {showImage && <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="" className="h-30 w-40" />}
+      {showImage && <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="" className="h-45 w-full sm:h-55" />}
       <div className={clsx('font-semibold tracking-[-0.01em]', card.type === 'word' ? 'text-[30px]' : 'text-[22px] leading-snug')} lang="de">
         {card.type === 'cloze' ? <ClozeSentence text={card.german} reveal /> : <CardGerman card={card} />}
       </div>
@@ -229,14 +283,7 @@ function Answer({ card, review, listening }: { card: Card; review: CardReview; l
         {card.type !== 'word' && (listening || review.direction === 'cloze') && <span>{card.english}</span>}
         {card.verbForms && <span>{card.verbForms}</span>}
       </div>
-      {card.type === 'word' && card.exampleDe && (
-        <div className="mt-1 flex max-w-md flex-col gap-1 rounded-row bg-soft px-5 py-3.5 text-pretty">
-          <span lang="de" className="text-[18px] leading-snug">
-            {card.exampleDe}
-          </span>
-          {card.exampleEn && <span className="text-[15px] leading-snug text-muted">{card.exampleEn}</span>}
-        </div>
-      )}
+      {card.type === 'word' && <Example card={card} onSpeak={onSpeak} />}
     </div>
   )
 }
@@ -270,22 +317,39 @@ export default function ReviewPage() {
   const deckById = useMemo(() => new Map(decks.map((d) => [d.id, d])), [decks])
   const reviewById = useMemo(() => new Map((allReviews ?? []).map((r) => [r.id, r])), [allReviews])
 
+  // A round of cards to study ahead of schedule, so there is always a word to practise.
+  const practiceIds = useCallback(() => {
+    const selected = deckParam ? decks.filter((d) => d.id === deckParam) : decks
+    return buildPracticeQueue({ reviews: allReviews ?? [], decks: selected, createdAt: (id) => cardById.get(id)?.createdAt ?? 0 }).map((r) => r.id)
+  }, [allReviews, decks, deckParam, cardById])
+
   // Take a snapshot of the queue once, so the session does not shift under you.
   useEffect(() => {
     if (progress || !study.loaded || !cards || !allReviews) return
     let ids: string[]
+    let practice = false
     if (cardParam) {
       const card = cards.find((c) => c.id === cardParam)
       const deck = card ? deckById.get(card.deckId) : undefined
       const dirs = card && deck ? directionsFor(card, deck) : []
       ids = allReviews.filter((r) => r.cardId === cardParam && dirs.includes(r.direction)).map((r) => r.id)
-    } else {
+    } else if (study.queue.length) {
       ids = study.queue.map((r) => r.id)
+    } else {
+      ids = practiceIds()
+      practice = true
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time snapshot once data has loaded
-    setProgress(pickNext({ main: ids, learning: [], reviewed: 0, correct: 0, activeMs: 0 }, Date.now()))
+    setProgress(pickNext({ main: ids, learning: [], reviewed: 0, correct: 0, activeMs: 0, practice }, Date.now()))
     shownAt.current = Date.now()
-  }, [progress, study, cards, allReviews, cardParam, deckById])
+  }, [progress, study, cards, allReviews, cardParam, deckById, practiceIds])
+
+  // Starts another practice round once a session ends. Undo history belongs to the round before.
+  const practiseMore = useCallback(() => {
+    setHistory([])
+    setProgress(pickNext({ main: practiceIds(), learning: [], reviewed: 0, correct: 0, activeMs: 0, practice: true }, Date.now()))
+  }, [practiceIds])
+  const canPractise = useMemo(() => !cardParam && practiceIds().length > 0, [cardParam, practiceIds])
 
   const review = progress?.current ? reviewById.get(progress.current) : undefined
   const card = review ? cardById.get(review.cardId) : undefined
@@ -343,7 +407,7 @@ export default function ReviewPage() {
     inputRef.current?.blur()
   }, [card, review, revealed, typing, typed, listening, settings.autoPlayAudio, play])
 
-  const previews = useMemo(() => (review && revealedAt ? previewGrades(review.fsrs, revealedAt) : null), [review, revealedAt])
+  const previews = useMemo(() => (review && revealedAt ? previewGrades(review.fsrs, revealedAt, progress?.practice) : null), [review, revealedAt, progress?.practice])
 
   const grade = useCallback(
     async (g: Grade) => {
@@ -352,7 +416,7 @@ export default function ReviewPage() {
       try {
         const now = Date.now()
         const durationMs = Math.min(now - shownAt.current, 120_000)
-        const result = await gradeReview(review.id, g, durationMs)
+        const result = await gradeReview(review.id, g, durationMs, db, progress.practice)
         if (!result) return
         const topicId = deck?.topicId
         setHistory((h) => [...h.slice(-30), { progress, previous: result.previous, logId: result.logId, topicId, durationMs }])
@@ -368,6 +432,7 @@ export default function ReviewPage() {
               reviewed: progress.reviewed + 1,
               correct: progress.correct + (g > 1 ? 1 : 0),
               activeMs: progress.activeMs + durationMs,
+              practice: progress.practice,
             },
             now,
           ),
@@ -519,7 +584,15 @@ export default function ReviewPage() {
       </div>
 
       {!progress.current || !card || !review ? (
-        <SessionDone reviewed={progress.reviewed} correct={progress.correct} activeMs={progress.activeMs} single={!!cardParam} onUndo={history.length ? () => void undo() : undefined} />
+        <SessionDone
+          reviewed={progress.reviewed}
+          correct={progress.correct}
+          activeMs={progress.activeMs}
+          single={!!cardParam}
+          practice={progress.practice}
+          onUndo={history.length ? () => void undo() : undefined}
+          onPractise={canPractise ? practiseMore : undefined}
+        />
       ) : (
         <>
           <article key={review.id + progress.reviewed} className="flex animate-flip-in flex-col gap-5 rounded-flash border border-line bg-main p-3 pb-6 shadow-panel sm:p-4 sm:pb-7">
@@ -593,7 +666,7 @@ export default function ReviewPage() {
             {revealed && (
               <div className="flex animate-fade-in flex-col gap-4 border-t border-line pt-5">
                 {check && <Verdict check={check} typed={typed} />}
-                <Answer card={card} review={review} listening={listening} />
+                <Answer card={card} review={review} listening={listening} onSpeak={(text) => speak(text, { voiceURI: settings.voiceURI, rate: settings.speechRate })} />
               </div>
             )}
           </article>
@@ -693,21 +766,44 @@ function Verdict({ check, typed }: { check: CheckResult; typed: string }) {
   )
 }
 
-function SessionDone({ reviewed, correct, activeMs, single, onUndo }: { reviewed: number; correct: number; activeMs: number; single: boolean; onUndo?: () => void }) {
+function SessionDone({
+  reviewed,
+  correct,
+  activeMs,
+  single,
+  practice,
+  onUndo,
+  onPractise,
+}: {
+  reviewed: number
+  correct: number
+  activeMs: number
+  single: boolean
+  practice: boolean
+  onUndo?: () => void
+  onPractise?: () => void
+}) {
   const navigate = useNavigate()
+  const { openCardEditor } = useUI()
+  // Only reached with no cards at all: anything else gets a practice round.
   if (reviewed === 0) {
     return (
       <div className="rounded-flash border border-line bg-main">
         <EmptyState
           icon={<Check size={20} strokeWidth={1.8} />}
-          title="All caught up"
+          title="No cards yet"
           action={
-            <Button variant="primary" onClick={() => navigate('/flashcards')}>
-              Back to flashcards
-            </Button>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button variant="outline" onClick={() => navigate('/flashcards')}>
+                Back to flashcards
+              </Button>
+              <Button variant="primary" onClick={() => openCardEditor()}>
+                Add card
+              </Button>
+            </div>
           }
         >
-          No cards are due right now. New cards unlock again tomorrow.
+          Add a word to start practising.
         </EmptyState>
       </div>
     )
@@ -719,7 +815,7 @@ function SessionDone({ reviewed, correct, activeMs, single, onUndo }: { reviewed
         <Check size={26} strokeWidth={2} />
       </div>
       <div className="flex flex-col gap-1">
-        <h2 className="text-[22px] font-semibold tracking-[-0.01em]">{single ? 'Card reviewed' : 'Session complete'}</h2>
+        <h2 className="text-[22px] font-semibold tracking-[-0.01em]">{single ? 'Card reviewed' : practice ? 'Practice round done' : 'Session complete'}</h2>
         <p className="text-body text-muted tabular-nums">
           {reviewed} {reviewed === 1 ? 'review' : 'reviews'} in {minutes} min · {Math.round((correct / reviewed) * 100)}% correct
         </p>
@@ -733,9 +829,15 @@ function SessionDone({ reviewed, correct, activeMs, single, onUndo }: { reviewed
         <Button variant="outline" onClick={() => navigate('/flashcards')}>
           Flashcards
         </Button>
-        <Button variant="primary" onClick={() => navigate('/')}>
-          Today
-        </Button>
+        {onPractise ? (
+          <Button variant="primary" onClick={onPractise}>
+            Practise more
+          </Button>
+        ) : (
+          <Button variant="primary" onClick={() => navigate('/')}>
+            Today
+          </Button>
+        )}
       </div>
     </div>
   )

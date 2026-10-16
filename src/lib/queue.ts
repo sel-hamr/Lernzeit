@@ -111,6 +111,36 @@ export function buildQueue(opts: {
   }
 }
 
+/** How many cards one practice round holds. */
+export const PRACTICE_SIZE = 20
+
+/**
+ * Cards to practise when nothing is due, so a session never starts empty.
+ * Studied cards come first, soonest due first (so cards held back by the
+ * daily review limit lead), then new cards beyond the daily new limit.
+ * Grading them still updates the schedule, like reviewing ahead in Anki.
+ */
+export function buildPracticeQueue(opts: {
+  reviews: CardReview[]
+  decks: Deck[]
+  createdAt?: (cardId: string) => number
+  size?: number
+}): CardReview[] {
+  const { reviews, decks, createdAt, size = PRACTICE_SIZE } = opts
+  const deckIds = new Set(decks.map((d) => d.id))
+  const studied: CardReview[] = []
+  const fresh: CardReview[] = []
+  for (const r of reviews) {
+    if (!deckIds.has(r.deckId)) continue
+    if (r.state === State.New) fresh.push(r)
+    else studied.push(r)
+  }
+  studied.sort((a, b) => a.due - b.due)
+  const order = (r: CardReview) => createdAt?.(r.cardId) ?? 0
+  fresh.sort((a, b) => order(a) - order(b) || DIRECTION_RANK[a.direction] - DIRECTION_RANK[b.direction])
+  return [...spreadSiblings(studied.slice(0, size)), ...spreadSiblings(fresh)].slice(0, size)
+}
+
 /** Keeps two directions of the same card from appearing back to back. */
 export function spreadSiblings(items: CardReview[]): CardReview[] {
   const firsts: CardReview[] = []

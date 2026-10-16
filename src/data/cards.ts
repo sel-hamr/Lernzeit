@@ -170,13 +170,13 @@ export interface GradeResult {
   logId: string
 }
 
-/** Applies a rating and logs it. */
-export async function gradeReview(reviewIdValue: string, grade: Grade, durationMs: number, database: LernzeitDB = db): Promise<GradeResult | undefined> {
+/** Applies a rating and logs it. `practice` caps the next interval for cards studied ahead of schedule (see PRACTICE_MAX_INTERVAL). */
+export async function gradeReview(reviewIdValue: string, grade: Grade, durationMs: number, database: LernzeitDB = db, practice = false): Promise<GradeResult | undefined> {
   return database.transaction('rw', [database.reviews, database.reviewLogs], async () => {
     const review = await database.reviews.get(reviewIdValue)
     if (!review) return undefined
     const now = Date.now()
-    const fsrs = applyGrade(review.fsrs, grade, now)
+    const fsrs = applyGrade(review.fsrs, grade, now, practice)
     const next: CardReview = { ...review, fsrs, due: fsrs.due, state: fsrs.state }
     const log: ReviewLog = {
       id: newId(),

@@ -1,6 +1,7 @@
 import { createEmptyCard, fsrs, generatorParameters, Rating, State, type Card as FsrsCard, type Grade as FsrsGrade } from 'ts-fsrs'
 import type { Card, CardReview, Deck, Direction, Grade, StoredFsrs } from '@/db/types'
 import { isNoun } from './german'
+import { DAY, HOUR, MINUTE } from './time'
 
 export { State }
 
@@ -44,19 +45,32 @@ const RATING: Record<Grade, FsrsGrade> = {
   4: Rating.Easy,
 }
 
-/** What each button would do, without saving anything. */
-export function previewGrades(state: StoredFsrs, now: number): Record<Grade, StoredFsrs> {
-  const preview = scheduler.repeat(toFsrs(state), new Date(now))
-  return {
-    1: fromFsrs(preview[Rating.Again].card),
-    2: fromFsrs(preview[Rating.Hard].card),
-    3: fromFsrs(preview[Rating.Good].card),
-    4: fromFsrs(preview[Rating.Easy].card),
-  }
+/**
+ * Longest wait after a rating in a practice round (cards studied ahead of
+ * schedule). Practising ahead brings a card back soon instead of pushing it
+ * weeks out; its next due review is scheduled by FSRS as usual.
+ */
+export const PRACTICE_MAX_INTERVAL: Record<Grade, number> = { 1: 10 * MINUTE, 2: HOUR, 3: DAY, 4: 2 * DAY }
+
+/** Caps the next due date for a practice round. Never makes it later than FSRS would. */
+function capForPractice(next: StoredFsrs, grade: Grade, now: number): StoredFsrs {
+  const due = Math.min(next.due, now + PRACTICE_MAX_INTERVAL[grade])
+  return { ...next, due, scheduled_days: Math.floor((due - now) / DAY) }
 }
 
-export function applyGrade(state: StoredFsrs, grade: Grade, now: number): StoredFsrs {
-  return fromFsrs(scheduler.next(toFsrs(state), new Date(now), RATING[grade]).card)
+/** What each button would do, without saving anything. */
+export function previewGrades(state: StoredFsrs, now: number, practice = false): Record<Grade, StoredFsrs> {
+  const preview = scheduler.repeat(toFsrs(state), new Date(now))
+  const card = (g: Grade) => {
+    const next = fromFsrs(preview[RATING[g]].card)
+    return practice ? capForPractice(next, g, now) : next
+  }
+  return { 1: card(1), 2: card(2), 3: card(3), 4: card(4) }
+}
+
+export function applyGrade(state: StoredFsrs, grade: Grade, now: number, practice = false): StoredFsrs {
+  const next = fromFsrs(scheduler.next(toFsrs(state), new Date(now), RATING[grade]).card)
+  return practice ? capForPractice(next, grade, now) : next
 }
 
 /**

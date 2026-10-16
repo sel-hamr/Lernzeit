@@ -4,10 +4,10 @@ import { checkAnswer, diffChars } from './answer'
 import { germanText, parseCloze, splitArticle, wordKind } from './german'
 import { computeStreak, goalFor, indexMinutes, isGoalHit, topicStreak, uniformGoals, withGoalChange } from './goals'
 import { heatLevel, topicWeek, weekSummary } from './history'
-import { buildQueue, usageToday } from './queue'
+import { buildPracticeQueue, buildQueue, usageToday } from './queue'
 import { splitAtMidnight } from './sessions'
-import { newFsrs, State } from './srs'
-import { addDays, dateKey, formatHM, formatTimer, startOfWeek, weekdayOf, MINUTE } from './time'
+import { applyGrade, newFsrs, previewGrades, State } from './srs'
+import { addDays, dateKey, formatHM, formatTimer, startOfWeek, weekdayOf, DAY, MINUTE } from './time'
 import { elapsedMs, isPhaseComplete, pause, remainingMs, resume, studiedMinutes } from './timer'
 
 const at = (y: number, m: number, d: number, h = 0, min = 0) => new Date(y, m - 1, d, h, min).getTime()
@@ -252,5 +252,61 @@ describe('review queue', () => {
     const reviews = [review('l', 'enToDe', State.Learning, now + 5 * MINUTE), review('m', 'enToDe', State.Learning, now + 2 * 60 * MINUTE)]
     const { queue } = buildQueue({ reviews, decks: [deck], usage: new Map(), now })
     expect(queue.map((r) => r.cardId)).toEqual(['l'])
+  })
+})
+
+describe('practice queue', () => {
+  const deck: Deck = {
+    id: 'd', name: 'German A1', newPerDay: 0, reviewsPerDay: 0,
+    directions: { imageToDe: true, enToDe: true, deToEn: false }, order: 0, createdAt: 0,
+  }
+  const other: Deck = { ...deck, id: 'o', name: 'Other' }
+  const now = at(2026, 10, 14, 12)
+  const review = (cardId: string, direction: CardReview['direction'], state: number, due: number, deckId = 'd'): CardReview => ({
+    id: `${cardId}:${direction}`, cardId, deckId, direction, fsrs: { ...newFsrs(0), state, due }, due, state,
+  })
+
+  it('still has cards when the daily queue is empty', () => {
+    const reviews = [review('a', 'enToDe', State.Review, now + 5 * DAY), review('b', 'enToDe', State.New, now)]
+    expect(buildQueue({ reviews, decks: [deck], usage: new Map(), now }).queue).toEqual([])
+    expect(buildPracticeQueue({ reviews, decks: [deck] }).map((r) => r.cardId)).toEqual(['a', 'b'])
+  })
+
+  it('puts studied cards first, soonest due first, then new cards in the order they were added', () => {
+    const reviews = [
+      review('late', 'enToDe', State.Review, now + 9 * DAY),
+      review('n2', 'enToDe', State.New, now),
+      review('soon', 'enToDe', State.Review, now + DAY),
+      review('n1', 'enToDe', State.New, now),
+      review('over', 'enToDe', State.Review, now - DAY), // held back by the review limit
+      review('relearn', 'enToDe', State.Relearning, now + 2 * 60 * MINUTE),
+    ]
+    const created: Record<string, number> = { n1: 1, n2: 2 }
+    const ids = buildPracticeQueue({ reviews, decks: [deck], createdAt: (id) => created[id] ?? 0 }).map((r) => r.cardId)
+    expect(ids).toEqual(['over', 'relearn', 'soon', 'late', 'n1', 'n2'])
+  })
+
+  it('keeps to the chosen decks, caps the round and spreads directions of one card', () => {
+    const reviews = [
+      review('a', 'imageToDe', State.Review, now + DAY), review('a', 'enToDe', State.Review, now + DAY + 1),
+      review('b', 'enToDe', State.Review, now + 2 * DAY), review('x', 'enToDe', State.Review, now, 'o'),
+    ]
+    expect(buildPracticeQueue({ reviews, decks: [deck] }).map((r) => r.id)).toEqual(['a:imageToDe', 'b:enToDe', 'a:enToDe'])
+    expect(buildPracticeQueue({ reviews, decks: [deck, other], size: 2 }).map((r) => r.cardId)).toEqual(['x', 'a'])
+    expect(buildPracticeQueue({ reviews, decks: [] })).toEqual([])
+  })
+  it('brings practised cards back soon instead of weeks out', () => {
+    // A well-known card: FSRS alone would wait weeks after Good or Easy.
+    const known = { ...newFsrs(0), state: State.Review, stability: 30, difficulty: 5, reps: 6, last_review: now - 10 * DAY, due: now + 20 * DAY }
+    const normal = previewGrades(known, now)
+    const practice = previewGrades(known, now, true)
+    expect(normal[3].due - now).toBeGreaterThan(2 * DAY)
+    expect(practice[1].due - now).toBeLessThanOrEqual(10 * MINUTE)
+    expect(practice[2].due - now).toBeLessThanOrEqual(60 * MINUTE)
+    expect(practice[3].due - now).toBe(DAY)
+    expect(practice[4].due - now).toBe(2 * DAY)
+    expect(applyGrade(known, 3, now, true).due).toBe(practice[3].due)
+    // Never later than FSRS: a new card's Again stays at a minute.
+    expect(previewGrades(newFsrs(now), now, true)[1].due).toBe(previewGrades(newFsrs(now), now)[1].due)
   })
 })

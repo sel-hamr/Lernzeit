@@ -6,7 +6,8 @@ import { pastelFor } from '@/lib/colors'
 /**
  * A card's picture on its soft pastel background (10px radius): the uploaded
  * image if there is one, otherwise its emoji, otherwise a quiet initial of
- * `label`. Everything is sized to fit the box.
+ * `label`. Everything is sized to fit the box. Photos are never cropped: the
+ * full photo sits on a blurred copy of itself, unless `crop` asks otherwise.
  */
 export function CardImage({
   imageId,
@@ -17,6 +18,7 @@ export function CardImage({
   className,
   imgClassName,
   placeholder = true,
+  crop = false,
 }: {
   imageId?: string
   emoji?: string
@@ -28,14 +30,22 @@ export function CardImage({
   className?: string
   imgClassName?: string
   placeholder?: boolean
+  /** Crop photos to fill the box, for thumbnails too small to show a whole photo. */
+  crop?: boolean
 }) {
   const { url, fit } = useImage(imageId)
+  const backdrop = !crop && fit === 'cover'
   return (
     <div
-      className={clsx('flex items-center justify-center overflow-hidden rounded-img @container-size', className)}
+      className={clsx('relative flex items-center justify-center overflow-hidden rounded-img @container-size', className)}
       style={{ background: pastelFor(seed) }}
     >
-      {url ? (
+      {url && backdrop ? (
+        <>
+          <img src={url} alt="" aria-hidden draggable={false} className="absolute inset-0 size-full scale-110 object-cover opacity-60 blur-xl" />
+          <img src={url} alt={alt} draggable={false} className={clsx('relative size-full object-contain', imgClassName)} />
+        </>
+      ) : url ? (
         <img
           src={url}
           alt={alt}

@@ -151,7 +151,7 @@ export function SearchBox({ inline = false, autoFocus = false, onDone }: { inlin
               >
                 {r.kind === 'card' ? (
                   <>
-                    <CardImage imageId={r.card.imageId} emoji={r.card.emoji} label={r.card.german} seed={r.card.id} alt="" className="size-9 shrink-0 rounded-lg" placeholder={false} />
+                    <CardImage imageId={r.card.imageId} emoji={r.card.emoji} label={r.card.german} seed={r.card.id} alt="" className="size-9 shrink-0 rounded-lg" placeholder={false} crop />
                     <span className="flex min-w-0 flex-col">
                       <span className="truncate text-body font-medium">
                         <CardGerman card={r.card} />

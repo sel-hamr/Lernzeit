@@ -6,7 +6,7 @@ import { Chip, Dot, EmptyState, PageHeader, PriorityChip, ProgressBar, Section, 
 import { CardImage } from '@/components/CardImage'
 import { CardGerman } from '@/components/GermanWord'
 import { useUI } from '@/app/ui'
-import { useSettings, useStudyQueue, useTasks, useTopics } from '@/data/hooks'
+import { useCards, useSettings, useStudyQueue, useTasks, useTopics } from '@/data/hooks'
 import { useTodayProgress, type TopicProgress } from '@/data/progress'
 import { useStreaks, useWordOfTheDay } from '@/data/stats'
 import { isDueToday, isOverdue, toggleTaskDone } from '@/data/tasks'
@@ -248,6 +248,7 @@ function TodoToday() {
 export function TodayPage() {
   const progress = useTodayProgress()
   const queue = useStudyQueue()
+  const hasCards = (useCards()?.length ?? 0) > 0
   const streaks = useStreaks()
   const { openCardEditor } = useUI()
   const navigate = useNavigate()
@@ -282,8 +283,8 @@ export function TodayPage() {
           {
             value: queue.total,
             label: `cards due · ${queue.newCount} new`,
-            to: queue.total ? '/flashcards/review' : '/flashcards',
-            title: queue.total ? 'Start reviewing' : 'Open flashcards',
+            to: hasCards ? '/flashcards/review' : '/flashcards',
+            title: queue.total ? 'Start reviewing' : hasCards ? 'Practise cards ahead of schedule' : 'Open flashcards',
           },
           {
             value: `${streak} ${streak === 1 ? 'day' : 'days'}`,
