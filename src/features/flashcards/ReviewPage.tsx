@@ -16,7 +16,7 @@ import { recordReviewTime } from '@/data/timer'
 import { checkAnswer, type CheckResult } from '@/lib/answer'
 import { isTypingTarget } from '@/lib/browser'
 import { germanText, isPluralOnly, parseCloze, splitArticle, stripCloze, wordKind } from '@/lib/german'
-import { buildPracticeQueue, LEARN_AHEAD_MS } from '@/lib/queue'
+import { buildPracticeQueue, LEARN_AHEAD_MS, pickNextReview } from '@/lib/queue'
 import { speak, stopSpeaking } from '@/lib/speech'
 import { directionsFor, GRADE_LABEL, GRADES, previewGrades, State } from '@/lib/srs'
 import { formatInterval, MINUTE } from '@/lib/time'
@@ -38,17 +38,6 @@ interface HistoryEntry {
   logId: string
   topicId?: string
   durationMs: number
-}
-
-function pickNext(p: Omit<Progress, 'current'>, now: number): Progress {
-  const learning = [...p.learning].sort((a, b) => a.due - b.due)
-  if (learning.length && learning[0].due <= now) {
-    return { ...p, learning: learning.slice(1), current: learning[0].id }
-  }
-  if (p.main.length) return { ...p, learning, main: p.main.slice(1), current: p.main[0] }
-  // Nothing else left: show learning cards early rather than make you wait.
-  if (learning.length) return { ...p, learning: learning.slice(1), current: learning[0].id }
-  return { ...p, learning, current: null }
 }
 
 /** Expected typed answer for a review, and whether it is German. */
@@ -317,6 +306,13 @@ export default function ReviewPage() {
   const deckById = useMemo(() => new Map(decks.map((d) => [d.id, d])), [decks])
   const reviewById = useMemo(() => new Map((allReviews ?? []).map((r) => [r.id, r])), [allReviews])
 
+  // The next card, never the word just shown (`lastId`) while another word is left.
+  const pickNext = useCallback(
+    (p: Omit<Progress, 'current'>, now: number, lastId?: string | null): Progress =>
+      pickNextReview(p, now, (id) => reviewById.get(id)?.cardId, lastId),
+    [reviewById],
+  )
+
   // A round of cards to study ahead of schedule, so there is always a word to practise.
   const practiceIds = useCallback(() => {
     const selected = deckParam ? decks.filter((d) => d.id === deckParam) : decks
@@ -342,13 +338,15 @@ export default function ReviewPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time snapshot once data has loaded
     setProgress(pickNext({ main: ids, learning: [], reviewed: 0, correct: 0, activeMs: 0, practice }, Date.now()))
     shownAt.current = Date.now()
-  }, [progress, study, cards, allReviews, cardParam, deckById, practiceIds])
+  }, [progress, study, cards, allReviews, cardParam, deckById, practiceIds, pickNext])
 
   // Starts another practice round once a session ends. Undo history belongs to the round before.
+  // The round opens with a different word from the one that ended the last.
   const practiseMore = useCallback(() => {
+    const lastId = history.at(-1)?.previous.id
     setHistory([])
-    setProgress(pickNext({ main: practiceIds(), learning: [], reviewed: 0, correct: 0, activeMs: 0, practice: true }, Date.now()))
-  }, [practiceIds])
+    setProgress(pickNext({ main: practiceIds(), learning: [], reviewed: 0, correct: 0, activeMs: 0, practice: true }, Date.now(), lastId))
+  }, [practiceIds, pickNext, history])
   const canPractise = useMemo(() => !cardParam && practiceIds().length > 0, [cardParam, practiceIds])
 
   const review = progress?.current ? reviewById.get(progress.current) : undefined
@@ -361,9 +359,9 @@ export default function ReviewPage() {
   useEffect(() => {
     if (progress?.current && allReviews && cards && (!review || !card)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- advance past a missing card
-      setProgress((p) => (p ? pickNext(p, Date.now()) : p))
+      setProgress((p) => (p ? pickNext(p, Date.now(), p.current) : p))
     }
-  }, [progress, review, card, allReviews, cards])
+  }, [progress, review, card, allReviews, cards, pickNext])
 
   const play = useCallback(() => {
     if (card) speak(germanText(card), { voiceURI: settings.voiceURI, rate: settings.speechRate })
@@ -435,6 +433,7 @@ export default function ReviewPage() {
               practice: progress.practice,
             },
             now,
+            review.id,
           ),
         )
 
@@ -451,7 +450,7 @@ export default function ReviewPage() {
         setBusy(false)
       }
     },
-    [progress, review, card, busy, revealed, deck, settings.countReviewTime, timer],
+    [progress, review, card, busy, revealed, deck, settings.countReviewTime, timer, pickNext],
   )
 
   const undo = useCallback(async () => {
