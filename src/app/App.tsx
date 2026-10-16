@@ -15,6 +15,8 @@ const HistoryPage = lazy(() => import('@/features/history/HistoryPage'))
 const BoardPage = lazy(() => import('@/features/board/BoardPage'))
 const StoriesPage = lazy(() => import('@/features/stories/StoriesPage'))
 const ReaderPage = lazy(() => import('@/features/stories/ReaderPage'))
+const QuestionsPage = lazy(() => import('@/features/questions/QuestionsPage'))
+const PracticePage = lazy(() => import('@/features/questions/PracticePage'))
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'))
 
 function PageFallback() {
@@ -33,6 +35,8 @@ function Pages() {
           <Route path="/flashcards/review" element={<ReviewPage />} />
           <Route path="/stories" element={<StoriesPage />} />
           <Route path="/stories/:storyId" element={<ReaderPage />} />
+          <Route path="/questions" element={<QuestionsPage />} />
+          <Route path="/questions/practice" element={<PracticePage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/board" element={<BoardPage />} />
           <Route path="/settings" element={<SettingsPage />} />

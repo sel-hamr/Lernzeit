@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, DEFAULT_SETTINGS, KV_KEYS } from '@/db/db'
-import type { ActiveTimer, Card, CardReview, Deck, ImageFit, ReviewLog, Session, Settings, Story, Task, Topic } from '@/db/types'
+import type { ActiveTimer, Card, CardReview, Deck, ImageFit, Question, QuestionResponse, ReviewLog, Session, Settings, Story, Task, Topic } from '@/db/types'
 import { buildQueue, usageToday } from '@/lib/queue'
 import { dateKey, nextMidnightMs } from '@/lib/time'
 import type { PendingNote } from './timer'
@@ -73,6 +73,15 @@ export function useStories(): Story[] | undefined {
 /** `undefined` while loading, `null` when there is no such story. */
 export function useStory(id: string | undefined): Story | null | undefined {
   return useLiveQuery(async () => (id ? ((await db.stories.get(id)) ?? null) : null), [id])
+}
+
+export function useQuestions(): Question[] | undefined {
+  return useLiveQuery(() => db.questions.toArray(), [])
+}
+
+/** Every answer typed in practice, oldest first. */
+export function useResponses(): QuestionResponse[] | undefined {
+  return useLiveQuery(() => db.responses.orderBy('at').toArray(), [])
 }
 
 /** Current time, refreshed every `intervalMs` while `enabled`. */

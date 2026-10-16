@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, Copy, House, Kanban, Timer, type LucideIcon } from 'lucide-react'
+import { BookOpen, CalendarDays, Copy, House, Kanban, MessageCircleQuestionMark, Timer, type LucideIcon } from 'lucide-react'
 
 export interface NavItem {
   to: string
@@ -12,6 +12,7 @@ export const NAV: NavItem[] = [
   { to: '/timer', label: 'Focus timer', short: 'Timer', icon: Timer },
   { to: '/flashcards', label: 'Flashcards', short: 'Cards', icon: Copy },
   { to: '/stories', label: 'Stories', short: 'Stories', icon: BookOpen },
+  { to: '/questions', label: 'Questions', short: 'Q&A', icon: MessageCircleQuestionMark },
   { to: '/history', label: 'History', short: 'History', icon: CalendarDays },
   { to: '/board', label: 'Board', short: 'Board', icon: Kanban },
 ]

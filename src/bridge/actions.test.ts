@@ -158,6 +158,51 @@ describe('create_story', () => {
   })
 })
 
+describe('create_questions', () => {
+  it('adds questions with the ai tag and a suggested answer, and leaves Your answer empty', async () => {
+    const result = await runAction(
+      'create_questions',
+      {
+        set: ' Beim  Bäcker ',
+        questions: [
+          { question: 'Was möchten Sie?', english: 'What would you like?', suggested: 'Ich möchte zwei Brötchen.', words: ['das Brot', 'die Brezel'], level: 'A1', tags: ['food'] },
+          { question: 'Sonst noch etwas?' },
+        ],
+      },
+      database,
+    )
+    expect(result).toEqual({ set: 'Beim Bäcker', added: 2, skipped: [] })
+    const saved = await database.questions.where('set').equals('Beim Bäcker').toArray()
+    expect(saved).toHaveLength(2)
+    expect(saved.find((q) => q.question === 'Was möchten Sie?')).toMatchObject({ question: 'Was möchten Sie?', suggested: 'Ich möchte zwei Brötchen.', words: ['das Brot', 'die Brezel'], level: 'A1', tags: ['food', AI_TAG] })
+    expect(saved.every((q) => q.myAnswer === undefined)).toBe(true)
+  })
+
+  it('adds to an existing set whatever its case, and skips questions it already has', async () => {
+    const result = await runAction(
+      'create_questions',
+      { set: 'sich vorstellen', questions: [{ question: 'wie heißt du?' }, { question: 'Wo bist du geboren?' }, { question: 'Wo bist du geboren? ' }] },
+      database,
+    )
+    expect(result).toEqual({ set: 'Sich vorstellen', added: 1, skipped: ['wie heißt du?', 'Wo bist du geboren?'] })
+    expect(await database.questions.where('set').equals('Sich vorstellen').count()).toBe(13)
+  })
+
+  it('rejects bad input without saving anything', async () => {
+    const before = await database.questions.count()
+    const one = [{ question: 'Wie geht es dir?' }]
+    await expectCode(runAction('create_questions', { set: ' ', questions: one }, database), 'invalid_input')
+    await expectCode(runAction('create_questions', { set: 'x'.repeat(61), questions: one }, database), 'invalid_input')
+    await expectCode(runAction('create_questions', { set: 'Alltag', questions: [] }, database), 'invalid_input')
+    await expectCode(runAction('create_questions', { set: 'Alltag', questions: [...one, { question: '  ' }] }, database), 'invalid_input')
+    await expectCode(runAction('create_questions', { set: 'Alltag', questions: [{ question: 'Was?', suggested: 'a'.repeat(501) }] }, database), 'invalid_input')
+    await expectCode(runAction('create_questions', { set: 'Alltag', questions: [{ question: 'Was?', level: 'D1' as 'A1' }] }, database), 'invalid_input')
+    await expectCode(runAction('create_questions', { set: 'Alltag', questions: [{ question: 'Was?', words: Array.from({ length: 13 }, (_, i) => `Wort ${i}`) }] }, database), 'invalid_input')
+    await expectCode(runAction('create_questions', { set: 'Alltag', questions: Array.from({ length: 51 }, (_, i) => ({ question: `Frage ${i}?` })) }, database), 'invalid_input')
+    expect(await database.questions.count()).toBe(before)
+  })
+})
+
 describe('create_task', () => {
   it('adds a task to To do with medium priority by default', async () => {
     const task = await runAction('create_task', { title: 'Review food words', topic: 'German', dueDate: '2026-10-20' }, database)

@@ -14,6 +14,11 @@ export const MAX_STUDY_MINUTES = 12 * 60
 export const MAX_STORY_TITLE = 120
 /** For the text and for the translation, each. About 3,000 words. */
 export const MAX_STORY_CHARS = 20_000
+export const MAX_QUESTIONS_PER_CALL = 50
+export const MAX_SET_NAME = 60
+/** For the question and for each answer. */
+export const MAX_QUESTION_CHARS = 500
+export const MAX_HINT_WORDS = 12
 
 /** Page origins the server always accepts: the Vite dev server and `vite preview`. */
 export const LOCAL_ORIGINS: readonly string[] = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:4173', 'http://127.0.0.1:4173']
@@ -106,6 +111,31 @@ export interface CreateStoryResult {
   created: boolean
 }
 
+export interface NewQuestion {
+  /** German question, e.g. "Was ist dein Beruf?" */
+  question: string
+  english?: string
+  /** A model answer in German. The user writes their own answer in the app. */
+  suggested?: string
+  /** Useful words for an answer, shown as hints. */
+  words?: string[]
+  level?: StoryLevel
+  tags?: string[]
+}
+
+export interface CreateQuestionsParams {
+  /** Set name, e.g. "Arbeit". A new name starts a new set. */
+  set: string
+  questions: NewQuestion[]
+}
+
+export interface CreateQuestionsResult {
+  set: string
+  added: number
+  /** Questions that were already in the set. */
+  skipped: string[]
+}
+
 export interface CreateTaskParams {
   title: string
   description?: string
@@ -152,6 +182,7 @@ export interface ActionMap {
   create_deck: { params: CreateDeckParams; result: CreateDeckResult }
   create_cards: { params: CreateCardsParams; result: CreateCardsResult }
   create_story: { params: CreateStoryParams; result: CreateStoryResult }
+  create_questions: { params: CreateQuestionsParams; result: CreateQuestionsResult }
   create_task: { params: CreateTaskParams; result: TaskSummary }
   log_study_time: { params: LogStudyTimeParams; result: SessionSummary }
 }

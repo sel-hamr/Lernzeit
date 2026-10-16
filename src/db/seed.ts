@@ -2,6 +2,7 @@ import type { LernzeitDB } from './db'
 import { KV_KEYS, newId } from './db'
 import type { Deck, StoredImage, Topic } from './types'
 import { prepareCardPack, writeCardPack, type CardPack, type PackResult } from '@/data/io'
+import { installStarterQuestions, loadStarterQuestions } from '@/data/questions'
 import { installStarterStories, loadStarterStories } from '@/data/stories'
 import { uniformGoals } from '@/lib/goals'
 import { dateKey } from '@/lib/time'
@@ -66,16 +67,17 @@ export async function installStarterPack(database: LernzeitDB, pack?: CardPack):
   })
 }
 
-/** First launch: the German and AI topics, the starter decks and stories, and an empty AI deck. */
+/** First launch: the German and AI topics, the starter decks, stories and questions, and an empty AI deck. */
 export async function ensureSeeded(database: LernzeitDB): Promise<void> {
   if (await database.kv.get(KV_KEYS.seeded)) return
   // Load the pack before the transaction: IndexedDB transactions cannot wait on other work.
   const pack = await loadStarterPack()
   const prepared = await prepareCardPack(pack)
   const stories = await loadStarterStories()
+  const questions = await loadStarterQuestions()
   await database.transaction(
     'rw',
-    [database.kv, database.topics, database.decks, database.cards, database.reviews, database.images, database.stories],
+    [database.kv, database.topics, database.decks, database.cards, database.reviews, database.images, database.stories, database.questions],
     async () => {
       if (await database.kv.get(KV_KEYS.seeded)) return
       const now = Date.now()
@@ -106,6 +108,7 @@ export async function ensureSeeded(database: LernzeitDB): Promise<void> {
       }
       await database.decks.add(aiDeck)
       await installStarterStories(database, stories)
+      await installStarterQuestions(database, questions)
       await database.kv.put({ key: KV_KEYS.seeded, value: now })
     },
   )

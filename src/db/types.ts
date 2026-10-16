@@ -19,7 +19,7 @@ export interface Topic {
   createdAt: number
 }
 
-export type SessionSource = 'timer' | 'flashcards' | 'reading'
+export type SessionSource = 'timer' | 'flashcards' | 'reading' | 'questions'
 
 export interface Session {
   id: string
@@ -164,6 +164,33 @@ export interface Story {
   readCount: number
 }
 
+export interface Question {
+  id: string
+  /** Group name, e.g. "Sich vorstellen". Practice takes one set or all of them. */
+  set: string
+  /** German question. */
+  question: string
+  english?: string
+  /** The user's own answer, about their life. The one they practise. */
+  myAnswer?: string
+  /** A model answer from a starter set or the AI. */
+  suggested?: string
+  /** Useful words for an answer, offered as hints in practice. */
+  words?: string[]
+  level?: StoryLevel
+  tags: string[]
+  createdAt: number
+  updatedAt: number
+}
+
+/** One answer typed in practice. Kept so you can see how your answers changed. */
+export interface QuestionResponse {
+  id: string
+  questionId: string
+  text: string
+  at: number
+}
+
 export type ImageFit = 'contain' | 'cover'
 
 export interface StoredImage {
@@ -204,6 +231,7 @@ export interface Settings {
   autoPlayAudio: boolean
   countReviewTime: boolean
   countReadingTime: boolean
+  countQuestionTime: boolean
   typingMode: boolean
   listeningMode: boolean
   theme: ThemePref

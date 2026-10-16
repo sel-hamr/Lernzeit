@@ -5,6 +5,8 @@ import type {
   CardReview,
   Deck,
   KV,
+  Question,
+  QuestionResponse,
   ReviewLog,
   Session,
   Settings,
@@ -24,6 +26,8 @@ export class LernzeitDB extends Dexie {
   images!: EntityTable<StoredImage, 'id'>
   tasks!: EntityTable<Task, 'id'>
   stories!: EntityTable<Story, 'id'>
+  questions!: EntityTable<Question, 'id'>
+  responses!: EntityTable<QuestionResponse, 'id'>
   kv!: EntityTable<KV, 'key'>
 
   constructor(name = 'lernzeit') {
@@ -43,6 +47,10 @@ export class LernzeitDB extends Dexie {
     this.version(2).stores({
       stories: 'id, createdAt',
     })
+    this.version(3).stores({
+      questions: 'id, set, createdAt',
+      responses: 'id, questionId, at',
+    })
   }
 }
 
@@ -57,6 +65,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autoPlayAudio: true,
   countReviewTime: true,
   countReadingTime: true,
+  countQuestionTime: true,
   typingMode: false,
   listeningMode: false,
   theme: 'light',

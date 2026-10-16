@@ -1,6 +1,6 @@
 # MCP bridge
 
-Lets an AI app (Claude Code, Claude Desktop, Cursor) add cards, decks, stories, tasks and study time to Lernzeit.
+Lets an AI app (Claude Code, Claude Desktop, Cursor) add cards, decks, stories, practice questions, tasks and study time to Lernzeit.
 
 ## Why a bridge
 
@@ -95,6 +95,7 @@ Every tool except `list_browsers` takes an optional `browser` (its name).
 | `create_deck` | `name`, `topic`? | the deck, and whether it was created | `createDeck` |
 | `create_cards` | `deck` (name or id), `cards[]` | added count, skipped words | `writeCardPack` |
 | `create_story` | `title`, `text`, `translation`?, `level`?, `tags`?, `topic`? | the story, and whether it was created | `saveStory` |
+| `create_questions` | `set`, `questions[]` | the set's name, added count, skipped questions | `saveQuestion` |
 | `create_task` | `title`, `description`?, `priority`?, `status`?, `dueDate`?, `topic`? | the new task | `createTask` |
 | `log_study_time` | `topic`, `minutes`, `start`?, `note`? | the saved session | `logManualSession` |
 
@@ -119,6 +120,14 @@ Every tool except `list_browsers` takes an optional `browser` (its name).
 - Every story gets the tag `ai`. A story whose text is already saved is returned with `created: false` instead of being added twice.
 - Text and translation can each have up to 20,000 characters, and the title up to 120.
 
+### `create_questions`
+
+- Each question has `question` (German), plus any of `english`, `suggested` (a model answer in German), `words` (up to 12 useful words, shown as hints in practice), `level` and `tags`.
+- There is no field for the user's own answer: they write it in the app, about their life.
+- `set` names the group, up to 60 characters. A set that exists already, in any case, gets the new questions; another name starts a new set.
+- Every question gets the tag `ai`. A question already in the set (ignoring case) is skipped and listed in `skipped`.
+- Up to 50 questions per call, and up to 500 characters for each question and answer.
+
 ## Guide and prompts
 
 Besides the tools, the server offers:
@@ -130,6 +139,7 @@ Besides the tools, the server offers:
 |---|---|---|
 | `make_cards` | A set of German cards on a theme | `theme`, `count`? (10), `level`? (A2), `deck`? |
 | `write_story` | A short German story with its translation, then useful words to add as cards | `theme`, `level`? (A2), `words`? (150) |
+| `make_questions` | German questions on a theme, each with its English and a suggested answer | `theme`, `count`? (10), `level`? (A2) |
 | `plan_tasks` | A goal broken into board tasks, shown before they are added | `goal`, `until`?, `topic`? |
 | `help` | What the AI can do, plus a connection check | – |
 
