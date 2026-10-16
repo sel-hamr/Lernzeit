@@ -4,7 +4,7 @@ import { checkAnswer, diffChars } from './answer'
 import { germanText, parseCloze, splitArticle, wordKind } from './german'
 import { computeStreak, goalFor, indexMinutes, isGoalHit, topicStreak, uniformGoals, withGoalChange } from './goals'
 import { heatLevel, topicWeek, weekSummary } from './history'
-import { buildPracticeQueue, buildQueue, usageToday } from './queue'
+import { buildPracticeQueue, buildQueue, pickNextReview, usageToday } from './queue'
 import { splitAtMidnight } from './sessions'
 import { applyGrade, newFsrs, previewGrades, State } from './srs'
 import { addDays, dateKey, formatHM, formatTimer, startOfWeek, weekdayOf, DAY, MINUTE } from './time'
@@ -308,5 +308,38 @@ describe('practice queue', () => {
     expect(applyGrade(known, 3, now, true).due).toBe(practice[3].due)
     // Never later than FSRS: a new card's Again stays at a minute.
     expect(previewGrades(newFsrs(now), now, true)[1].due).toBe(previewGrades(newFsrs(now), now)[1].due)
+  })
+})
+
+describe('next card in a session', () => {
+  const now = at(2026, 10, 14, 12)
+  const cardOf = (id: string) => id.split(':')[0]
+  const session = (main: string[], learning: { id: string; due: number }[] = []) => ({ main, learning })
+
+  it('takes due learning cards first, then the queue, then learning cards early', () => {
+    expect(pickNextReview(session(['a:enToDe'], [{ id: 'b:enToDe', due: now }]), now, cardOf).current).toBe('b:enToDe')
+    expect(pickNextReview(session(['a:enToDe'], [{ id: 'b:enToDe', due: now + MINUTE }]), now, cardOf).current).toBe('a:enToDe')
+    const early = pickNextReview(session([], [{ id: 'c:enToDe', due: now + 5 * MINUTE }, { id: 'b:enToDe', due: now + MINUTE }]), now, cardOf)
+    expect(early.current).toBe('b:enToDe')
+    expect(early.learning).toEqual([{ id: 'c:enToDe', due: now + 5 * MINUTE }])
+    expect(pickNextReview(session([]), now, cardOf).current).toBeNull()
+  })
+
+  it('never shows the same word twice in a row while another word is left', () => {
+    // Again on the last queued card: another learning card comes before it.
+    const again = pickNextReview(session([], [{ id: 'a:enToDe', due: now + MINUTE }, { id: 'b:enToDe', due: now + 3 * MINUTE }]), now, cardOf, 'a:enToDe')
+    expect(again.current).toBe('b:enToDe')
+    expect(again.learning).toEqual([{ id: 'a:enToDe', due: now + MINUTE }])
+    // Another direction of the same word waits for the next word in the queue.
+    const sibling = pickNextReview(session(['a:deToEn', 'b:enToDe', 'c:enToDe']), now, cardOf, 'a:enToDe')
+    expect(sibling.current).toBe('b:enToDe')
+    expect(sibling.main).toEqual(['a:deToEn', 'c:enToDe'])
+    // A due learning card of the same word waits too.
+    expect(pickNextReview(session(['b:enToDe'], [{ id: 'a:enToDe', due: now }]), now, cardOf, 'a:imageToDe').current).toBe('b:enToDe')
+  })
+
+  it('repeats a word only when it is the only one left', () => {
+    expect(pickNextReview(session([], [{ id: 'a:enToDe', due: now + MINUTE }]), now, cardOf, 'a:enToDe').current).toBe('a:enToDe')
+    expect(pickNextReview(session(['a:deToEn']), now, cardOf, 'a:enToDe').current).toBe('a:deToEn')
   })
 })

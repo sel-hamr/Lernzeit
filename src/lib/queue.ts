@@ -141,6 +141,38 @@ export function buildPracticeQueue(opts: {
   return [...spreadSiblings(studied.slice(0, size)), ...spreadSiblings(fresh)].slice(0, size)
 }
 
+/** What is left of a review session, as review ids. */
+export interface SessionQueue {
+  main: string[]
+  learning: { id: string; due: number }[]
+}
+
+/**
+ * Picks the next review of a session: learning cards that are due, then the
+ * queue in order, then learning cards early rather than ending the session.
+ * The word just shown (`lastId`, any direction) is passed over while another
+ * word is left, so the same word never comes twice in a row.
+ */
+export function pickNextReview<T extends SessionQueue>(
+  session: T,
+  now: number,
+  cardOf: (reviewId: string) => string | undefined,
+  lastId?: string | null,
+): T & { current: string | null } {
+  const learning = [...session.learning].sort((a, b) => a.due - b.due)
+  const candidates = [
+    ...learning.filter((l) => l.due <= now).map((l) => ({ id: l.id, fromMain: false })),
+    ...session.main.map((id) => ({ id, fromMain: true })),
+    ...learning.filter((l) => l.due > now).map((l) => ({ id: l.id, fromMain: false })),
+  ]
+  const lastCard = lastId ? cardOf(lastId) : undefined
+  const next = candidates.find((c) => lastCard === undefined || cardOf(c.id) !== lastCard) ?? candidates[0]
+  if (!next) return { ...session, learning, current: null }
+  return next.fromMain
+    ? { ...session, learning, main: session.main.filter((id) => id !== next.id), current: next.id }
+    : { ...session, learning: learning.filter((l) => l.id !== next.id), current: next.id }
+}
+
 /** Keeps two directions of the same card from appearing back to back. */
 export function spreadSiblings(items: CardReview[]): CardReview[] {
   const firsts: CardReview[] = []
