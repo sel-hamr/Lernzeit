@@ -71,6 +71,7 @@ Shows progress per topic with the time left, start buttons, today's sessions, ca
 
 - Word, sentence and cloze cards (`Der Hund {{spielt}} im Garten.`), coloured by gender: <b>der</b> blue, <b>die</b> red, <b>das</b> green.
 - Three practice directions per deck: Image → German, English → German and German → English. Scheduling uses FSRS ([ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs)). Daily limits are set per deck and count new words, not directions.
+- **Always a word to practise.** When nothing is due, **Practise** starts a round of 20 cards ahead of schedule: studied cards that are due soonest first, then new cards past the daily limit. A practised card comes back soon: at most 10 minutes after Again, 1 hour after Hard, 1 day after Good and 2 days after Easy. **Practise more** at the end starts another round.
 - **Typing mode** accepts small slips (`ue` for `ü`, a missing umlaut, lowercase, a missing article), then shows the exact spelling and highlights the wrong letters.
 - **Listening mode** plays the German and you type what you hear. Speed buttons (0.6×, 0.8×, 1×, 1.2×) sit next to the speaker.
 - **Mute** stops the German from playing by itself when the answer is shown. The speaker button still plays it when you tap it. It is the same switch as *Play audio when the answer is shown* in Settings.

@@ -75,6 +75,7 @@ One card can create up to 3 practice directions. Each can be turned on or off pe
 - Spaced repetition uses **ts-fsrs**.
 - There are 4 buttons: **Again / Hard / Good / Easy**, with keyboard shortcuts 1 / 2 / 3 / 4.
 - Daily limits are configurable per deck. Default: 15 new cards and 150 reviews.
+- The review page is never empty while cards exist. With nothing due, it starts a practice round of 20 cards ahead of schedule: studied cards that are due soonest first (cards held back by the review limit lead), then new cards past the new limit. Ratings still update FSRS, but the next due date is capped at 10 minutes (Again), 1 hour (Hard), 1 day (Good) or 2 days (Easy). A finished session offers **Practise more**.
 - **Show answer** is on the Space key.
 - When the answer is shown, the German audio plays automatically. There is also a 🔊 button to replay it.
 - **Typing mode** (optional toggle): I type the answer.

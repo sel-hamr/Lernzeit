@@ -210,6 +210,7 @@ export function LibraryPage() {
 
   const total = cards?.length ?? 0
   const dueHere = deckFilter === 'all' ? queue.total : (queue.byDeck.get(deckFilter) ?? 0)
+  const cardsHere = deckFilter === 'all' ? total : (cards?.filter((c) => c.deckId === deckFilter).length ?? 0)
   const reviewHref = deckFilter === 'all' ? '/flashcards/review' : `/flashcards/review?deck=${deckFilter}`
   const topicOf = (deck?: Deck) => topics.find((t) => t.id === deck?.topicId)
 
@@ -226,8 +227,9 @@ export function LibraryPage() {
             <Button variant="soft" icon={<Plus size={16} strokeWidth={1.8} />} onClick={() => openCardEditor({ deckId: deckFilter === 'all' ? undefined : deckFilter })}>
               Add card
             </Button>
-            <Button variant="primary" disabled={!dueHere} onClick={() => navigate(reviewHref)}>
-              {dueHere ? `Review ${dueHere} ${dueHere === 1 ? 'card' : 'cards'}` : 'Nothing due'}
+            {/* With nothing due, the review page practises cards ahead of schedule. */}
+            <Button variant="primary" disabled={!cardsHere} onClick={() => navigate(reviewHref)} title={dueHere ? undefined : 'Nothing is due. Practise cards ahead of schedule.'}>
+              {dueHere ? `Review ${dueHere} ${dueHere === 1 ? 'card' : 'cards'}` : 'Practise'}
             </Button>
           </>
         }
