@@ -92,6 +92,28 @@ export function registerGuide(server: McpServer) {
   )
 
   server.registerPrompt(
+    'make_grammar',
+    {
+      title: 'Make grammar exercises',
+      description: 'Adds exercises with explanations to a grammar topic, or starts a new topic.',
+      argsSchema: z.object({
+        topic: z.string().describe('The grammar point, e.g. "Dativ" or "weil and dass"'),
+        count: z.string().optional().describe('How many exercises. Default 12'),
+        level: z.string().optional().describe('CEFR level, e.g. A1 or B1. Default A2'),
+      }),
+    },
+    ({ topic, count = '12', level = 'A2' }) =>
+      withGuide(
+        [
+          `Make ${count} German grammar exercises on "${topic}" at level ${level}, following the guide.`,
+          'Call list_grammar_topics first. If a topic fits, add to it with its title; otherwise start a new topic with a short rule, a table where it helps, and three examples.',
+          'Mix the four kinds of exercise, and give every exercise its English and a one-sentence why. Add them with add_grammar.',
+          'Afterwards, tell me how many were added, and that they are under Grammar in Lernzeit.',
+        ].join('\n'),
+      ),
+  )
+
+  server.registerPrompt(
     'plan_tasks',
     {
       title: 'Plan study tasks',

@@ -1,5 +1,6 @@
 import { db, newId, type LernzeitDB } from '@/db/db'
 import type { Card, CardReview, Deck, DeckDirections, Grade, ReviewLog } from '@/db/types'
+import { cleanConjugation } from '@/lib/conjugation'
 import { splitArticle } from '@/lib/german'
 import { prepareImage } from '@/lib/image'
 import { applyGrade, directionsFor, newReview } from '@/lib/srs'
@@ -49,6 +50,7 @@ function normalizeInput(input: CardInput): CardInput {
     gender: input.type === 'word' ? gender : undefined,
     plural: clean(input.plural),
     verbForms: clean(input.verbForms),
+    conjugation: cleanConjugation(input.conjugation),
     exampleDe: clean(input.exampleDe),
     exampleEn: clean(input.exampleEn),
     emoji: clean(input.emoji),
@@ -106,12 +108,13 @@ export async function quickAddCard(input: { english: string; german: string; dec
 }
 
 export async function deleteCard(id: string, database: LernzeitDB = db) {
-  await database.transaction('rw', [database.cards, database.reviews, database.reviewLogs, database.images], async () => {
+  await database.transaction('rw', [database.cards, database.reviews, database.reviewLogs, database.drillStats, database.images], async () => {
     const card = await database.cards.get(id)
     if (!card) return
     await database.cards.delete(id)
     await database.reviews.where('cardId').equals(id).delete()
     await database.reviewLogs.where('cardId').equals(id).delete()
+    await database.drillStats.where('cardId').equals(id).delete()
     await deleteImageIfUnused(database, card.imageId)
   })
 }
@@ -152,11 +155,12 @@ export async function updateDeck(
 
 /** Deletes a deck with all of its cards and their progress. */
 export async function deleteDeck(id: string, database: LernzeitDB = db) {
-  await database.transaction('rw', [database.decks, database.cards, database.reviews, database.reviewLogs, database.images], async () => {
+  await database.transaction('rw', [database.decks, database.cards, database.reviews, database.reviewLogs, database.drillStats, database.images], async () => {
     const cards = await database.cards.where('deckId').equals(id).toArray()
     const cardIds = cards.map((c) => c.id)
     await database.reviews.where('cardId').anyOf(cardIds).delete()
     await database.reviewLogs.where('cardId').anyOf(cardIds).delete()
+    await database.drillStats.where('cardId').anyOf(cardIds).delete()
     await database.cards.bulkDelete(cardIds)
     await database.decks.delete(id)
     const imageIds = [...new Set(cards.map((c) => c.imageId).filter((x): x is string => !!x))]

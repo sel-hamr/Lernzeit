@@ -5287,6 +5287,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "sein – war – ist gewesen",
+      "conjugation": {
+        "present": "bin, bist, ist, sind, seid, sind",
+        "past": "war, warst, war, waren, wart, waren",
+        "perfect": "bin gewesen, bist gewesen, ist gewesen, sind gewesen, seid gewesen, sind gewesen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich bin müde.",
       "exampleEn": "I am tired.",
@@ -5307,6 +5312,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "haben – hatte – hat gehabt",
+      "conjugation": {
+        "present": "habe, hast, hat, haben, habt, haben",
+        "past": "hatte, hattest, hatte, hatten, hattet, hatten",
+        "perfect": "habe gehabt, hast gehabt, hat gehabt, haben gehabt, habt gehabt, haben gehabt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Wir haben einen Hund.",
       "exampleEn": "We have a dog.",
@@ -5327,6 +5337,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "werden – wurde – ist geworden",
+      "conjugation": {
+        "present": "werde, wirst, wird, werden, werdet, werden",
+        "past": "wurde, wurdest, wurde, wurden, wurdet, wurden",
+        "perfect": "bin geworden, bist geworden, ist geworden, sind geworden, seid geworden, sind geworden"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Es wird kalt.",
       "exampleEn": "It is getting cold.",
@@ -5347,6 +5362,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "können – konnte – hat gekonnt",
+      "conjugation": {
+        "present": "kann, kannst, kann, können, könnt, können",
+        "past": "konnte, konntest, konnte, konnten, konntet, konnten",
+        "perfect": "habe gekonnt, hast gekonnt, hat gekonnt, haben gekonnt, habt gekonnt, haben gekonnt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Kannst du mir helfen?",
       "exampleEn": "Can you help me?",
@@ -5367,6 +5387,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "müssen – musste – hat gemusst",
+      "conjugation": {
+        "present": "muss, musst, muss, müssen, müsst, müssen",
+        "past": "musste, musstest, musste, mussten, musstet, mussten",
+        "perfect": "habe gemusst, hast gemusst, hat gemusst, haben gemusst, habt gemusst, haben gemusst"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich muss jetzt gehen.",
       "exampleEn": "I have to go now.",
@@ -5387,6 +5412,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "wollen – wollte – hat gewollt",
+      "conjugation": {
+        "present": "will, willst, will, wollen, wollt, wollen",
+        "past": "wollte, wolltest, wollte, wollten, wolltet, wollten",
+        "perfect": "habe gewollt, hast gewollt, hat gewollt, haben gewollt, habt gewollt, haben gewollt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich will Deutsch lernen.",
       "exampleEn": "I want to learn German.",
@@ -5407,6 +5437,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "sollen – sollte – hat gesollt",
+      "conjugation": {
+        "present": "soll, sollst, soll, sollen, sollt, sollen",
+        "past": "sollte, solltest, sollte, sollten, solltet, sollten",
+        "perfect": "habe gesollt, hast gesollt, hat gesollt, haben gesollt, habt gesollt, haben gesollt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Was soll ich machen?",
       "exampleEn": "What should I do?",
@@ -5427,6 +5462,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "dürfen – durfte – hat gedurft",
+      "conjugation": {
+        "present": "darf, darfst, darf, dürfen, dürft, dürfen",
+        "past": "durfte, durftest, durfte, durften, durftet, durften",
+        "perfect": "habe gedurft, hast gedurft, hat gedurft, haben gedurft, habt gedurft, haben gedurft"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Darf ich hier parken?",
       "exampleEn": "May I park here?",
@@ -5447,6 +5487,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "mögen – mochte – hat gemocht",
+      "conjugation": {
+        "present": "mag, magst, mag, mögen, mögt, mögen",
+        "past": "mochte, mochtest, mochte, mochten, mochtet, mochten",
+        "perfect": "habe gemocht, hast gemocht, hat gemocht, haben gemocht, habt gemocht, haben gemocht"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich mag Schokolade.",
       "exampleEn": "I like chocolate.",
@@ -5467,6 +5512,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "möchten – wollte – hat gewollt",
+      "conjugation": {
+        "present": "möchte, möchtest, möchte, möchten, möchtet, möchten",
+        "past": "wollte, wolltest, wollte, wollten, wolltet, wollten",
+        "perfect": "habe gewollt, hast gewollt, hat gewollt, haben gewollt, habt gewollt, haben gewollt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich möchte einen Kaffee.",
       "exampleEn": "I would like a coffee.",
@@ -5487,6 +5537,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "sagen – sagte – hat gesagt",
+      "conjugation": {
+        "present": "sage, sagst, sagt, sagen, sagt, sagen",
+        "past": "sagte, sagtest, sagte, sagten, sagtet, sagten",
+        "perfect": "habe gesagt, hast gesagt, hat gesagt, haben gesagt, habt gesagt, haben gesagt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Was hast du gesagt?",
       "exampleEn": "What did you say?",
@@ -5507,6 +5562,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "machen – machte – hat gemacht",
+      "conjugation": {
+        "present": "mache, machst, macht, machen, macht, machen",
+        "past": "machte, machtest, machte, machten, machtet, machten",
+        "perfect": "habe gemacht, hast gemacht, hat gemacht, haben gemacht, habt gemacht, haben gemacht"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Was machst du heute?",
       "exampleEn": "What are you doing today?",
@@ -5527,6 +5587,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "gehen – ging – ist gegangen",
+      "conjugation": {
+        "present": "gehe, gehst, geht, gehen, geht, gehen",
+        "past": "ging, gingst, ging, gingen, gingt, gingen",
+        "perfect": "bin gegangen, bist gegangen, ist gegangen, sind gegangen, seid gegangen, sind gegangen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich gehe nach Hause.",
       "exampleEn": "I am going home.",
@@ -5547,6 +5612,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "kommen – kam – ist gekommen",
+      "conjugation": {
+        "present": "komme, kommst, kommt, kommen, kommt, kommen",
+        "past": "kam, kamst, kam, kamen, kamt, kamen",
+        "perfect": "bin gekommen, bist gekommen, ist gekommen, sind gekommen, seid gekommen, sind gekommen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Kommst du heute Abend?",
       "exampleEn": "Are you coming tonight?",
@@ -5567,6 +5637,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "geben – gab – hat gegeben",
+      "conjugation": {
+        "present": "gebe, gibst, gibt, geben, gebt, geben",
+        "past": "gab, gabst, gab, gaben, gabt, gaben",
+        "perfect": "habe gegeben, hast gegeben, hat gegeben, haben gegeben, habt gegeben, haben gegeben"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Gib mir bitte das Buch.",
       "exampleEn": "Please give me the book.",
@@ -5587,6 +5662,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "sehen – sah – hat gesehen",
+      "conjugation": {
+        "present": "sehe, siehst, sieht, sehen, seht, sehen",
+        "past": "sah, sahst, sah, sahen, saht, sahen",
+        "perfect": "habe gesehen, hast gesehen, hat gesehen, haben gesehen, habt gesehen, haben gesehen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich sehe dich morgen.",
       "exampleEn": "I'll see you tomorrow.",
@@ -5607,6 +5687,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "wissen – wusste – hat gewusst",
+      "conjugation": {
+        "present": "weiß, weißt, weiß, wissen, wisst, wissen",
+        "past": "wusste, wusstest, wusste, wussten, wusstet, wussten",
+        "perfect": "habe gewusst, hast gewusst, hat gewusst, haben gewusst, habt gewusst, haben gewusst"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich weiß es nicht.",
       "exampleEn": "I don't know.",
@@ -5627,6 +5712,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "kennen – kannte – hat gekannt",
+      "conjugation": {
+        "present": "kenne, kennst, kennt, kennen, kennt, kennen",
+        "past": "kannte, kanntest, kannte, kannten, kanntet, kannten",
+        "perfect": "habe gekannt, hast gekannt, hat gekannt, haben gekannt, habt gekannt, haben gekannt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Kennst du meinen Bruder?",
       "exampleEn": "Do you know my brother?",
@@ -5647,6 +5737,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "finden – fand – hat gefunden",
+      "conjugation": {
+        "present": "finde, findest, findet, finden, findet, finden",
+        "past": "fand, fandest/fandst, fand, fanden, fandet, fanden",
+        "perfect": "habe gefunden, hast gefunden, hat gefunden, haben gefunden, habt gefunden, haben gefunden"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich finde den Film gut.",
       "exampleEn": "I think the film is good.",
@@ -5667,6 +5762,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "denken – dachte – hat gedacht",
+      "conjugation": {
+        "present": "denke, denkst, denkt, denken, denkt, denken",
+        "past": "dachte, dachtest, dachte, dachten, dachtet, dachten",
+        "perfect": "habe gedacht, hast gedacht, hat gedacht, haben gedacht, habt gedacht, haben gedacht"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich denke oft an dich.",
       "exampleEn": "I often think of you.",
@@ -5687,6 +5787,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "glauben – glaubte – hat geglaubt",
+      "conjugation": {
+        "present": "glaube, glaubst, glaubt, glauben, glaubt, glauben",
+        "past": "glaubte, glaubtest, glaubte, glaubten, glaubtet, glaubten",
+        "perfect": "habe geglaubt, hast geglaubt, hat geglaubt, haben geglaubt, habt geglaubt, haben geglaubt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich glaube, er hat recht.",
       "exampleEn": "I think he is right.",
@@ -5707,6 +5812,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "nehmen – nahm – hat genommen",
+      "conjugation": {
+        "present": "nehme, nimmst, nimmt, nehmen, nehmt, nehmen",
+        "past": "nahm, nahmst, nahm, nahmen, nahmt, nahmen",
+        "perfect": "habe genommen, hast genommen, hat genommen, haben genommen, habt genommen, haben genommen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich nehme den Bus.",
       "exampleEn": "I'm taking the bus.",
@@ -5727,6 +5837,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "stehen – stand – hat gestanden",
+      "conjugation": {
+        "present": "stehe, stehst, steht, stehen, steht, stehen",
+        "past": "stand, standest/standst, stand, standen, standet, standen",
+        "perfect": "habe gestanden, hast gestanden, hat gestanden, haben gestanden, habt gestanden, haben gestanden"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Er steht an der Tür.",
       "exampleEn": "He is standing at the door.",
@@ -5747,6 +5862,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "liegen – lag – hat gelegen",
+      "conjugation": {
+        "present": "liege, liegst, liegt, liegen, liegt, liegen",
+        "past": "lag, lagst, lag, lagen, lagt, lagen",
+        "perfect": "habe gelegen, hast gelegen, hat gelegen, haben gelegen, habt gelegen, haben gelegen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Das Handy liegt auf dem Sofa.",
       "exampleEn": "The phone is lying on the sofa.",
@@ -5767,6 +5887,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "sitzen – saß – hat gesessen",
+      "conjugation": {
+        "present": "sitze, sitzt, sitzt, sitzen, sitzt, sitzen",
+        "past": "saß, saßest/saßt, saß, saßen, saßt, saßen",
+        "perfect": "habe gesessen, hast gesessen, hat gesessen, haben gesessen, habt gesessen, haben gesessen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Wir sitzen im Garten.",
       "exampleEn": "We are sitting in the garden.",
@@ -5787,6 +5912,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "bleiben – blieb – ist geblieben",
+      "conjugation": {
+        "present": "bleibe, bleibst, bleibt, bleiben, bleibt, bleiben",
+        "past": "blieb, bliebst, blieb, blieben, bliebt, blieben",
+        "perfect": "bin geblieben, bist geblieben, ist geblieben, sind geblieben, seid geblieben, sind geblieben"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich bleibe heute zu Hause.",
       "exampleEn": "I'm staying at home today.",
@@ -5807,6 +5937,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "heißen – hieß – hat geheißen",
+      "conjugation": {
+        "present": "heiße, heißt, heißt, heißen, heißt, heißen",
+        "past": "hieß, hießest/hießt, hieß, hießen, hießt, hießen",
+        "perfect": "habe geheißen, hast geheißen, hat geheißen, haben geheißen, habt geheißen, haben geheißen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich heiße Anna.",
       "exampleEn": "My name is Anna.",
@@ -5827,6 +5962,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "wohnen – wohnte – hat gewohnt",
+      "conjugation": {
+        "present": "wohne, wohnst, wohnt, wohnen, wohnt, wohnen",
+        "past": "wohnte, wohntest, wohnte, wohnten, wohntet, wohnten",
+        "perfect": "habe gewohnt, hast gewohnt, hat gewohnt, haben gewohnt, habt gewohnt, haben gewohnt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich wohne in Hamburg.",
       "exampleEn": "I live in Hamburg.",
@@ -5847,6 +5987,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "leben – lebte – hat gelebt",
+      "conjugation": {
+        "present": "lebe, lebst, lebt, leben, lebt, leben",
+        "past": "lebte, lebtest, lebte, lebten, lebtet, lebten",
+        "perfect": "habe gelebt, hast gelebt, hat gelebt, haben gelebt, habt gelebt, haben gelebt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Er lebt seit zehn Jahren in Deutschland.",
       "exampleEn": "He has lived in Germany for ten years.",
@@ -5867,6 +6012,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "arbeiten – arbeitete – hat gearbeitet",
+      "conjugation": {
+        "present": "arbeite, arbeitest, arbeitet, arbeiten, arbeitet, arbeiten",
+        "past": "arbeitete, arbeitetest, arbeitete, arbeiteten, arbeitetet, arbeiteten",
+        "perfect": "habe gearbeitet, hast gearbeitet, hat gearbeitet, haben gearbeitet, habt gearbeitet, haben gearbeitet"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich arbeite von neun bis fünf.",
       "exampleEn": "I work from nine to five.",
@@ -5887,6 +6037,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "lernen – lernte – hat gelernt",
+      "conjugation": {
+        "present": "lerne, lernst, lernt, lernen, lernt, lernen",
+        "past": "lernte, lerntest, lernte, lernten, lerntet, lernten",
+        "perfect": "habe gelernt, hast gelernt, hat gelernt, haben gelernt, habt gelernt, haben gelernt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich lerne jeden Tag Deutsch.",
       "exampleEn": "I learn German every day.",
@@ -5907,6 +6062,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "studieren – studierte – hat studiert",
+      "conjugation": {
+        "present": "studiere, studierst, studiert, studieren, studiert, studieren",
+        "past": "studierte, studiertest, studierte, studierten, studiertet, studierten",
+        "perfect": "habe studiert, hast studiert, hat studiert, haben studiert, habt studiert, haben studiert"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Sie studiert Informatik.",
       "exampleEn": "She studies computer science.",
@@ -5927,6 +6087,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "spielen – spielte – hat gespielt",
+      "conjugation": {
+        "present": "spiele, spielst, spielt, spielen, spielt, spielen",
+        "past": "spielte, spieltest, spielte, spielten, spieltet, spielten",
+        "perfect": "habe gespielt, hast gespielt, hat gespielt, haben gespielt, habt gespielt, haben gespielt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Die Kinder spielen draußen.",
       "exampleEn": "The children are playing outside.",
@@ -5947,6 +6112,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "sprechen – sprach – hat gesprochen",
+      "conjugation": {
+        "present": "spreche, sprichst, spricht, sprechen, sprecht, sprechen",
+        "past": "sprach, sprachst, sprach, sprachen, spracht, sprachen",
+        "perfect": "habe gesprochen, hast gesprochen, hat gesprochen, haben gesprochen, habt gesprochen, haben gesprochen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Sprechen Sie Englisch?",
       "exampleEn": "Do you speak English?",
@@ -5967,6 +6137,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "lesen – las – hat gelesen",
+      "conjugation": {
+        "present": "lese, liest, liest, lesen, lest, lesen",
+        "past": "las, lasest/last, las, lasen, last, lasen",
+        "perfect": "habe gelesen, hast gelesen, hat gelesen, haben gelesen, habt gelesen, haben gelesen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich lese gern Bücher.",
       "exampleEn": "I like reading books.",
@@ -5987,6 +6162,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "schreiben – schrieb – hat geschrieben",
+      "conjugation": {
+        "present": "schreibe, schreibst, schreibt, schreiben, schreibt, schreiben",
+        "past": "schrieb, schriebst, schrieb, schrieben, schriebt, schrieben",
+        "perfect": "habe geschrieben, hast geschrieben, hat geschrieben, haben geschrieben, habt geschrieben, haben geschrieben"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Schreib mir eine Nachricht!",
       "exampleEn": "Write me a message!",
@@ -6007,6 +6187,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "hören – hörte – hat gehört",
+      "conjugation": {
+        "present": "höre, hörst, hört, hören, hört, hören",
+        "past": "hörte, hörtest, hörte, hörten, hörtet, hörten",
+        "perfect": "habe gehört, hast gehört, hat gehört, haben gehört, habt gehört, haben gehört"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Hörst du die Musik?",
       "exampleEn": "Do you hear the music?",
@@ -6027,6 +6212,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "verstehen – verstand – hat verstanden",
+      "conjugation": {
+        "present": "verstehe, verstehst, versteht, verstehen, versteht, verstehen",
+        "past": "verstand, verstandest/verstandst, verstand, verstanden, verstandet, verstanden",
+        "perfect": "habe verstanden, hast verstanden, hat verstanden, haben verstanden, habt verstanden, haben verstanden"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich verstehe das nicht.",
       "exampleEn": "I don't understand that.",
@@ -6047,6 +6237,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "fragen – fragte – hat gefragt",
+      "conjugation": {
+        "present": "frage, fragst, fragt, fragen, fragt, fragen",
+        "past": "fragte, fragtest, fragte, fragten, fragtet, fragten",
+        "perfect": "habe gefragt, hast gefragt, hat gefragt, haben gefragt, habt gefragt, haben gefragt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Darf ich dich etwas fragen?",
       "exampleEn": "May I ask you something?",
@@ -6067,6 +6262,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "antworten – antwortete – hat geantwortet",
+      "conjugation": {
+        "present": "antworte, antwortest, antwortet, antworten, antwortet, antworten",
+        "past": "antwortete, antwortetest, antwortete, antworteten, antwortetet, antworteten",
+        "perfect": "habe geantwortet, hast geantwortet, hat geantwortet, haben geantwortet, habt geantwortet, haben geantwortet"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Bitte antworte mir schnell.",
       "exampleEn": "Please answer me quickly.",
@@ -6087,6 +6287,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "essen – aß – hat gegessen",
+      "conjugation": {
+        "present": "esse, isst, isst, essen, esst, essen",
+        "past": "aß, aßest/aßt, aß, aßen, aßt, aßen",
+        "perfect": "habe gegessen, hast gegessen, hat gegessen, haben gegessen, habt gegessen, haben gegessen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Wir essen um sieben Uhr.",
       "exampleEn": "We eat at seven o'clock.",
@@ -6107,6 +6312,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "trinken – trank – hat getrunken",
+      "conjugation": {
+        "present": "trinke, trinkst, trinkt, trinken, trinkt, trinken",
+        "past": "trank, trankst, trank, tranken, trankt, tranken",
+        "perfect": "habe getrunken, hast getrunken, hat getrunken, haben getrunken, habt getrunken, haben getrunken"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich trinke gern Tee.",
       "exampleEn": "I like drinking tea.",
@@ -6127,6 +6337,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "kochen – kochte – hat gekocht",
+      "conjugation": {
+        "present": "koche, kochst, kocht, kochen, kocht, kochen",
+        "past": "kochte, kochtest, kochte, kochten, kochtet, kochten",
+        "perfect": "habe gekocht, hast gekocht, hat gekocht, haben gekocht, habt gekocht, haben gekocht"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Heute koche ich Spaghetti.",
       "exampleEn": "Today I'm cooking spaghetti.",
@@ -6147,6 +6362,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "kaufen – kaufte – hat gekauft",
+      "conjugation": {
+        "present": "kaufe, kaufst, kauft, kaufen, kauft, kaufen",
+        "past": "kaufte, kauftest, kaufte, kauften, kauftet, kauften",
+        "perfect": "habe gekauft, hast gekauft, hat gekauft, haben gekauft, habt gekauft, haben gekauft"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich kaufe ein neues Handy.",
       "exampleEn": "I'm buying a new phone.",
@@ -6167,6 +6387,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "bezahlen – bezahlte – hat bezahlt",
+      "conjugation": {
+        "present": "bezahle, bezahlst, bezahlt, bezahlen, bezahlt, bezahlen",
+        "past": "bezahlte, bezahltest, bezahlte, bezahlten, bezahltet, bezahlten",
+        "perfect": "habe bezahlt, hast bezahlt, hat bezahlt, haben bezahlt, habt bezahlt, haben bezahlt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Kann ich mit Karte bezahlen?",
       "exampleEn": "Can I pay by card?",
@@ -6187,6 +6412,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "kosten – kostete – hat gekostet",
+      "conjugation": {
+        "present": "koste, kostest, kostet, kosten, kostet, kosten",
+        "past": "kostete, kostetest, kostete, kosteten, kostetet, kosteten",
+        "perfect": "habe gekostet, hast gekostet, hat gekostet, haben gekostet, habt gekostet, haben gekostet"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Das Ticket kostet zwanzig Euro.",
       "exampleEn": "The ticket costs twenty euros.",
@@ -6207,6 +6437,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "brauchen – brauchte – hat gebraucht",
+      "conjugation": {
+        "present": "brauche, brauchst, braucht, brauchen, braucht, brauchen",
+        "past": "brauchte, brauchtest, brauchte, brauchten, brauchtet, brauchten",
+        "perfect": "habe gebraucht, hast gebraucht, hat gebraucht, haben gebraucht, habt gebraucht, haben gebraucht"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich brauche deine Hilfe.",
       "exampleEn": "I need your help.",
@@ -6227,6 +6462,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "suchen – suchte – hat gesucht",
+      "conjugation": {
+        "present": "suche, suchst, sucht, suchen, sucht, suchen",
+        "past": "suchte, suchtest, suchte, suchten, suchtet, suchten",
+        "perfect": "habe gesucht, hast gesucht, hat gesucht, haben gesucht, habt gesucht, haben gesucht"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich suche meine Brille.",
       "exampleEn": "I'm looking for my glasses.",
@@ -6247,6 +6487,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "fahren – fuhr – ist gefahren",
+      "conjugation": {
+        "present": "fahre, fährst, fährt, fahren, fahrt, fahren",
+        "past": "fuhr, fuhrst, fuhr, fuhren, fuhrt, fuhren",
+        "perfect": "bin gefahren, bist gefahren, ist gefahren, sind gefahren, seid gefahren, sind gefahren"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Wir fahren morgen nach München.",
       "exampleEn": "We're going to Munich tomorrow.",
@@ -6267,6 +6512,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "fliegen – flog – ist geflogen",
+      "conjugation": {
+        "present": "fliege, fliegst, fliegt, fliegen, fliegt, fliegen",
+        "past": "flog, flogst, flog, flogen, flogt, flogen",
+        "perfect": "bin geflogen, bist geflogen, ist geflogen, sind geflogen, seid geflogen, sind geflogen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Wir fliegen nach Spanien.",
       "exampleEn": "We are flying to Spain.",
@@ -6287,6 +6537,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "laufen – lief – ist gelaufen",
+      "conjugation": {
+        "present": "laufe, läufst, läuft, laufen, lauft, laufen",
+        "past": "lief, liefst, lief, liefen, lieft, liefen",
+        "perfect": "bin gelaufen, bist gelaufen, ist gelaufen, sind gelaufen, seid gelaufen, sind gelaufen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich laufe jeden Morgen fünf Kilometer.",
       "exampleEn": "I run five kilometers every morning.",
@@ -6307,6 +6562,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "schwimmen – schwamm – ist geschwommen",
+      "conjugation": {
+        "present": "schwimme, schwimmst, schwimmt, schwimmen, schwimmt, schwimmen",
+        "past": "schwamm, schwammst, schwamm, schwammen, schwammt, schwammen",
+        "perfect": "bin geschwommen, bist geschwommen, ist geschwommen, sind geschwommen, seid geschwommen, sind geschwommen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Im Sommer schwimmen wir viel.",
       "exampleEn": "In summer we swim a lot.",
@@ -6327,6 +6587,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "schlafen – schlief – hat geschlafen",
+      "conjugation": {
+        "present": "schlafe, schläfst, schläft, schlafen, schlaft, schlafen",
+        "past": "schlief, schliefst, schlief, schliefen, schlieft, schliefen",
+        "perfect": "habe geschlafen, hast geschlafen, hat geschlafen, haben geschlafen, habt geschlafen, haben geschlafen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Hast du gut geschlafen?",
       "exampleEn": "Did you sleep well?",
@@ -6347,6 +6612,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "aufstehen – stand auf – ist aufgestanden",
+      "conjugation": {
+        "present": "stehe auf, stehst auf, steht auf, stehen auf, steht auf, stehen auf",
+        "past": "stand auf, standest auf/standst auf, stand auf, standen auf, standet auf, standen auf",
+        "perfect": "bin aufgestanden, bist aufgestanden, ist aufgestanden, sind aufgestanden, seid aufgestanden, sind aufgestanden"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich stehe um sechs Uhr auf.",
       "exampleEn": "I get up at six o'clock.",
@@ -6367,6 +6637,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "anfangen – fing an – hat angefangen",
+      "conjugation": {
+        "present": "fange an, fängst an, fängt an, fangen an, fangt an, fangen an",
+        "past": "fing an, fingst an, fing an, fingen an, fingt an, fingen an",
+        "perfect": "habe angefangen, hast angefangen, hat angefangen, haben angefangen, habt angefangen, haben angefangen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Der Film fängt um acht an.",
       "exampleEn": "The film starts at eight.",
@@ -6387,6 +6662,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "beginnen – begann – hat begonnen",
+      "conjugation": {
+        "present": "beginne, beginnst, beginnt, beginnen, beginnt, beginnen",
+        "past": "begann, begannst, begann, begannen, begannt, begannen",
+        "perfect": "habe begonnen, hast begonnen, hat begonnen, haben begonnen, habt begonnen, haben begonnen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Der Kurs beginnt morgen.",
       "exampleEn": "The course begins tomorrow.",
@@ -6407,6 +6687,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "aufhören – hörte auf – hat aufgehört",
+      "conjugation": {
+        "present": "höre auf, hörst auf, hört auf, hören auf, hört auf, hören auf",
+        "past": "hörte auf, hörtest auf, hörte auf, hörten auf, hörtet auf, hörten auf",
+        "perfect": "habe aufgehört, hast aufgehört, hat aufgehört, haben aufgehört, habt aufgehört, haben aufgehört"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Hör bitte auf!",
       "exampleEn": "Please stop!",
@@ -6427,6 +6712,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "öffnen – öffnete – hat geöffnet",
+      "conjugation": {
+        "present": "öffne, öffnest, öffnet, öffnen, öffnet, öffnen",
+        "past": "öffnete, öffnetest, öffnete, öffneten, öffnetet, öffneten",
+        "perfect": "habe geöffnet, hast geöffnet, hat geöffnet, haben geöffnet, habt geöffnet, haben geöffnet"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Kannst du das Fenster öffnen?",
       "exampleEn": "Can you open the window?",
@@ -6447,6 +6737,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "schließen – schloss – hat geschlossen",
+      "conjugation": {
+        "present": "schließe, schließt, schließt, schließen, schließt, schließen",
+        "past": "schloss, schlossest/schlosst, schloss, schlossen, schlosst, schlossen",
+        "perfect": "habe geschlossen, hast geschlossen, hat geschlossen, haben geschlossen, habt geschlossen, haben geschlossen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Bitte schließ die Tür.",
       "exampleEn": "Please close the door.",
@@ -6467,6 +6762,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "aufmachen – machte auf – hat aufgemacht",
+      "conjugation": {
+        "present": "mache auf, machst auf, macht auf, machen auf, macht auf, machen auf",
+        "past": "machte auf, machtest auf, machte auf, machten auf, machtet auf, machten auf",
+        "perfect": "habe aufgemacht, hast aufgemacht, hat aufgemacht, haben aufgemacht, habt aufgemacht, haben aufgemacht"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Mach die Tür auf!",
       "exampleEn": "Open the door!",
@@ -6487,6 +6787,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "zumachen – machte zu – hat zugemacht",
+      "conjugation": {
+        "present": "mache zu, machst zu, macht zu, machen zu, macht zu, machen zu",
+        "past": "machte zu, machtest zu, machte zu, machten zu, machtet zu, machten zu",
+        "perfect": "habe zugemacht, hast zugemacht, hat zugemacht, haben zugemacht, habt zugemacht, haben zugemacht"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Mach bitte das Fenster zu.",
       "exampleEn": "Please close the window.",
@@ -6507,6 +6812,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "helfen – half – hat geholfen",
+      "conjugation": {
+        "present": "helfe, hilfst, hilft, helfen, helft, helfen",
+        "past": "half, halfst, half, halfen, halft, halfen",
+        "perfect": "habe geholfen, hast geholfen, hat geholfen, haben geholfen, habt geholfen, haben geholfen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Kann ich Ihnen helfen?",
       "exampleEn": "Can I help you?",
@@ -6527,6 +6837,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "zeigen – zeigte – hat gezeigt",
+      "conjugation": {
+        "present": "zeige, zeigst, zeigt, zeigen, zeigt, zeigen",
+        "past": "zeigte, zeigtest, zeigte, zeigten, zeigtet, zeigten",
+        "perfect": "habe gezeigt, hast gezeigt, hat gezeigt, haben gezeigt, habt gezeigt, haben gezeigt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Zeig mir dein Foto!",
       "exampleEn": "Show me your photo!",
@@ -6547,6 +6862,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "bringen – brachte – hat gebracht",
+      "conjugation": {
+        "present": "bringe, bringst, bringt, bringen, bringt, bringen",
+        "past": "brachte, brachtest, brachte, brachten, brachtet, brachten",
+        "perfect": "habe gebracht, hast gebracht, hat gebracht, haben gebracht, habt gebracht, haben gebracht"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Bring bitte Brot mit.",
       "exampleEn": "Please bring some bread.",
@@ -6567,6 +6887,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "holen – holte – hat geholt",
+      "conjugation": {
+        "present": "hole, holst, holt, holen, holt, holen",
+        "past": "holte, holtest, holte, holten, holtet, holten",
+        "perfect": "habe geholt, hast geholt, hat geholt, haben geholt, habt geholt, haben geholt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich hole schnell meine Jacke.",
       "exampleEn": "I'll quickly get my jacket.",
@@ -6587,6 +6912,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "legen – legte – hat gelegt",
+      "conjugation": {
+        "present": "lege, legst, legt, legen, legt, legen",
+        "past": "legte, legtest, legte, legten, legtet, legten",
+        "perfect": "habe gelegt, hast gelegt, hat gelegt, haben gelegt, habt gelegt, haben gelegt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Leg das Buch auf den Tisch.",
       "exampleEn": "Put the book on the table.",
@@ -6607,6 +6937,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "stellen – stellte – hat gestellt",
+      "conjugation": {
+        "present": "stelle, stellst, stellt, stellen, stellt, stellen",
+        "past": "stellte, stelltest, stellte, stellten, stelltet, stellten",
+        "perfect": "habe gestellt, hast gestellt, hat gestellt, haben gestellt, habt gestellt, haben gestellt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Stell die Flasche in den Kühlschrank.",
       "exampleEn": "Put the bottle in the fridge.",
@@ -6627,6 +6962,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "setzen – setzte – hat gesetzt",
+      "conjugation": {
+        "present": "setze, setzt, setzt, setzen, setzt, setzen",
+        "past": "setzte, setztest, setzte, setzten, setztet, setzten",
+        "perfect": "habe gesetzt, hast gesetzt, hat gesetzt, haben gesetzt, habt gesetzt, haben gesetzt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Setz dich bitte!",
       "exampleEn": "Please sit down!",
@@ -6647,6 +6987,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "tragen – trug – hat getragen",
+      "conjugation": {
+        "present": "trage, trägst, trägt, tragen, tragt, tragen",
+        "past": "trug, trugst, trug, trugen, trugt, trugen",
+        "perfect": "habe getragen, hast getragen, hat getragen, haben getragen, habt getragen, haben getragen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Sie trägt eine rote Jacke.",
       "exampleEn": "She is wearing a red jacket.",
@@ -6667,6 +7012,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "ziehen – zog – hat gezogen",
+      "conjugation": {
+        "present": "ziehe, ziehst, zieht, ziehen, zieht, ziehen",
+        "past": "zog, zogst, zog, zogen, zogt, zogen",
+        "perfect": "habe gezogen, hast gezogen, hat gezogen, haben gezogen, habt gezogen, haben gezogen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Bitte ziehen!",
       "exampleEn": "Please pull!",
@@ -6687,6 +7037,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "warten – wartete – hat gewartet",
+      "conjugation": {
+        "present": "warte, wartest, wartet, warten, wartet, warten",
+        "past": "wartete, wartetest, wartete, warteten, wartetet, warteten",
+        "perfect": "habe gewartet, hast gewartet, hat gewartet, haben gewartet, habt gewartet, haben gewartet"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich warte auf den Bus.",
       "exampleEn": "I'm waiting for the bus.",
@@ -6707,6 +7062,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "treffen – traf – hat getroffen",
+      "conjugation": {
+        "present": "treffe, triffst, trifft, treffen, trefft, treffen",
+        "past": "traf, trafst, traf, trafen, traft, trafen",
+        "perfect": "habe getroffen, hast getroffen, hat getroffen, haben getroffen, habt getroffen, haben getroffen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Wir treffen uns um acht.",
       "exampleEn": "We're meeting at eight.",
@@ -6727,6 +7087,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "besuchen – besuchte – hat besucht",
+      "conjugation": {
+        "present": "besuche, besuchst, besucht, besuchen, besucht, besuchen",
+        "past": "besuchte, besuchtest, besuchte, besuchten, besuchtet, besuchten",
+        "perfect": "habe besucht, hast besucht, hat besucht, haben besucht, habt besucht, haben besucht"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Am Sonntag besuche ich meine Eltern.",
       "exampleEn": "On Sunday I'm visiting my parents.",
@@ -6747,6 +7112,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "bekommen – bekam – hat bekommen",
+      "conjugation": {
+        "present": "bekomme, bekommst, bekommt, bekommen, bekommt, bekommen",
+        "past": "bekam, bekamst, bekam, bekamen, bekamt, bekamen",
+        "perfect": "habe bekommen, hast bekommen, hat bekommen, haben bekommen, habt bekommen, haben bekommen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich habe einen Brief bekommen.",
       "exampleEn": "I received a letter.",
@@ -6767,6 +7137,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "schicken – schickte – hat geschickt",
+      "conjugation": {
+        "present": "schicke, schickst, schickt, schicken, schickt, schicken",
+        "past": "schickte, schicktest, schickte, schickten, schicktet, schickten",
+        "perfect": "habe geschickt, hast geschickt, hat geschickt, haben geschickt, habt geschickt, haben geschickt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Schick mir die Adresse.",
       "exampleEn": "Send me the address.",
@@ -6787,6 +7162,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "rufen – rief – hat gerufen",
+      "conjugation": {
+        "present": "rufe, rufst, ruft, rufen, ruft, rufen",
+        "past": "rief, riefst, rief, riefen, rieft, riefen",
+        "perfect": "habe gerufen, hast gerufen, hat gerufen, haben gerufen, habt gerufen, haben gerufen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Die Mutter ruft die Kinder.",
       "exampleEn": "The mother calls the children.",
@@ -6807,6 +7187,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "anrufen – rief an – hat angerufen",
+      "conjugation": {
+        "present": "rufe an, rufst an, ruft an, rufen an, ruft an, rufen an",
+        "past": "rief an, riefst an, rief an, riefen an, rieft an, riefen an",
+        "perfect": "habe angerufen, hast angerufen, hat angerufen, haben angerufen, habt angerufen, haben angerufen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich rufe dich morgen an.",
       "exampleEn": "I'll call you tomorrow.",
@@ -6827,6 +7212,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "erzählen – erzählte – hat erzählt",
+      "conjugation": {
+        "present": "erzähle, erzählst, erzählt, erzählen, erzählt, erzählen",
+        "past": "erzählte, erzähltest, erzählte, erzählten, erzähltet, erzählten",
+        "perfect": "habe erzählt, hast erzählt, hat erzählt, haben erzählt, habt erzählt, haben erzählt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Erzähl mir von deiner Reise!",
       "exampleEn": "Tell me about your trip!",
@@ -6847,6 +7237,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "erklären – erklärte – hat erklärt",
+      "conjugation": {
+        "present": "erkläre, erklärst, erklärt, erklären, erklärt, erklären",
+        "past": "erklärte, erklärtest, erklärte, erklärten, erklärtet, erklärten",
+        "perfect": "habe erklärt, hast erklärt, hat erklärt, haben erklärt, habt erklärt, haben erklärt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Kannst du mir das erklären?",
       "exampleEn": "Can you explain that to me?",
@@ -6867,6 +7262,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "lachen – lachte – hat gelacht",
+      "conjugation": {
+        "present": "lache, lachst, lacht, lachen, lacht, lachen",
+        "past": "lachte, lachtest, lachte, lachten, lachtet, lachten",
+        "perfect": "habe gelacht, hast gelacht, hat gelacht, haben gelacht, habt gelacht, haben gelacht"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Wir haben viel gelacht.",
       "exampleEn": "We laughed a lot.",
@@ -6887,6 +7287,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "weinen – weinte – hat geweint",
+      "conjugation": {
+        "present": "weine, weinst, weint, weinen, weint, weinen",
+        "past": "weinte, weintest, weinte, weinten, weintet, weinten",
+        "perfect": "habe geweint, hast geweint, hat geweint, haben geweint, habt geweint, haben geweint"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Das Baby weint.",
       "exampleEn": "The baby is crying.",
@@ -6907,6 +7312,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "lieben – liebte – hat geliebt",
+      "conjugation": {
+        "present": "liebe, liebst, liebt, lieben, liebt, lieben",
+        "past": "liebte, liebtest, liebte, liebten, liebtet, liebten",
+        "perfect": "habe geliebt, hast geliebt, hat geliebt, haben geliebt, habt geliebt, haben geliebt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich liebe dich.",
       "exampleEn": "I love you.",
@@ -6927,6 +7337,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "gefallen – gefiel – hat gefallen",
+      "conjugation": {
+        "present": "gefalle, gefällst, gefällt, gefallen, gefallt, gefallen",
+        "past": "gefiel, gefielst, gefiel, gefielen, gefielt, gefielen",
+        "perfect": "habe gefallen, hast gefallen, hat gefallen, haben gefallen, habt gefallen, haben gefallen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Das Kleid gefällt mir.",
       "exampleEn": "I like the dress.",
@@ -6947,6 +7362,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "schmecken – schmeckte – hat geschmeckt",
+      "conjugation": {
+        "present": "schmecke, schmeckst, schmeckt, schmecken, schmeckt, schmecken",
+        "past": "schmeckte, schmecktest, schmeckte, schmeckten, schmecktet, schmeckten",
+        "perfect": "habe geschmeckt, hast geschmeckt, hat geschmeckt, haben geschmeckt, habt geschmeckt, haben geschmeckt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Die Suppe schmeckt sehr gut.",
       "exampleEn": "The soup tastes very good.",
@@ -6967,6 +7387,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "reisen – reiste – ist gereist",
+      "conjugation": {
+        "present": "reise, reist, reist, reisen, reist, reisen",
+        "past": "reiste, reistest, reiste, reisten, reistet, reisten",
+        "perfect": "bin gereist, bist gereist, ist gereist, sind gereist, seid gereist, sind gereist"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich reise gern.",
       "exampleEn": "I like traveling.",
@@ -6987,6 +7412,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "tanzen – tanzte – hat getanzt",
+      "conjugation": {
+        "present": "tanze, tanzt, tanzt, tanzen, tanzt, tanzen",
+        "past": "tanzte, tanztest, tanzte, tanzten, tanztet, tanzten",
+        "perfect": "habe getanzt, hast getanzt, hat getanzt, haben getanzt, habt getanzt, haben getanzt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Wir tanzen die ganze Nacht.",
       "exampleEn": "We dance all night.",
@@ -7007,6 +7437,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "singen – sang – hat gesungen",
+      "conjugation": {
+        "present": "singe, singst, singt, singen, singt, singen",
+        "past": "sang, sangst, sang, sangen, sangt, sangen",
+        "perfect": "habe gesungen, hast gesungen, hat gesungen, haben gesungen, habt gesungen, haben gesungen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Sie singt sehr schön.",
       "exampleEn": "She sings very beautifully.",
@@ -7027,6 +7462,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "waschen – wusch – hat gewaschen",
+      "conjugation": {
+        "present": "wasche, wäschst, wäscht, waschen, wascht, waschen",
+        "past": "wusch, wuschst, wusch, wuschen, wuscht, wuschen",
+        "perfect": "habe gewaschen, hast gewaschen, hat gewaschen, haben gewaschen, habt gewaschen, haben gewaschen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich wasche das Auto.",
       "exampleEn": "I'm washing the car.",
@@ -7047,6 +7487,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "putzen – putzte – hat geputzt",
+      "conjugation": {
+        "present": "putze, putzt, putzt, putzen, putzt, putzen",
+        "past": "putzte, putztest, putzte, putzten, putztet, putzten",
+        "perfect": "habe geputzt, hast geputzt, hat geputzt, haben geputzt, habt geputzt, haben geputzt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Am Samstag putze ich die Wohnung.",
       "exampleEn": "On Saturday I clean the apartment.",
@@ -7067,6 +7512,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "duschen – duschte – hat geduscht",
+      "conjugation": {
+        "present": "dusche, duschst, duscht, duschen, duscht, duschen",
+        "past": "duschte, duschtest, duschte, duschten, duschtet, duschten",
+        "perfect": "habe geduscht, hast geduscht, hat geduscht, haben geduscht, habt geduscht, haben geduscht"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich dusche jeden Morgen.",
       "exampleEn": "I shower every morning.",
@@ -7087,6 +7537,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "vergessen – vergaß – hat vergessen",
+      "conjugation": {
+        "present": "vergesse, vergisst, vergisst, vergessen, vergesst, vergessen",
+        "past": "vergaß, vergaßest/vergaßt, vergaß, vergaßen, vergaßt, vergaßen",
+        "perfect": "habe vergessen, hast vergessen, hat vergessen, haben vergessen, habt vergessen, haben vergessen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich habe seinen Namen vergessen.",
       "exampleEn": "I forgot his name.",
@@ -7107,6 +7562,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "erinnern – erinnerte – hat erinnert",
+      "conjugation": {
+        "present": "erinnere, erinnerst, erinnert, erinnern, erinnert, erinnern",
+        "past": "erinnerte, erinnertest, erinnerte, erinnerten, erinnertet, erinnerten",
+        "perfect": "habe erinnert, hast erinnert, hat erinnert, haben erinnert, habt erinnert, haben erinnert"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich erinnere mich an den Tag.",
       "exampleEn": "I remember the day.",
@@ -7127,6 +7587,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "verlieren – verlor – hat verloren",
+      "conjugation": {
+        "present": "verliere, verlierst, verliert, verlieren, verliert, verlieren",
+        "past": "verlor, verlorst, verlor, verloren, verlort, verloren",
+        "perfect": "habe verloren, hast verloren, hat verloren, haben verloren, habt verloren, haben verloren"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich habe meinen Schlüssel verloren.",
       "exampleEn": "I lost my key.",
@@ -7147,6 +7612,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "gewinnen – gewann – hat gewonnen",
+      "conjugation": {
+        "present": "gewinne, gewinnst, gewinnt, gewinnen, gewinnt, gewinnen",
+        "past": "gewann, gewannst, gewann, gewannen, gewannt, gewannen",
+        "perfect": "habe gewonnen, hast gewonnen, hat gewonnen, haben gewonnen, habt gewonnen, haben gewonnen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Wer hat das Spiel gewonnen?",
       "exampleEn": "Who won the game?",
@@ -7167,6 +7637,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "versuchen – versuchte – hat versucht",
+      "conjugation": {
+        "present": "versuche, versuchst, versucht, versuchen, versucht, versuchen",
+        "past": "versuchte, versuchtest, versuchte, versuchten, versuchtet, versuchten",
+        "perfect": "habe versucht, hast versucht, hat versucht, haben versucht, habt versucht, haben versucht"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich versuche es noch einmal.",
       "exampleEn": "I'll try again.",
@@ -7187,6 +7662,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "benutzen – benutzte – hat benutzt",
+      "conjugation": {
+        "present": "benutze, benutzt, benutzt, benutzen, benutzt, benutzen",
+        "past": "benutzte, benutztest, benutzte, benutzten, benutztet, benutzten",
+        "perfect": "habe benutzt, hast benutzt, hat benutzt, haben benutzt, habt benutzt, haben benutzt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Darf ich dein Handy benutzen?",
       "exampleEn": "May I use your phone?",
@@ -7207,6 +7687,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "bestellen – bestellte – hat bestellt",
+      "conjugation": {
+        "present": "bestelle, bestellst, bestellt, bestellen, bestellt, bestellen",
+        "past": "bestellte, bestelltest, bestellte, bestellten, bestelltet, bestellten",
+        "perfect": "habe bestellt, hast bestellt, hat bestellt, haben bestellt, habt bestellt, haben bestellt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich möchte eine Pizza bestellen.",
       "exampleEn": "I'd like to order a pizza.",
@@ -7227,6 +7712,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "mieten – mietete – hat gemietet",
+      "conjugation": {
+        "present": "miete, mietest, mietet, mieten, mietet, mieten",
+        "past": "mietete, mietetest, mietete, mieteten, mietetet, mieteten",
+        "perfect": "habe gemietet, hast gemietet, hat gemietet, haben gemietet, habt gemietet, haben gemietet"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Wir mieten ein Auto.",
       "exampleEn": "We're renting a car.",
@@ -7247,6 +7737,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "verkaufen – verkaufte – hat verkauft",
+      "conjugation": {
+        "present": "verkaufe, verkaufst, verkauft, verkaufen, verkauft, verkaufen",
+        "past": "verkaufte, verkauftest, verkaufte, verkauften, verkauftet, verkauften",
+        "perfect": "habe verkauft, hast verkauft, hat verkauft, haben verkauft, habt verkauft, haben verkauft"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Er verkauft sein altes Auto.",
       "exampleEn": "He is selling his old car.",
@@ -7267,6 +7762,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "ändern – änderte – hat geändert",
+      "conjugation": {
+        "present": "ändere, änderst, ändert, ändern, ändert, ändern",
+        "past": "änderte, ändertest, änderte, änderten, ändertet, änderten",
+        "perfect": "habe geändert, hast geändert, hat geändert, haben geändert, habt geändert, haben geändert"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich muss mein Passwort ändern.",
       "exampleEn": "I have to change my password.",
@@ -7287,6 +7787,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "spazieren gehen – ging spazieren – ist spazieren gegangen",
+      "conjugation": {
+        "present": "gehe spazieren, gehst spazieren, geht spazieren, gehen spazieren, geht spazieren, gehen spazieren",
+        "past": "ging spazieren, gingst spazieren, ging spazieren, gingen spazieren, gingt spazieren, gingen spazieren",
+        "perfect": "bin spazieren gegangen, bist spazieren gegangen, ist spazieren gegangen, sind spazieren gegangen, seid spazieren gegangen, sind spazieren gegangen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Nach dem Essen gehen wir spazieren.",
       "exampleEn": "After the meal we go for a walk.",
@@ -7307,6 +7812,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "einkaufen – kaufte ein – hat eingekauft",
+      "conjugation": {
+        "present": "kaufe ein, kaufst ein, kauft ein, kaufen ein, kauft ein, kaufen ein",
+        "past": "kaufte ein, kauftest ein, kaufte ein, kauften ein, kauftet ein, kauften ein",
+        "perfect": "habe eingekauft, hast eingekauft, hat eingekauft, haben eingekauft, habt eingekauft, haben eingekauft"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich muss noch einkaufen.",
       "exampleEn": "I still have to go shopping.",
@@ -7327,6 +7837,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "mitkommen – kam mit – ist mitgekommen",
+      "conjugation": {
+        "present": "komme mit, kommst mit, kommt mit, kommen mit, kommt mit, kommen mit",
+        "past": "kam mit, kamst mit, kam mit, kamen mit, kamt mit, kamen mit",
+        "perfect": "bin mitgekommen, bist mitgekommen, ist mitgekommen, sind mitgekommen, seid mitgekommen, sind mitgekommen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Kommst du mit ins Kino?",
       "exampleEn": "Are you coming along to the cinema?",
@@ -7347,6 +7862,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "zurückkommen – kam zurück – ist zurückgekommen",
+      "conjugation": {
+        "present": "komme zurück, kommst zurück, kommt zurück, kommen zurück, kommt zurück, kommen zurück",
+        "past": "kam zurück, kamst zurück, kam zurück, kamen zurück, kamt zurück, kamen zurück",
+        "perfect": "bin zurückgekommen, bist zurückgekommen, ist zurückgekommen, sind zurückgekommen, seid zurückgekommen, sind zurückgekommen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Wann kommst du zurück?",
       "exampleEn": "When are you coming back?",
@@ -7367,6 +7887,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "ankommen – kam an – ist angekommen",
+      "conjugation": {
+        "present": "komme an, kommst an, kommt an, kommen an, kommt an, kommen an",
+        "past": "kam an, kamst an, kam an, kamen an, kamt an, kamen an",
+        "perfect": "bin angekommen, bist angekommen, ist angekommen, sind angekommen, seid angekommen, sind angekommen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Der Zug kommt um zehn an.",
       "exampleEn": "The train arrives at ten.",
@@ -7387,6 +7912,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "abfahren – fuhr ab – ist abgefahren",
+      "conjugation": {
+        "present": "fahre ab, fährst ab, fährt ab, fahren ab, fahrt ab, fahren ab",
+        "past": "fuhr ab, fuhrst ab, fuhr ab, fuhren ab, fuhrt ab, fuhren ab",
+        "perfect": "bin abgefahren, bist abgefahren, ist abgefahren, sind abgefahren, seid abgefahren, sind abgefahren"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Der Bus fährt in fünf Minuten ab.",
       "exampleEn": "The bus leaves in five minutes.",
@@ -7407,6 +7937,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "abholen – holte ab – hat abgeholt",
+      "conjugation": {
+        "present": "hole ab, holst ab, holt ab, holen ab, holt ab, holen ab",
+        "past": "holte ab, holtest ab, holte ab, holten ab, holtet ab, holten ab",
+        "perfect": "habe abgeholt, hast abgeholt, hat abgeholt, haben abgeholt, habt abgeholt, haben abgeholt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich hole dich vom Bahnhof ab.",
       "exampleEn": "I'll pick you up from the station.",
@@ -7427,6 +7962,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "einladen – lud ein – hat eingeladen",
+      "conjugation": {
+        "present": "lade ein, lädst ein, lädt ein, laden ein, ladet ein, laden ein",
+        "past": "lud ein, ludest ein/ludst ein, lud ein, luden ein, ludet ein, luden ein",
+        "perfect": "habe eingeladen, hast eingeladen, hat eingeladen, haben eingeladen, habt eingeladen, haben eingeladen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich lade dich zum Essen ein.",
       "exampleEn": "I'm inviting you to dinner.",
@@ -7447,6 +7987,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "fernsehen – sah fern – hat ferngesehen",
+      "conjugation": {
+        "present": "sehe fern, siehst fern, sieht fern, sehen fern, seht fern, sehen fern",
+        "past": "sah fern, sahst fern, sah fern, sahen fern, saht fern, sahen fern",
+        "perfect": "habe ferngesehen, hast ferngesehen, hat ferngesehen, haben ferngesehen, habt ferngesehen, haben ferngesehen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Am Abend sehe ich fern.",
       "exampleEn": "In the evening I watch TV.",
@@ -7467,6 +8012,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "aussehen – sah aus – hat ausgesehen",
+      "conjugation": {
+        "present": "sehe aus, siehst aus, sieht aus, sehen aus, seht aus, sehen aus",
+        "past": "sah aus, sahst aus, sah aus, sahen aus, saht aus, sahen aus",
+        "perfect": "habe ausgesehen, hast ausgesehen, hat ausgesehen, haben ausgesehen, habt ausgesehen, haben ausgesehen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Du siehst müde aus.",
       "exampleEn": "You look tired.",
@@ -7487,6 +8037,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "vorstellen – stellte vor – hat vorgestellt",
+      "conjugation": {
+        "present": "stelle vor, stellst vor, stellt vor, stellen vor, stellt vor, stellen vor",
+        "past": "stellte vor, stelltest vor, stellte vor, stellten vor, stelltet vor, stellten vor",
+        "perfect": "habe vorgestellt, hast vorgestellt, hat vorgestellt, haben vorgestellt, habt vorgestellt, haben vorgestellt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Darf ich mich vorstellen?",
       "exampleEn": "May I introduce myself?",
@@ -7507,6 +8062,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "kennenlernen – lernte kennen – hat kennengelernt",
+      "conjugation": {
+        "present": "lerne kennen, lernst kennen, lernt kennen, lernen kennen, lernt kennen, lernen kennen",
+        "past": "lernte kennen, lerntest kennen, lernte kennen, lernten kennen, lerntet kennen, lernten kennen",
+        "perfect": "habe kennengelernt, hast kennengelernt, hat kennengelernt, haben kennengelernt, habt kennengelernt, haben kennengelernt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Wo habt ihr euch kennengelernt?",
       "exampleEn": "Where did you meet?",
@@ -7527,6 +8087,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "gehören – gehörte – hat gehört",
+      "conjugation": {
+        "present": "gehöre, gehörst, gehört, gehören, gehört, gehören",
+        "past": "gehörte, gehörtest, gehörte, gehörten, gehörtet, gehörten",
+        "perfect": "habe gehört, hast gehört, hat gehört, haben gehört, habt gehört, haben gehört"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Wem gehört die Tasche?",
       "exampleEn": "Who does the bag belong to?",
@@ -7547,6 +8112,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "passen – passte – hat gepasst",
+      "conjugation": {
+        "present": "passe, passt, passt, passen, passt, passen",
+        "past": "passte, passtest, passte, passten, passtet, passten",
+        "perfect": "habe gepasst, hast gepasst, hat gepasst, haben gepasst, habt gepasst, haben gepasst"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Die Hose passt mir nicht.",
       "exampleEn": "The trousers don't fit me.",
@@ -7567,6 +8137,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "passieren – passierte – ist passiert",
+      "conjugation": {
+        "present": "passiere, passierst, passiert, passieren, passiert, passieren",
+        "past": "passierte, passiertest, passierte, passierten, passiertet, passierten",
+        "perfect": "bin passiert, bist passiert, ist passiert, sind passiert, seid passiert, sind passiert"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Was ist passiert?",
       "exampleEn": "What happened?",
@@ -7587,6 +8162,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "feiern – feierte – hat gefeiert",
+      "conjugation": {
+        "present": "feiere, feierst, feiert, feiern, feiert, feiern",
+        "past": "feierte, feiertest, feierte, feierten, feiertet, feierten",
+        "perfect": "habe gefeiert, hast gefeiert, hat gefeiert, haben gefeiert, habt gefeiert, haben gefeiert"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Wir feiern meinen Geburtstag.",
       "exampleEn": "We're celebrating my birthday.",
@@ -7607,6 +8187,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "zahlen – zahlte – hat gezahlt",
+      "conjugation": {
+        "present": "zahle, zahlst, zahlt, zahlen, zahlt, zahlen",
+        "past": "zahlte, zahltest, zahlte, zahlten, zahltet, zahlten",
+        "perfect": "habe gezahlt, hast gezahlt, hat gezahlt, haben gezahlt, habt gezahlt, haben gezahlt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Zahlen, bitte!",
       "exampleEn": "The bill, please!",
@@ -7627,6 +8212,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "tun – tat – hat getan",
+      "conjugation": {
+        "present": "tue, tust, tut, tun, tut, tun",
+        "past": "tat, tatest/tatst, tat, taten, tatet, taten",
+        "perfect": "habe getan, hast getan, hat getan, haben getan, habt getan, haben getan"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Was kann ich für Sie tun?",
       "exampleEn": "What can I do for you?",
@@ -7647,6 +8237,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "lassen – ließ – hat gelassen",
+      "conjugation": {
+        "present": "lasse, lässt, lässt, lassen, lasst, lassen",
+        "past": "ließ, ließest/ließt, ließ, ließen, ließt, ließen",
+        "perfect": "habe gelassen, hast gelassen, hat gelassen, haben gelassen, habt gelassen, haben gelassen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Lass mich in Ruhe!",
       "exampleEn": "Leave me alone!",
@@ -7667,6 +8262,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "halten – hielt – hat gehalten",
+      "conjugation": {
+        "present": "halte, hältst, hält, halten, haltet, halten",
+        "past": "hielt, hieltest/hieltst, hielt, hielten, hieltet, hielten",
+        "perfect": "habe gehalten, hast gehalten, hat gehalten, haben gehalten, habt gehalten, haben gehalten"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Der Bus hält hier.",
       "exampleEn": "The bus stops here.",
@@ -7687,6 +8287,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "fallen – fiel – ist gefallen",
+      "conjugation": {
+        "present": "falle, fällst, fällt, fallen, fallt, fallen",
+        "past": "fiel, fielst, fiel, fielen, fielt, fielen",
+        "perfect": "bin gefallen, bist gefallen, ist gefallen, sind gefallen, seid gefallen, sind gefallen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Das Glas ist auf den Boden gefallen.",
       "exampleEn": "The glass fell on the floor.",
@@ -7707,6 +8312,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "bauen – baute – hat gebaut",
+      "conjugation": {
+        "present": "baue, baust, baut, bauen, baut, bauen",
+        "past": "baute, bautest, baute, bauten, bautet, bauten",
+        "perfect": "habe gebaut, hast gebaut, hat gebaut, haben gebaut, habt gebaut, haben gebaut"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Sie bauen ein neues Haus.",
       "exampleEn": "They are building a new house.",
@@ -7727,6 +8337,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "reden – redete – hat geredet",
+      "conjugation": {
+        "present": "rede, redest, redet, reden, redet, reden",
+        "past": "redete, redetest, redete, redeten, redetet, redeten",
+        "perfect": "habe geredet, hast geredet, hat geredet, haben geredet, habt geredet, haben geredet"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Wir müssen reden.",
       "exampleEn": "We need to talk.",
@@ -7747,6 +8362,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "wünschen – wünschte – hat gewünscht",
+      "conjugation": {
+        "present": "wünsche, wünschst, wünscht, wünschen, wünscht, wünschen",
+        "past": "wünschte, wünschtest, wünschte, wünschten, wünschtet, wünschten",
+        "perfect": "habe gewünscht, hast gewünscht, hat gewünscht, haben gewünscht, habt gewünscht, haben gewünscht"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich wünsche dir alles Gute.",
       "exampleEn": "I wish you all the best.",
@@ -7767,6 +8387,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "hoffen – hoffte – hat gehofft",
+      "conjugation": {
+        "present": "hoffe, hoffst, hofft, hoffen, hofft, hoffen",
+        "past": "hoffte, hofftest, hoffte, hofften, hofftet, hofften",
+        "perfect": "habe gehofft, hast gehofft, hat gehofft, haben gehofft, habt gehofft, haben gehofft"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich hoffe, es geht dir gut.",
       "exampleEn": "I hope you are well.",
@@ -7787,6 +8412,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "entscheiden – entschied – hat entschieden",
+      "conjugation": {
+        "present": "entscheide, entscheidest, entscheidet, entscheiden, entscheidet, entscheiden",
+        "past": "entschied, entschiedest/entschiedst, entschied, entschieden, entschiedet, entschieden",
+        "perfect": "habe entschieden, hast entschieden, hat entschieden, haben entschieden, habt entschieden, haben entschieden"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Du musst dich entscheiden.",
       "exampleEn": "You have to decide.",
@@ -7807,6 +8437,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "bedeuten – bedeutete – hat bedeutet",
+      "conjugation": {
+        "present": "bedeute, bedeutest, bedeutet, bedeuten, bedeutet, bedeuten",
+        "past": "bedeutete, bedeutetest, bedeutete, bedeuteten, bedeutetet, bedeuteten",
+        "perfect": "habe bedeutet, hast bedeutet, hat bedeutet, haben bedeutet, habt bedeutet, haben bedeutet"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Was bedeutet dieses Wort?",
       "exampleEn": "What does this word mean?",
@@ -7827,6 +8462,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "übersetzen – übersetzte – hat übersetzt",
+      "conjugation": {
+        "present": "übersetze, übersetzt, übersetzt, übersetzen, übersetzt, übersetzen",
+        "past": "übersetzte, übersetztest, übersetzte, übersetzten, übersetztet, übersetzten",
+        "perfect": "habe übersetzt, hast übersetzt, hat übersetzt, haben übersetzt, habt übersetzt, haben übersetzt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Kannst du den Satz übersetzen?",
       "exampleEn": "Can you translate the sentence?",
@@ -7847,6 +8487,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "wiederholen – wiederholte – hat wiederholt",
+      "conjugation": {
+        "present": "wiederhole, wiederholst, wiederholt, wiederholen, wiederholt, wiederholen",
+        "past": "wiederholte, wiederholtest, wiederholte, wiederholten, wiederholtet, wiederholten",
+        "perfect": "habe wiederholt, hast wiederholt, hat wiederholt, haben wiederholt, habt wiederholt, haben wiederholt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Können Sie das bitte wiederholen?",
       "exampleEn": "Can you repeat that, please?",
@@ -7867,6 +8512,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "üben – übte – hat geübt",
+      "conjugation": {
+        "present": "übe, übst, übt, üben, übt, üben",
+        "past": "übte, übtest, übte, übten, übtet, übten",
+        "perfect": "habe geübt, hast geübt, hat geübt, haben geübt, habt geübt, haben geübt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich übe jeden Tag Vokabeln.",
       "exampleEn": "I practice vocabulary every day.",
@@ -7887,6 +8537,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "rauchen – rauchte – hat geraucht",
+      "conjugation": {
+        "present": "rauche, rauchst, raucht, rauchen, raucht, rauchen",
+        "past": "rauchte, rauchtest, rauchte, rauchten, rauchtet, rauchten",
+        "perfect": "habe geraucht, hast geraucht, hat geraucht, haben geraucht, habt geraucht, haben geraucht"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Hier darf man nicht rauchen.",
       "exampleEn": "You can't smoke here.",
@@ -7907,6 +8562,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "regnen – regnete – hat geregnet",
+      "conjugation": {
+        "present": "–, –, regnet, –, –, –",
+        "past": "–, –, regnete, –, –, –",
+        "perfect": "–, –, hat geregnet, –, –, –"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Es regnet seit Stunden.",
       "exampleEn": "It has been raining for hours.",
@@ -7927,6 +8587,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "scheinen – schien – hat geschienen",
+      "conjugation": {
+        "present": "scheine, scheinst, scheint, scheinen, scheint, scheinen",
+        "past": "schien, schienst, schien, schienen, schient, schienen",
+        "perfect": "habe geschienen, hast geschienen, hat geschienen, haben geschienen, habt geschienen, haben geschienen"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Heute scheint die Sonne.",
       "exampleEn": "Today the sun is shining.",
@@ -7947,6 +8612,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "dauern – dauerte – hat gedauert",
+      "conjugation": {
+        "present": "dauere, dauerst, dauert, dauern, dauert, dauern",
+        "past": "dauerte, dauertest, dauerte, dauerten, dauertet, dauerten",
+        "perfect": "habe gedauert, hast gedauert, hat gedauert, haben gedauert, habt gedauert, haben gedauert"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Wie lange dauert die Fahrt?",
       "exampleEn": "How long does the journey take?",
@@ -7967,6 +8637,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "danken – dankte – hat gedankt",
+      "conjugation": {
+        "present": "danke, dankst, dankt, danken, dankt, danken",
+        "past": "dankte, danktest, dankte, dankten, danktet, dankten",
+        "perfect": "habe gedankt, hast gedankt, hat gedankt, haben gedankt, habt gedankt, haben gedankt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich danke dir für alles.",
       "exampleEn": "I thank you for everything.",
@@ -7987,6 +8662,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "sich freuen – freute sich – hat sich gefreut",
+      "conjugation": {
+        "present": "freue mich, freust dich, freut sich, freuen uns, freut euch, freuen sich",
+        "past": "freute mich, freutest dich, freute sich, freuten uns, freutet euch, freuten sich",
+        "perfect": "habe mich gefreut, hast dich gefreut, hat sich gefreut, haben uns gefreut, habt euch gefreut, haben sich gefreut"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Ich freue mich auf das Wochenende.",
       "exampleEn": "I'm looking forward to the weekend.",
@@ -8007,6 +8687,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "wecken – weckte – hat geweckt",
+      "conjugation": {
+        "present": "wecke, weckst, weckt, wecken, weckt, wecken",
+        "past": "weckte, wecktest, weckte, weckten, wecktet, weckten",
+        "perfect": "habe geweckt, hast geweckt, hat geweckt, haben geweckt, habt geweckt, haben geweckt"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Kannst du mich um sieben wecken?",
       "exampleEn": "Can you wake me at seven?",
@@ -8027,6 +8712,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "schauen – schaute – hat geschaut",
+      "conjugation": {
+        "present": "schaue, schaust, schaut, schauen, schaut, schauen",
+        "past": "schaute, schautest, schaute, schauten, schautet, schauten",
+        "perfect": "habe geschaut, hast geschaut, hat geschaut, haben geschaut, habt geschaut, haben geschaut"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Schau mal!",
       "exampleEn": "Look!",
@@ -8047,6 +8737,11 @@
       "gender": null,
       "plural": null,
       "verbForms": "zuhören – hörte zu – hat zugehört",
+      "conjugation": {
+        "present": "höre zu, hörst zu, hört zu, hören zu, hört zu, hören zu",
+        "past": "hörte zu, hörtest zu, hörte zu, hörten zu, hörtet zu, hörten zu",
+        "perfect": "habe zugehört, hast zugehört, hat zugehört, haben zugehört, habt zugehört, haben zugehört"
+      },
       "partOfSpeech": "verb",
       "exampleDe": "Hör mir bitte zu.",
       "exampleEn": "Please listen to me.",

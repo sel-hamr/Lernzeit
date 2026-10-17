@@ -2,9 +2,13 @@ import type { CallToolResult, McpServer, ToolAnnotations } from '@modelcontextpr
 import * as z from 'zod'
 import {
   MAX_CARDS_PER_CALL,
+  MAX_GRAMMAR_EXAMPLES_PER_CALL,
+  MAX_GRAMMAR_EXERCISES_PER_CALL,
+  MAX_GRAMMAR_TEXT,
   MAX_HINT_WORDS,
   MAX_QUESTION_CHARS,
   MAX_QUESTIONS_PER_CALL,
+  MAX_RULE_CHARS,
   MAX_SET_NAME,
   MAX_STORY_CHARS,
   MAX_STORY_TITLE,
@@ -13,6 +17,7 @@ import {
   type ActionName,
   type ActionParams,
   type NewCard,
+  type NewGrammarExercise,
   type NewQuestion,
 } from '../../src/bridge/protocol.ts'
 import type { StoryLevel } from '../../src/db/types.ts'
@@ -36,6 +41,18 @@ const newCard = z.object({
   gender: z.enum(['der', 'die', 'das']).optional().describe('Article of a noun.'),
   plural: z.string().optional().describe('With its article, e.g. "die Hunde".'),
   verbForms: z.string().optional().describe('For verbs, e.g. "gehen – ging – ist gegangen".'),
+  conjugation: z
+    .object({
+      present: z.string().optional(),
+      past: z.string().optional(),
+      perfect: z.string().optional(),
+    })
+    .optional()
+    .describe(
+      'For verbs: each tense as six forms separated by commas, for ich, du, er/sie/es, wir, ihr, sie. ' +
+        'e.g. present "fahre, fährst, fährt, fahren, fahrt, fahren", perfect "bin gefahren, bist gefahren, ist gefahren, sind gefahren, seid gefahren, sind gefahren". ' +
+        'Use – for a form that does not exist and / between two right spellings. Grammar practice in the app asks exactly these forms.',
+    ),
   partOfSpeech: z.string().optional().describe('noun, verb, adjective… Only nouns are practised from the picture.'),
   exampleDe: z.string().optional().describe('A short German example sentence.'),
   exampleEn: z.string().optional().describe('Its English translation.'),
@@ -62,6 +79,20 @@ const newQuestion = z.object({
   level: storyLevel.optional().describe('CEFR level of the question.'),
   tags: z.array(z.string()).optional().describe('Extra tags. The tag "ai" is always added.'),
 }) satisfies z.ZodType<NewQuestion>
+
+const grammarExercise = z.object({
+  text: z
+    .string()
+    .min(1)
+    .max(MAX_GRAMMAR_TEXT)
+    .describe(
+      'One German sentence with one task. Fill the gap with choices: "Ich helfe {{dem|den|der}} Mann." (the first is right). Typed gap: "Du {{fährst}} zu schnell." ' +
+        'Find the mistake: "Ich helfe {{den>dem}} Mann." (shows den, the fix is dem; mark one whole word). Word order: "~ Ich gebe dem Mann das Buch." ' +
+        '(" / " adds another right order). Write the sentence: "Ich esse Pizza. (Perfekt) => Ich habe Pizza gegessen."',
+    ),
+  en: z.string().max(MAX_GRAMMAR_TEXT).optional().describe('The English of the sentence.'),
+  why: z.string().max(MAX_GRAMMAR_TEXT).optional().describe('One short sentence: why the answer is right, e.g. "helfen takes the dative: dem Mann."'),
+}) satisfies z.ZodType<NewGrammarExercise>
 
 const look: ToolAnnotations ={ readOnlyHint: true, openWorldHint: false }
 const add: ToolAnnotations = { readOnlyHint: false, destructiveHint: false, openWorldHint: false }
@@ -183,6 +214,45 @@ export function registerTools(server: McpServer, hub: BrowserHub) {
       annotations: { ...add, idempotentHint: true },
     },
     ({ browser, ...params }) => forward(browser, 'create_questions', params),
+  )
+
+  server.registerTool(
+    'list_grammar_topics',
+    {
+      title: 'List grammar topics',
+      description: 'Lists the grammar topics with their level, section and number of exercises. Call it before add_grammar to add to an existing topic.',
+      inputSchema: z.object({ browser: browserField }),
+      annotations: look,
+    },
+    ({ browser }) => forward(browser, 'list_grammar_topics', {}),
+  )
+
+  server.registerTool(
+    'add_grammar',
+    {
+      title: 'Add grammar',
+      description: `Adds up to ${MAX_GRAMMAR_EXERCISES_PER_CALL} exercises and ${MAX_GRAMMAR_EXAMPLES_PER_CALL} examples to a grammar topic, found by title or id. A new title starts a new topic with the rule you give. An existing topic keeps its title and rule. An exercise the topic already has is skipped and listed under "skipped".`,
+      inputSchema: z.object({
+        browser: browserField,
+        topic: z.string().min(1).max(MAX_GRAMMAR_TEXT).describe('Title or id from list_grammar_topics, e.g. "Dativ". A new German title starts a new topic.'),
+        english: z.string().max(MAX_GRAMMAR_TEXT).optional().describe('For a new topic: its English name, e.g. "The dative case".'),
+        group: z.string().max(60).optional().describe('For a new topic: its section, e.g. "Cases" or "Verbs".'),
+        level: storyLevel.optional().describe('For a new topic: its CEFR level.'),
+        summary: z.string().max(MAX_GRAMMAR_TEXT).optional().describe('For a new topic: one line under the title.'),
+        rule: z
+          .string()
+          .max(MAX_RULE_CHARS)
+          .optional()
+          .describe('For a new topic: the explanation in plain text. A blank line starts a paragraph; "- " lines make a list; "| a | b |" lines a table, with "|---|---|" under the header; **bold**.'),
+        examples: z
+          .array(z.object({ de: z.string().min(1).max(MAX_GRAMMAR_TEXT), en: z.string().max(MAX_GRAMMAR_TEXT).optional() }))
+          .max(MAX_GRAMMAR_EXAMPLES_PER_CALL)
+          .optional(),
+        exercises: z.array(grammarExercise).max(MAX_GRAMMAR_EXERCISES_PER_CALL).optional(),
+      }),
+      annotations: { ...add, idempotentHint: true },
+    },
+    ({ browser, ...params }) => forward(browser, 'add_grammar', params),
   )
 
   server.registerTool(

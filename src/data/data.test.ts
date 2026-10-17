@@ -1,15 +1,20 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getActiveTimer, KV_KEYS, LernzeitDB } from '@/db/db'
-import { ensureSeeded, installStarterPack } from '@/db/seed'
+import { addStarterConjugations, ensureSeeded, installStarterPack } from '@/db/seed'
 import { MINUTE } from '@/lib/time'
 import { completePhase, pauseTimer, resumeTimer, startTimer, stopTimer, getPendingNote, resolvePendingNote, recordReviewTime } from './timer'
-import { gradeReview, quickAddCard, saveCard, undoGrade } from './cards'
+import { deleteCard, deleteDeck, gradeReview, quickAddCard, saveCard, undoGrade } from './cards'
+import { saveDrillAnswer } from './drills'
+import { DEFAULT_GROUP, deleteTopic, installStarterTopics, loadStarterTopics, saveExerciseAnswer, saveTopic, STARTER_GRAMMAR_VERSION, syncStarterTopics } from './grammar'
 import { createTask, setColumnOrder, toggleTaskDone } from './tasks'
 import { exportBackup, importCsvRows, parseCardPack, parseCardsCsv, prepareCardPack, restoreBackup, writeCardPack } from './io'
 import { deleteStory, installStarterStories, markStoryOpened, markStoryRead, parseLevel, saveStory } from './stories'
-import { recordQuestionTime, recordReadingTime } from './timer'
+import { recordGrammarTime, recordQuestionTime, recordReadingTime } from './timer'
 import { DEFAULT_SET, deleteQuestion, installStarterQuestions, parseWords, saveQuestion, saveResponse } from './questions'
+import { formsOf, TENSES } from '@/lib/conjugation'
+import { drillQuestions, pickRound } from '@/lib/drills'
+import { buildTopicRound, exerciseProblem, parseExercise, parseInline, parseRule, wordsOf } from '@/lib/grammar'
 import { groupBySet } from '@/lib/questions'
 import { alignTranslation, annotate, buildLexicon, coverage, splitParagraphs } from '@/lib/reader'
 import { clearClips, clipKey, readClip, saveClip } from './clips'
@@ -113,6 +118,17 @@ describe('card packs', () => {
     expect(again).toEqual({ cards: 0, skipped: 2, newDecks: 0 })
     expect((await database.reviews.where('cardId').equals('a-1').toArray()).map((r) => r.direction).sort()).toEqual(['enToDe', 'imageToDe'])
     expect((await database.reviews.where('cardId').equals('a-2').toArray()).map((r) => r.direction)).toEqual(['enToDe'])
+  })
+
+  it('imports a verb with its conjugation, tidied', async () => {
+    const pack = parseCardPack({
+      format: 'lernzeit-cards',
+      version: 1,
+      decks: [{ id: 'verbs', name: 'Verbs' }],
+      cards: [{ id: 'v-1', deckId: 'verbs', english: 'to swim', german: 'schwimmen', conjugation: { present: 'schwimme,schwimmst, schwimmt, schwimmen, schwimmt, schwimmen', past: ' ' } }],
+    })
+    await writeCardPack(await prepareCardPack(pack), {}, database)
+    expect((await database.cards.get('v-1'))?.conjugation).toEqual({ present: 'schwimme, schwimmst, schwimmt, schwimmen, schwimmt, schwimmen' })
   })
 })
 
@@ -264,6 +280,8 @@ describe('flashcards', () => {
       'cat,die Katze,,die Katzen,,,Animals,Tiere\n' +
       ',missing english,,,,,,\n'
     const preview = parseCardsCsv(csv)
+    const verbs = parseCardsCsv('english,german,present\nto go,gehen,"gehe, gehst, geht, gehen, geht, gehen"\n')
+    expect(verbs.rows[0].conjugation).toEqual({ present: 'gehe, gehst, geht, gehen, geht, gehen' })
     expect(preview.rows).toHaveLength(2)
     expect(preview.skipped).toHaveLength(1)
     expect(preview.rows[1]).toMatchObject({ german: 'Katze', gender: 'die', tags: ['Animals'] })
@@ -451,6 +469,221 @@ describe('questions', () => {
       expect(await other.responses.count()).toBe(0)
       expect(await other.stories.count()).toBe(backup.stories!.length)
       await expect(restoreBackup({ ...backup, responses: 'oops' }, other)).rejects.toThrow('broken "responses"')
+    } finally {
+      await other.delete()
+    }
+  })
+})
+
+describe('drills', () => {
+  it('finds plenty to drill in the starter cards', async () => {
+    const cards = await database.cards.toArray()
+    const count = (kind: 'gender' | 'plural' | 'verbs') => cards.filter((c) => drillQuestions(c, kind).length).length
+    expect(count('gender')).toBeGreaterThan(200)
+    expect(count('plural')).toBeGreaterThan(200)
+    expect(count('verbs')).toBe(139)
+  })
+
+  it('has a full conjugation for every starter verb', async () => {
+    for (const card of (await database.cards.toArray()).filter((c) => c.verbForms)) {
+      for (const tense of TENSES) expect(formsOf(card.conjugation?.[tense]), `${card.german} ${tense}`).toHaveLength(6)
+    }
+  })
+
+  it('gives starter verbs saved before conjugations their tables, once', async () => {
+    const verbs = (await database.cards.toArray()).filter((c) => c.conjugation)
+    const [plain, changed, own] = verbs
+    // As an install from before drills: no tables, and nothing done yet.
+    await database.cards.bulkPut([
+      { ...plain, conjugation: undefined },
+      { ...changed, conjugation: undefined, verbForms: 'my own forms' },
+      { ...own, conjugation: { present: 'my, own, table, of, six, forms' } },
+    ])
+    await database.kv.delete('starterConjugations')
+    expect(await addStarterConjugations(database)).toBe(1)
+    expect((await database.cards.get(plain.id))?.conjugation).toEqual(plain.conjugation)
+    // A verb you changed or gave a table yourself is left alone.
+    expect((await database.cards.get(changed.id))?.conjugation).toBeUndefined()
+    expect((await database.cards.get(own.id))?.conjugation).toEqual({ present: 'my, own, table, of, six, forms' })
+    await database.cards.put({ ...plain, conjugation: undefined })
+    expect(await addStarterConjugations(database)).toBe(0)
+  })
+
+  it('keeps one stat per card and drill', async () => {
+    const card = (await database.cards.toArray()).find((c) => c.gender)!
+    await saveDrillAnswer(card.id, 'gender', false, database)
+    vi.setSystemTime(at(2026, 10, 14, 15, 0))
+    const stat = await saveDrillAnswer(card.id, 'gender', true, database)
+    expect(stat).toEqual({ id: `${card.id}:gender`, cardId: card.id, drill: 'gender', right: 1, wrong: 1, score: 1, lastAt: at(2026, 10, 14, 15, 0).getTime() })
+    await saveDrillAnswer(card.id, 'plural', true, database)
+    expect(await database.drillStats.count()).toBe(2)
+    // The word you got wrong leads the next round.
+    const stats = new Map((await database.drillStats.where('drill').equals('gender').toArray()).map((s) => [s.cardId, s]))
+    expect(pickRound(await database.cards.toArray(), 'gender', stats)[0].id).toBe(card.id)
+  })
+
+  it('deletes the stats with their card or deck', async () => {
+    const [first, second] = (await database.cards.toArray()).filter((c) => c.gender)
+    await saveDrillAnswer(first.id, 'gender', false, database)
+    await saveDrillAnswer(second.id, 'plural', false, database)
+    await deleteCard(first.id, database)
+    expect((await database.drillStats.toArray()).map((s) => s.cardId)).toEqual([second.id])
+    await deleteDeck(second.deckId, database)
+    expect(await database.drillStats.count()).toBe(0)
+  })
+
+
+  it('backs up drill stats and restores backups made before drills', async () => {
+    await database.images.clear()
+    const card = (await database.cards.toArray()).find((c) => c.gender)!
+    await saveDrillAnswer(card.id, 'gender', false, database)
+    const backup = await exportBackup(database)
+    expect(backup.drillStats).toHaveLength(1)
+
+    const other = new LernzeitDB(`test-${counter++}`)
+    try {
+      await restoreBackup(JSON.parse(JSON.stringify(backup)), other)
+      expect(await other.drillStats.get(`${card.id}:gender`)).toMatchObject({ wrong: 1, score: 2 })
+      await restoreBackup(JSON.parse(JSON.stringify({ ...backup, drillStats: undefined })), other)
+      expect(await other.drillStats.count()).toBe(0)
+      await expect(restoreBackup({ ...backup, drillStats: {} }, other)).rejects.toThrow('broken "drillStats"')
+    } finally {
+      await other.delete()
+    }
+  })
+})
+
+describe('grammar', () => {
+  it('has well-formed starter topics: unique ids, a rule, examples and exercises that parse', async () => {
+    const topics = await loadStarterTopics()
+    expect(topics.length).toBeGreaterThanOrEqual(25)
+    const ids = topics.flatMap((t) => [t.id, ...t.exercises.map((e) => e.id)])
+    expect(new Set(ids).size).toBe(ids.length)
+    for (const t of topics) {
+      expect(t.title && t.english && t.summary && t.level, t.id).toBeTruthy()
+      expect(parseRule(t.rule).length, t.id).toBeGreaterThan(0)
+      expect(t.examples.length, t.id).toBeGreaterThanOrEqual(3)
+      expect(t.exercises.length, t.id).toBeGreaterThanOrEqual(12)
+      for (const e of t.exercises) {
+        expect(exerciseProblem(e.text), `${e.id} ${e.text}`).toBeUndefined()
+        // Every exercise says why its answer is right; all but rewrites have their English.
+        expect(e.why, e.id).toBeTruthy()
+        const form = parseExercise(e.text)!
+        if (form.type !== 'write') expect(e.en, e.id).toBeTruthy()
+        // A choice never repeats, and its right answer is not also a wrong one.
+        if (form.type === 'gap') expect(new Set(form.wrong).size, e.id).toBe(form.wrong.length)
+        // A mistake really is one.
+        if (form.type === 'mistake') expect(form.answers, e.id).not.toContain(form.shown)
+        // Every right order uses the same words.
+        if (form.type === 'order') {
+          const words = (s: string) => wordsOf(s).map((w) => w.toLowerCase()).sort().join(' ')
+          for (const other of form.answers) expect(words(other), e.id).toBe(words(form.answers[0]))
+        }
+      }
+      // Each topic mixes kinds of exercise.
+      expect(new Set(t.exercises.map((e) => parseExercise(e.text)!.type)).size, t.id).toBeGreaterThanOrEqual(3)
+      for (const block of parseRule(t.rule)) {
+        // Every table row has as many cells as its header.
+        if (block.type === 'table') for (const row of block.rows) expect(row.length, `${t.id}: ${row.join(' | ')}`).toBe(block.header.length)
+        // Bold and italic markers pair up, so none shows as a stray *.
+        const texts = block.type === 'table' ? [...block.header, ...block.rows.flat()] : block.type === 'list' ? block.items : [block.text]
+        for (const text of texts) expect(parseInline(text).some((p) => p.text.includes('*')), `${t.id}: ${text}`).toBe(false)
+      }
+    }
+  })
+
+  it('installs the starter topics once, and adds back deleted ones on request', async () => {
+    const all = (await loadStarterTopics()).length
+    expect(await syncStarterTopics(database)).toEqual({ added: all, updated: 0 })
+    await deleteTopic('grammar-005', database)
+    // Once means once: a deleted topic stays deleted until you ask for it.
+    expect(await syncStarterTopics(database)).toEqual({ added: 0, updated: 0 })
+    expect(await installStarterTopics(database)).toBe(1)
+    expect(await database.grammarTopics.count()).toBe(all)
+  })
+
+  it('updates starter topics you did not edit to a newer version, keeping scores', async () => {
+    await syncStarterTopics(database)
+    const plain = (await database.grammarTopics.get('grammar-001'))!
+    const edited = (await database.grammarTopics.get('grammar-002'))!
+    // As installed by an older version: fewer exercises, no explanations, one exercise since removed.
+    const old = { ...plain, exercises: [...plain.exercises.slice(0, 3).map(({ id, text, en }) => ({ id, text, en })), { id: 'grammar-001-99', text: 'Alt {{x}}.' }] }
+    await database.grammarTopics.put(old)
+    await saveTopic({ ...edited, summary: 'My own words' }, edited.id, database)
+    await saveExerciseAnswer('grammar-001', 'grammar-001-01', false, database)
+    await saveExerciseAnswer('grammar-001', 'grammar-001-99', false, database)
+    await deleteTopic('grammar-003', database)
+    await database.kv.put({ key: 'starterGrammar', value: STARTER_GRAMMAR_VERSION - 1 })
+
+    expect(await syncStarterTopics(database)).toEqual({ added: 0, updated: 1 })
+    expect((await database.grammarTopics.get('grammar-001'))!).toMatchObject({ exercises: plain.exercises, createdAt: plain.createdAt, updatedAt: plain.createdAt })
+    expect((await database.grammarTopics.get('grammar-002'))!.summary).toBe('My own words')
+    expect(await database.grammarTopics.get('grammar-003')).toBeUndefined()
+    // The score of a kept exercise stays; a removed exercise takes its score with it.
+    expect(await database.exerciseStats.get('grammar-001-01')).toMatchObject({ wrong: 1 })
+    expect(await database.exerciseStats.get('grammar-001-99')).toBeUndefined()
+  })
+
+  it('saves a topic tidied up, and drops the scores of removed exercises', async () => {
+    const topic = await saveTopic(
+      {
+        title: '  Der  Dativ ',
+        group: ' ',
+        rule: ' Wem? ',
+        examples: [{ de: ' Ich helfe dir. ', en: ' ' }, { de: '' }],
+        exercises: [{ id: 'x1', text: 'Ich helfe {{dir}}.' }, { id: 'x2', text: 'Er hilft {{mir}}.' }],
+        drill: undefined,
+      },
+      undefined,
+      database,
+    )
+    expect(topic).toMatchObject({ title: 'Der Dativ', group: DEFAULT_GROUP, rule: 'Wem?', examples: [{ de: 'Ich helfe dir.' }] })
+    expect(topic).not.toHaveProperty('drill')
+    await saveExerciseAnswer(topic.id, 'x1', false, database)
+    await saveExerciseAnswer(topic.id, 'x2', false, database)
+    expect(await database.exerciseStats.get('x1')).toMatchObject({ topicId: topic.id, wrong: 1, score: 2 })
+    await saveTopic({ ...topic, exercises: [topic.exercises[1]] }, topic.id, database)
+    expect((await database.exerciseStats.toArray()).map((s) => s.id)).toEqual(['x2'])
+    await deleteTopic(topic.id, database)
+    expect(await database.exerciseStats.count()).toBe(0)
+    await expect(saveTopic({ ...topic, title: ' ' }, undefined, database)).rejects.toThrow('title')
+  })
+
+  it('mixes questions about your cards into a linked topic', async () => {
+    await installStarterTopics(database)
+    const gender = (await database.grammarTopics.get('grammar-001'))!
+    const round = buildTopicRound({ topic: gender, exerciseStats: new Map(), cards: await database.cards.toArray(), drillStats: [] })
+    expect(round.filter((i) => i.question.kind === 'exercise')).toHaveLength(12)
+    expect(round.filter((i) => i.question.kind === 'gender')).toHaveLength(5)
+    const past = (await database.grammarTopics.get('grammar-016'))!
+    const verbs = buildTopicRound({ topic: past, exerciseStats: new Map(), cards: await database.cards.toArray(), drillStats: [] })
+    expect(verbs.filter((i) => i.question.kind === 'verbs').every((i) => i.question.kind === 'verbs' && i.question.tense === 'past')).toBe(true)
+  })
+
+  it('records practice time as one session that grows', async () => {
+    const topicId = await germanId()
+    const start = Date.now()
+    const run = { runId: 'grammar:t1:1', topicId, start, title: 'Der Dativ' }
+    await recordGrammarTime({ ...run, end: start + 2 * MINUTE, minutes: 2 }, database)
+    await recordGrammarTime({ ...run, end: start + 3 * MINUTE, minutes: 3 }, database)
+    const sessions = await database.sessions.where('runId').equals(run.runId).toArray()
+    expect(sessions).toHaveLength(1)
+    expect(sessions[0]).toMatchObject({ minutes: 3, source: 'grammar', note: 'Grammar: Der Dativ', topicId })
+  })
+
+  it('backs up topics with their scores, and restores backups made before grammar', async () => {
+    await database.images.clear()
+    await installStarterTopics(database)
+    await saveExerciseAnswer('grammar-001', 'grammar-001-01', false, database)
+    const backup = await exportBackup(database)
+    expect(backup.grammarTopics?.length).toBeGreaterThanOrEqual(25)
+    const other = new LernzeitDB(`test-${counter++}`)
+    try {
+      await restoreBackup(JSON.parse(JSON.stringify(backup)), other)
+      expect(await other.exerciseStats.get('grammar-001-01')).toMatchObject({ wrong: 1 })
+      await restoreBackup(JSON.parse(JSON.stringify({ ...backup, grammarTopics: undefined, exerciseStats: undefined })), other)
+      expect(await other.grammarTopics.count()).toBe(0)
+      await expect(restoreBackup({ ...backup, grammarTopics: 'x' }, other)).rejects.toThrow('broken "grammarTopics"')
     } finally {
       await other.delete()
     }

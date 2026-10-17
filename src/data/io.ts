@@ -1,6 +1,7 @@
 import Papa from 'papaparse'
 import { db, getSettings, KV_KEYS, newId, type LernzeitDB } from '@/db/db'
-import type { Card, CardType, Deck, DeckDirections, Gender, KV, Question, QuestionResponse, ReviewLog, Session, Settings, StoredImage, Story, Task, Topic, CardReview } from '@/db/types'
+import type { Card, CardType, Conjugation, Deck, DeckDirections, DrillStat, ExerciseStat, Gender, GrammarTopic, KV, Question, QuestionResponse, ReviewLog, Session, Settings, StoredImage, Story, Task, Topic, CardReview } from '@/db/types'
+import { cleanConjugation } from '@/lib/conjugation'
 import { splitArticle } from '@/lib/german'
 import { blobToDataUrl, dataUrlToBlob } from '@/lib/image'
 import { directionsFor, newReview } from '@/lib/srs'
@@ -18,6 +19,7 @@ export interface CsvRow {
   deck?: string
   type: CardType
   verbForms?: string
+  conjugation?: Conjugation
   emoji?: string
 }
 
@@ -76,6 +78,7 @@ export function parseCardsCsv(text: string): CsvPreview {
       exampleDe: cell(record, 'example_de', 'example') || undefined,
       exampleEn: cell(record, 'example_en', 'translation') || undefined,
       verbForms: cell(record, 'verb_forms', 'verbforms') || undefined,
+      conjugation: cleanConjugation({ present: cell(record, 'present'), past: cell(record, 'past'), perfect: cell(record, 'perfect') }),
       tags: cell(record, 'tags')
         .split(/[;,|]/)
         .map((t) => t.trim())
@@ -131,6 +134,7 @@ export async function importCsvRows(rows: CsvRow[], fallbackDeckId: string, data
         gender: row.type === 'word' ? row.gender : undefined,
         plural: row.plural,
         verbForms: row.verbForms,
+        conjugation: row.conjugation,
         exampleDe: row.exampleDe,
         exampleEn: row.exampleEn,
         emoji: row.emoji,
@@ -177,6 +181,8 @@ export interface CardPackCard {
   gender?: Gender | null
   plural?: string | null
   verbForms?: string | null
+  /** Each tense as six forms for ich, du, er/sie/es, wir, ihr, sie. */
+  conjugation?: Conjugation | null
   partOfSpeech?: string | null
   exampleDe?: string | null
   exampleEn?: string | null
@@ -299,6 +305,7 @@ export async function writeCardPack(
         gender: type === 'word' && pc.gender && GENDERS.has(pc.gender) ? pc.gender : undefined,
         plural: clean(pc.plural),
         verbForms: clean(pc.verbForms),
+        conjugation: cleanConjugation(pc.conjugation),
         partOfSpeech: clean(pc.partOfSpeech),
         exampleDe: clean(pc.exampleDe),
         exampleEn: clean(pc.exampleEn),
@@ -347,12 +354,17 @@ export interface Backup {
   /** Missing in backups made before questions were added. */
   questions?: Question[]
   responses?: QuestionResponse[]
+  /** Missing in backups made before drills were added. */
+  drillStats?: DrillStat[]
+  /** Missing in backups made before grammar topics were added. */
+  grammarTopics?: GrammarTopic[]
+  exerciseStats?: ExerciseStat[]
   images: BackupImage[]
   settings: Settings
 }
 
 export async function exportBackup(database: LernzeitDB = db): Promise<Backup> {
-  const [topics, sessions, decks, cards, reviews, reviewLogs, tasks, stories, questions, responses, images, settings] = await Promise.all([
+  const [topics, sessions, decks, cards, reviews, reviewLogs, tasks, stories, questions, responses, drillStats, grammarTopics, exerciseStats, images, settings] = await Promise.all([
     database.topics.toArray(),
     database.sessions.toArray(),
     database.decks.toArray(),
@@ -363,6 +375,9 @@ export async function exportBackup(database: LernzeitDB = db): Promise<Backup> {
     database.stories.toArray(),
     database.questions.toArray(),
     database.responses.toArray(),
+    database.drillStats.toArray(),
+    database.grammarTopics.toArray(),
+    database.exerciseStats.toArray(),
     database.images.toArray(),
     getSettings(database),
   ])
@@ -380,6 +395,9 @@ export async function exportBackup(database: LernzeitDB = db): Promise<Backup> {
     stories,
     questions,
     responses,
+    drillStats,
+    grammarTopics,
+    exerciseStats,
     images: await Promise.all(
       images.map(async (img) => ({ id: img.id, width: img.width, height: img.height, fit: img.fit, dataUrl: await blobToDataUrl(img.blob) })),
     ),
@@ -393,7 +411,7 @@ function assertBackup(value: unknown): asserts value is Backup {
   if (!b || b.app !== 'lernzeit' || typeof b.version !== 'number') throw new Error('This is not a Lernzeit backup file')
   if (b.version > 1) throw new Error('This backup comes from a newer version of Lernzeit')
   for (const key of arrays) if (!Array.isArray(b[key])) throw new Error(`The backup is missing "${key}"`)
-  for (const key of ['stories', 'questions', 'responses'] as const) {
+  for (const key of ['stories', 'questions', 'responses', 'drillStats', 'grammarTopics', 'exerciseStats'] as const) {
     if (b[key] !== undefined && !Array.isArray(b[key])) throw new Error(`The backup has broken "${key}"`)
   }
 }
@@ -407,7 +425,8 @@ export async function restoreBackup(raw: unknown, database: LernzeitDB = db): Pr
   )
   const tables = [
     database.topics, database.sessions, database.decks, database.cards, database.reviews,
-    database.reviewLogs, database.tasks, database.stories, database.questions, database.responses, database.images, database.kv,
+    database.reviewLogs, database.tasks, database.stories, database.questions, database.responses, database.drillStats, database.grammarTopics, database.exerciseStats,
+    database.images, database.kv,
   ]
   await database.transaction('rw', tables, async () => {
     // The AI connection belongs to this browser, not to the backup.
@@ -423,6 +442,9 @@ export async function restoreBackup(raw: unknown, database: LernzeitDB = db): Pr
     await database.stories.bulkAdd(backup.stories ?? [])
     await database.questions.bulkAdd(backup.questions ?? [])
     await database.responses.bulkAdd(backup.responses ?? [])
+    await database.drillStats.bulkAdd(backup.drillStats ?? [])
+    await database.grammarTopics.bulkAdd(backup.grammarTopics ?? [])
+    await database.exerciseStats.bulkAdd(backup.exerciseStats ?? [])
     await database.images.bulkAdd(images)
     const kv: KV[] = [{ key: KV_KEYS.seeded, value: Date.now() }]
     if (backup.settings) kv.push({ key: KV_KEYS.settings, value: backup.settings })

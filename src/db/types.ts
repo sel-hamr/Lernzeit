@@ -19,7 +19,7 @@ export interface Topic {
   createdAt: number
 }
 
-export type SessionSource = 'timer' | 'flashcards' | 'reading' | 'questions'
+export type SessionSource = 'timer' | 'flashcards' | 'reading' | 'questions' | 'grammar'
 
 export interface Session {
   id: string
@@ -76,6 +76,15 @@ export interface Deck {
 }
 
 export type CardType = 'word' | 'sentence' | 'cloze'
+export type Tense = 'present' | 'past' | 'perfect'
+
+/**
+ * A verb's forms per tense, each a line of six forms for ich, du, er/sie/es,
+ * wir, ihr, sie: "fahre, fährst, fährt, fahren, fahrt, fahren". A dash marks
+ * a form that is not asked; a slash gives two right spellings. Grammar practice
+ * asks these.
+ */
+export type Conjugation = Partial<Record<Tense, string>>
 export type Gender = 'der' | 'die' | 'das'
 
 export interface Card {
@@ -88,6 +97,7 @@ export interface Card {
   gender?: Gender
   plural?: string
   verbForms?: string
+  conjugation?: Conjugation
   exampleDe?: string
   exampleEn?: string
   imageId?: string
@@ -191,6 +201,91 @@ export interface QuestionResponse {
   at: number
 }
 
+/** gender: der / die / das; plural: type the plural; verbs: type a verb form. */
+export type DrillKind = 'gender' | 'plural' | 'verbs'
+
+/** How a card does in one drill. Drills have no FSRS schedule, only this. */
+export interface DrillStat {
+  /** `${cardId}:${drill}` */
+  id: string
+  cardId: string
+  drill: DrillKind
+  right: number
+  wrong: number
+  /** Raised by a wrong answer, lowered by a right one, never below 0. Higher comes up first. */
+  score: number
+  lastAt: number
+}
+
+/** A German sentence and its English. */
+export interface GrammarExample {
+  de: string
+  en?: string
+}
+
+/**
+ * One exercise. The text says what kind it is:
+ * - fill the gap: "Ich helfe {{dem}} Mann." ({{dem|den|der}} offers choices,
+ *   the first one right; {{fandest/fandst}} accepts either spelling)
+ * - find the mistake: "Ich helfe {{den>dem}} Mann." (shows den, the fix is dem)
+ * - put the words in order: "~ Ich habe gestern Pizza gegessen." (" / " adds
+ *   another right order)
+ * - write the sentence: "Ich esse Pizza. (Perfekt) => Ich habe Pizza gegessen."
+ */
+export interface GrammarExercise {
+  /** Stays the same while the text does, so its score is kept. */
+  id: string
+  text: string
+  en?: string
+  /** Why the answer is right, shown after answering. */
+  why?: string
+}
+
+/** A card drill a topic also practises, with your own words. */
+export interface TopicDrill {
+  kind: DrillKind
+  /** For verb questions: only this tense. */
+  tense?: Tense
+}
+
+/** A grammar topic: the rule, examples and exercises. Stands on its own; `drill` adds questions from your cards. */
+export interface GrammarTopic {
+  id: string
+  /** German name, e.g. "Der Dativ". */
+  title: string
+  english?: string
+  /** Section on the Grammar page, e.g. "Cases". */
+  group: string
+  level?: StoryLevel
+  /** One line under the title. */
+  summary?: string
+  /**
+   * The explanation. Blank lines split paragraphs; "- " lines are a list,
+   * "| a | b |" lines a table, "### " a heading, **bold** and *italic* inline.
+   */
+  rule: string
+  examples: GrammarExample[]
+  exercises: GrammarExercise[]
+  drill?: TopicDrill
+  createdAt: number
+  updatedAt: number
+}
+
+/** How one exercise has gone, and when it comes back for review. */
+export interface ExerciseStat {
+  /** The exercise id. */
+  id: string
+  topicId: string
+  right: number
+  wrong: number
+  score: number
+  /** Right answers in a row. */
+  streak: number
+  lastAt: number
+  /** When it is due for review: soon after a mistake, days later after right answers. */
+  due: number
+}
+
 export type ImageFit = 'contain' | 'cover'
 
 export interface StoredImage {
@@ -248,6 +343,7 @@ export interface Settings {
   countReviewTime: boolean
   countReadingTime: boolean
   countQuestionTime: boolean
+  countGrammarTime: boolean
   typingMode: boolean
   listeningMode: boolean
   theme: ThemePref

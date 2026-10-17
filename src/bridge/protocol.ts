@@ -5,7 +5,7 @@
  * outside the Vite build, so it uses relative imports with extensions and only
  * erasable TypeScript.
  */
-import type { CardType, Gender, Priority, StoryLevel, TaskStatus } from '../db/types.ts'
+import type { CardType, Conjugation, Gender, Priority, StoryLevel, TaskStatus } from '../db/types.ts'
 
 export const PROTOCOL_VERSION = 1
 export const DEFAULT_PORT = 47821
@@ -19,6 +19,11 @@ export const MAX_SET_NAME = 60
 /** For the question and for each answer. */
 export const MAX_QUESTION_CHARS = 500
 export const MAX_HINT_WORDS = 12
+export const MAX_GRAMMAR_EXERCISES_PER_CALL = 50
+export const MAX_GRAMMAR_EXAMPLES_PER_CALL = 20
+/** For a topic's title, and for each exercise, example and explanation. */
+export const MAX_GRAMMAR_TEXT = 300
+export const MAX_RULE_CHARS = 8_000
 
 /** Page origins the server always accepts: the Vite dev server and `vite preview`. */
 export const LOCAL_ORIGINS: readonly string[] = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:4173', 'http://127.0.0.1:4173']
@@ -49,6 +54,8 @@ export interface NewCard {
   gender?: Gender
   plural?: string
   verbForms?: string
+  /** Each tense as six forms for ich, du, er/sie/es, wir, ihr, sie. Grammar practice asks these. */
+  conjugation?: Conjugation
   /** noun, verb, adjective… Only nouns are practised from the picture. */
   partOfSpeech?: string
   exampleDe?: string
@@ -136,6 +143,52 @@ export interface CreateQuestionsResult {
   skipped: string[]
 }
 
+export interface GrammarTopicSummary {
+  id: string
+  /** German name, e.g. "Der Dativ". */
+  title: string
+  english?: string
+  level?: StoryLevel
+  /** Section on the Grammar page. */
+  group: string
+  exercises: number
+}
+
+export interface NewGrammarExercise {
+  /**
+   * One exercise: "Ich helfe {{dem|den|der}} Mann." (choices, the first one right),
+   * "Du {{fährst}} zu schnell." (typed), "Ich helfe {{den>dem}} Mann." (find the
+   * mistake), "~ Ich gebe dem Mann das Buch." (word order) or
+   * "Ich esse Pizza. (Perfekt) => Ich habe Pizza gegessen." (write the sentence).
+   */
+  text: string
+  en?: string
+  /** One short sentence: why the answer is right. */
+  why?: string
+}
+
+export interface AddGrammarParams {
+  /** Title or id of a topic. A new title starts a new topic. */
+  topic: string
+  english?: string
+  /** Section for a new topic, e.g. "Cases". Defaults to "My topics". */
+  group?: string
+  level?: StoryLevel
+  summary?: string
+  /** The explanation, for a new topic or one without a rule yet. */
+  rule?: string
+  examples?: { de: string; en?: string }[]
+  exercises?: NewGrammarExercise[]
+}
+
+export interface AddGrammarResult {
+  topic: GrammarTopicSummary
+  created: boolean
+  added: number
+  /** Exercises the topic already had. */
+  skipped: string[]
+}
+
 export interface CreateTaskParams {
   title: string
   description?: string
@@ -183,6 +236,8 @@ export interface ActionMap {
   create_cards: { params: CreateCardsParams; result: CreateCardsResult }
   create_story: { params: CreateStoryParams; result: CreateStoryResult }
   create_questions: { params: CreateQuestionsParams; result: CreateQuestionsResult }
+  list_grammar_topics: { params: NoParams; result: GrammarTopicSummary[] }
+  add_grammar: { params: AddGrammarParams; result: AddGrammarResult }
   create_task: { params: CreateTaskParams; result: TaskSummary }
   log_study_time: { params: LogStudyTimeParams; result: SessionSummary }
 }
