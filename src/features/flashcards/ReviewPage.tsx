@@ -316,7 +316,7 @@ export default function ReviewPage() {
   // A round of cards to study ahead of schedule, so there is always a word to practise.
   const practiceIds = useCallback(() => {
     const selected = deckParam ? decks.filter((d) => d.id === deckParam) : decks
-    return buildPracticeQueue({ reviews: allReviews ?? [], decks: selected, createdAt: (id) => cardById.get(id)?.createdAt ?? 0 }).map((r) => r.id)
+    return buildPracticeQueue({ reviews: allReviews ?? [], decks: selected, now: Date.now(), createdAt: (id) => cardById.get(id)?.createdAt ?? 0 }).map((r) => r.id)
   }, [allReviews, decks, deckParam, cardById])
 
   // Take a snapshot of the queue once, so the session does not shift under you.
