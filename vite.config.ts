@@ -38,6 +38,15 @@ export default defineConfig(({ command }) => ({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallback: '/index.html',
+        // The Thorsten voice runtime (about 33 MB) is cached on first use, not at install,
+        // so only people who turn the voice on download it. File names are hashed.
+        runtimeCaching: [
+          {
+            urlPattern: /\/assets\/[^/]+\.(?:wasm|data)$/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'voice-runtime', expiration: { maxEntries: 6 } },
+          },
+        ],
       },
     }),
   ],

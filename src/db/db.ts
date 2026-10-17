@@ -10,6 +10,7 @@ import type {
   ReviewLog,
   Session,
   Settings,
+  SpeechClip,
   StoredImage,
   Story,
   Task,
@@ -28,6 +29,7 @@ export class LernzeitDB extends Dexie {
   stories!: EntityTable<Story, 'id'>
   questions!: EntityTable<Question, 'id'>
   responses!: EntityTable<QuestionResponse, 'id'>
+  clips!: EntityTable<SpeechClip, 'key'>
   kv!: EntityTable<KV, 'key'>
 
   constructor(name = 'lernzeit') {
@@ -51,6 +53,9 @@ export class LernzeitDB extends Dexie {
       questions: 'id, set, createdAt',
       responses: 'id, questionId, at',
     })
+    this.version(4).stores({
+      clips: 'key, usedAt',
+    })
   }
 }
 
@@ -61,6 +66,7 @@ export const DEFAULT_SETTINGS: Settings = {
   pomodoroFocus: 25,
   pomodoroBreak: 5,
   endSound: 'bell',
+  voiceEngine: 'browser',
   speechRate: 0.95,
   autoPlayAudio: true,
   countReviewTime: true,

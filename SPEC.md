@@ -27,7 +27,7 @@ Main use: learning **German** (my learning language) and **AI** (a study topic).
 | Spaced repetition | **ts-fsrs** (the FSRS algorithm used by modern Anki) |
 | Drag and drop | **dnd-kit** |
 | Charts | **Recharts** |
-| Audio | Browser `speechSynthesis` with a German voice (`de-DE`), free with no API |
+| Audio | Browser `speechSynthesis` with a German voice (`de-DE`), or the offline Thorsten voice (Piper in a Web Worker), both free with no API |
 | Phone | PWA (installable on my phone, works offline) |
 
 Requirements:
@@ -79,6 +79,7 @@ One card can create up to 3 practice directions. Each can be turned on or off pe
 - The same word (any direction) is never shown twice in a row while another word is left in the session. A card rated Again, or another direction of the word just shown, waits for the next word.
 - **Show answer** is on the Space key.
 - When the answer is shown, the German audio plays automatically. There is also a 🔊 button to replay it.
+- **Thorsten voice** (optional, Settings): an offline German voice. The model downloads once (63 MB) and stays in the browser. Clips are saved per text (up to 100 MB, least recently used dropped first, not in backups) and play at the chosen speed without changing pitch. Review makes the current and next card's audio ahead. Until the voice is downloaded, or if it fails, the browser voice speaks.
 - **Typing mode** (optional toggle): I type the answer.
   - It accepts small mistakes like `ue` for `ü` or a missing umlaut, but always shows the correct spelling.
   - It highlights wrong letters.
@@ -181,7 +182,7 @@ A small "+" button that is always visible.
 - **Settings**:
   - daily card limits
   - Pomodoro lengths
-  - German voice choice
+  - German voice choice: the offline Thorsten voice (downloaded the first time it is picked, can be removed) or a browser voice
   - theme
   - backup/restore
 

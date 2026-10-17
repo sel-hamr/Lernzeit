@@ -75,6 +75,7 @@ Shows progress per topic with the time left, start buttons, today's sessions, ca
 - **No word twice in a row.** After a card, the next one is always a different word, even after **Again** or when another direction of the same word is waiting. A word repeats only when it is the last one left in the session.
 - **Typing mode** accepts small slips (`ue` for `ü`, a missing umlaut, lowercase, a missing article), then shows the exact spelling and highlights the wrong letters.
 - **Listening mode** plays the German and you type what you hear. Speed buttons (0.6×, 0.8×, 1×, 1.2×) sit next to the speaker.
+- **Thorsten voice (offline).** A natural German voice that runs on your device, for every speaker button: cards, stories and questions. Pick it under Settings → German voice; it downloads once (63 MB) and then needs no internet, key or account. Each clip is made once and saved, and Review makes the next card's audio while you think. The browser voice speaks until the download is done. Voice by Thorsten Müller ([Thorsten-Voice](https://github.com/thorstenMueller/Thorsten-Voice), public domain).
 - **Mute** stops the German from playing by itself when the answer is shown. The speaker button still plays it when you tap it. It is the same switch as *Play audio when the answer is shown* in Settings.
 - Add images by uploading, pasting with <kbd>Ctrl</kbd>+<kbd>V</kbd> or dropping a file. They are resized to 600 px wide WebP before saving. A card can use an emoji instead, and the editor links to an image search for the word.
 - The **+** button quick-adds an English and German pair, tagged `incomplete`.
@@ -132,7 +133,7 @@ Four columns: Backlog, To do, Doing and Done. Drag cards between columns and reo
 <summary><b>Settings</b></summary>
 <br />
 
-Topics and per-weekday goals, decks, Pomodoro lengths, end sound, German voice and speed, typing and listening modes, which study time counts automatically (reviews, reading, question practice), light/dark/system theme, goal reminders, JSON backup and restore, "protect storage" and reset.
+Topics and per-weekday goals, decks, Pomodoro lengths, end sound, German voice (browser or the offline Thorsten voice) and speed, typing and listening modes, which study time counts automatically (reviews, reading, question practice), light/dark/system theme, goal reminders, JSON backup and restore, "protect storage" and reset.
 
 </details>
 
@@ -218,11 +219,12 @@ src/
 ├── app/          App shell, routing, global dialogs, background engines (timer, reminders, theme, AI bridge)
 ├── bridge/       The AI connection: messages shared with mcp/, actions, WebSocket client
 ├── components/   Shared UI: buttons, dialogs, form controls, chips, station clock, card image
-├── data/         Database actions (timer, cards, topics, tasks, import/export) and React hooks
+├── data/         Database actions (timer, cards, topics, tasks, import/export), speaking with saved clips, and React hooks
 ├── db/           Dexie schema, types, first-run seed
 ├── features/     One folder per page: today, timer, flashcards, stories, questions, history, board, settings
 ├── lib/          Pure logic: time maths, goals and streaks, FSRS wrapper, review queue,
-│                 answer checking, German helpers, story word matching, question practice order, image resizing, speech, sounds
+│                 answer checking, German helpers, story word matching, question practice order, image resizing,
+│                 browser speech, the Thorsten voice worker, sounds
 └── index.css     Design tokens (colours, type scale, radii) for light and dark themes
 mcp/              MCP server for AI apps (an npm workspace)
 ```
@@ -237,12 +239,15 @@ The logic that decides correctness lives in `src/lib` and `src/data` as plain fu
 | Build | Vite, vite-plugin-pwa |
 | Data | Dexie (IndexedDB), dexie-react-hooks |
 | Learning | ts-fsrs |
+| Voice | Piper through @mintplex-labs/piper-tts-web and onnxruntime-web, Thorsten voice |
 | Interaction | dnd-kit, Recharts |
 | Quality | Vitest, ESLint, fake-indexeddb |
 
 ## Good to know
 
 Reminders and end-of-timer notifications use the browser's Notification API. With no server behind the app, they only fire while it is open or running in the background as an installed PWA. They can't wake a closed app.
+
+The Thorsten voice keeps its model in the browser's private file storage and its clips in IndexedDB (up to 100 MB, oldest dropped first). Clips are not in backups; they are made again when needed. [docs/voice.md](docs/voice.md) explains how it works and why it was chosen.
 
 ## More
 
