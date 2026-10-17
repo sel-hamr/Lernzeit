@@ -7,8 +7,9 @@ import { Field, Input, Segmented, Select, Textarea } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
 import { createDeck, deleteCard, INCOMPLETE_TAG, saveCard, type ImageChange } from '@/data/cards'
 import { useCard, useDecks, useSettings, useTopics } from '@/data/hooks'
-import type { Card, CardType, Gender } from '@/db/types'
+import type { Card, CardType, Gender, Tense } from '@/db/types'
 import type { CardEditorRequest } from '@/app/ui'
+import { tenseProblem, TENSES } from '@/lib/conjugation'
 import { parseCloze, splitArticle, stripCloze } from '@/lib/german'
 import { speak } from '@/lib/speech'
 import { ImagePicker } from './ImagePicker'
@@ -18,6 +19,12 @@ const TYPE_OPTIONS: { value: CardType; label: string }[] = [
   { value: 'sentence', label: 'Sentence' },
   { value: 'cloze', label: 'Cloze' },
 ]
+
+const TENSE_FIELDS: Record<Tense, { label: string; example: string }> = {
+  present: { label: 'Present', example: 'gehe, gehst, geht, gehen, geht, gehen' },
+  past: { label: 'Past', example: 'ging, gingst, ging, gingen, gingt, gingen' },
+  perfect: { label: 'Perfect', example: 'bin gegangen, bist gegangen, ist gegangen, …' },
+}
 
 const GENDER_TEXT: Record<Gender, string> = { der: 'text-der!', die: 'text-die!', das: 'text-das!' }
 
@@ -46,6 +53,9 @@ interface FormState {
   gender: Gender | 'none'
   plural: string
   verbForms: string
+  present: string
+  past: string
+  perfect: string
   exampleDe: string
   exampleEn: string
   emoji: string
@@ -61,6 +71,9 @@ function initialState(card: Card | undefined, request: CardEditorRequest, fallba
     gender: card?.gender ?? 'none',
     plural: card?.plural ?? '',
     verbForms: card?.verbForms ?? '',
+    present: card?.conjugation?.present ?? '',
+    past: card?.conjugation?.past ?? '',
+    perfect: card?.conjugation?.perfect ?? '',
     exampleDe: card?.exampleDe ?? '',
     exampleEn: card?.exampleEn ?? '',
     emoji: card?.emoji ?? '',
@@ -95,6 +108,7 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
     if (!state.german.trim()) next.german = state.type === 'word' ? 'Add the German word' : 'Add the German sentence'
     if (state.type === 'cloze' && state.german.trim() && !parseCloze(state.german)) next.german = 'Mark the hidden word like {{this}}'
     if (!deckId && newDeckName === null) next.deckId = 'Create a deck first'
+    if (state.type === 'word') for (const tense of TENSES) if (tenseProblem(state[tense])) next[tense] = tenseProblem(state[tense])
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -123,6 +137,7 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
           gender: state.gender === 'none' ? undefined : state.gender,
           plural: state.plural,
           verbForms: state.verbForms,
+          conjugation: { present: state.present, past: state.past, perfect: state.perfect },
           exampleDe: state.exampleDe,
           exampleEn: state.exampleEn,
           emoji: state.emoji,
@@ -321,6 +336,26 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
                   <Input id="card-verb" value={state.verbForms} onChange={(e) => set('verbForms', e.target.value)} placeholder="gehen – ging – gegangen" lang="de" />
                 </Field>
               </div>
+              {(state.verbForms.trim() || TENSES.some((t) => state[t].trim())) && (
+                <fieldset className="flex flex-col gap-3">
+                  <legend className="mb-1.5 text-small font-medium text-ink-2">Conjugation</legend>
+                  <p className="text-chip text-pretty text-muted">
+                    Six forms each, for ich, du, er/sie/es, wir, ihr, sie. Use – for a form that does not exist and / between two right spellings. Grammar practice asks these.
+                  </p>
+                  {TENSES.map((tense) => (
+                    <Field key={tense} label={TENSE_FIELDS[tense].label} htmlFor={`card-${tense}`} error={errors[tense]}>
+                      <Input
+                        id={`card-${tense}`}
+                        value={state[tense]}
+                        onChange={(e) => set(tense, e.target.value)}
+                        placeholder={TENSE_FIELDS[tense].example}
+                        aria-invalid={!!errors[tense]}
+                        lang="de"
+                      />
+                    </Field>
+                  ))}
+                </fieldset>
+              )}
               <Field label="Example sentence (German)" htmlFor="card-ex-de">
                 <Input id="card-ex-de" value={state.exampleDe} onChange={(e) => set('exampleDe', e.target.value)} placeholder="Der Hund spielt im Garten." lang="de" />
               </Field>

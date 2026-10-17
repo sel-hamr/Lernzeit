@@ -4,6 +4,9 @@ import type {
   Card,
   CardReview,
   Deck,
+  DrillStat,
+  ExerciseStat,
+  GrammarTopic,
   KV,
   Question,
   QuestionResponse,
@@ -28,6 +31,9 @@ export class LernzeitDB extends Dexie {
   stories!: EntityTable<Story, 'id'>
   questions!: EntityTable<Question, 'id'>
   responses!: EntityTable<QuestionResponse, 'id'>
+  drillStats!: EntityTable<DrillStat, 'id'>
+  grammarTopics!: EntityTable<GrammarTopic, 'id'>
+  exerciseStats!: EntityTable<ExerciseStat, 'id'>
   kv!: EntityTable<KV, 'key'>
 
   constructor(name = 'lernzeit') {
@@ -51,6 +57,13 @@ export class LernzeitDB extends Dexie {
       questions: 'id, set, createdAt',
       responses: 'id, questionId, at',
     })
+    this.version(4).stores({
+      drillStats: 'id, cardId, drill',
+    })
+    this.version(5).stores({
+      grammarTopics: 'id, group, createdAt',
+      exerciseStats: 'id, topicId',
+    })
   }
 }
 
@@ -66,6 +79,7 @@ export const DEFAULT_SETTINGS: Settings = {
   countReviewTime: true,
   countReadingTime: true,
   countQuestionTime: true,
+  countGrammarTime: true,
   typingMode: false,
   listeningMode: false,
   theme: 'light',
@@ -80,6 +94,8 @@ export const KV_KEYS = {
   seeded: 'seeded',
   remindersFired: 'remindersFired',
   bridge: 'bridge',
+  starterConjugations: 'starterConjugations',
+  starterGrammar: 'starterGrammar',
 } as const
 
 export async function getSettings(database: LernzeitDB = db): Promise<Settings> {

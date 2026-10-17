@@ -171,6 +171,12 @@ describe('typed answers', () => {
     expect(checkAnswer('der hund', 'der Hund').verdict).toBe('close')
   })
 
+  it('can count a missing umlaut as wrong, but still take ue for ü', () => {
+    expect(checkAnswer('Apfel', 'Äpfel', { missingUmlaut: false })).toMatchObject({ verdict: 'wrong', notes: ['Watch the umlauts'] })
+    expect(checkAnswer('Aepfel', 'Äpfel', { missingUmlaut: false }).verdict).toBe('close')
+    expect(checkAnswer('äpfel', 'Äpfel', { missingUmlaut: false }).verdict).toBe('close')
+  })
+
   it('treats a missing article as close but a wrong article as wrong', () => {
     const missing = checkAnswer('Hund', 'der Hund')
     expect(missing.verdict).toBe('close')

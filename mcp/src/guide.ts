@@ -1,4 +1,4 @@
-import { DEFAULT_PORT, MAX_CARDS_PER_CALL, MAX_QUESTIONS_PER_CALL, MAX_STORY_CHARS, MAX_STUDY_MINUTES } from '../../src/bridge/protocol.ts'
+import { DEFAULT_PORT, MAX_CARDS_PER_CALL, MAX_GRAMMAR_EXERCISES_PER_CALL, MAX_QUESTIONS_PER_CALL, MAX_STORY_CHARS, MAX_STUDY_MINUTES } from '../../src/bridge/protocol.ts'
 
 export const GUIDE_URI = 'lernzeit://guide'
 
@@ -26,6 +26,8 @@ The data lives in the user's browser, not on a server. Each tool call goes to a 
 | \`create_cards\` | Add up to ${MAX_CARDS_PER_CALL} cards to a deck |
 | \`create_story\` | Add a German story to read, with its English translation |
 | \`create_questions\` | Add up to ${MAX_QUESTIONS_PER_CALL} German questions to practise answering, in a set |
+| \`list_grammar_topics\` | Get the grammar topics with their level and number of exercises |
+| \`add_grammar\` | Add up to ${MAX_GRAMMAR_EXERCISES_PER_CALL} exercises and examples to a grammar topic, or start a new topic |
 | \`create_task\` | Add a task to the board |
 | \`log_study_time\` | Save study time done away from the timer |
 
@@ -40,6 +42,7 @@ Look before you add: call \`list_decks\` before \`create_cards\`, and \`list_top
 | \`gender\` | Article of a noun: der, die or das | "der" |
 | \`plural\` | With its article | "die Hunde" |
 | \`verbForms\` | Infinitive – Präteritum – Perfekt | "gehen – ging – ist gegangen" |
+| \`conjugation\` | For verbs: present, past and perfect, six forms each (ich, du, er/sie/es, wir, ihr, sie). Grammar practice in the app asks exactly these | present: "gehe, gehst, geht, gehen, geht, gehen" |
 | \`partOfSpeech\` | noun, verb, adjective, adverb, phrase… | "noun" |
 | \`exampleDe\` / \`exampleEn\` | One short, everyday sentence and its translation | "Der Hund schläft." / "The dog is sleeping." |
 | \`emoji\` | One emoji, only when it clearly shows the word | "🐕" |
@@ -69,6 +72,25 @@ The user practises a question by typing an answer from memory, then comparing it
 - \`words\` are three to six words someone may need for their own answer, shown as hints: other choices than the suggested answer uses ("Lehrer", "die Ärztin", "arbeiten als"). Nouns with their article.
 - Group questions by theme in a \`set\`, e.g. "Arbeit". A set name that already exists, in any case, adds to that set. Set \`level\` and give \`english\`.
 - Every question gets the tag "ai". A question already in the set is skipped and listed under "skipped"; that is not an error.
+
+## Writing grammar
+
+The Grammar page has topics (Dativ, Perfekt, Nebensätze …), each with a rule, examples and exercises. The user practises the exercises; after each answer they read your **why**, and wrong answers come back in a spaced review.
+
+- Call \`list_grammar_topics\` first and add to a topic that fits, by its title. Start a new topic only for a grammar point that has none.
+- A new topic needs a short \`rule\` in plain English: what the rule is, when it applies, and a table where forms are involved. Give a German \`topic\` title, \`english\`, \`level\` and a \`group\` such as Cases or Verbs.
+- Each exercise is one sentence with one task. Mix the kinds:
+
+| Kind | Write | The user |
+|---|---|---|
+| Choices | Ich helfe {{dem\\|den\\|der}} Mann. | Picks one; the first is right |
+| Typed gap | Du {{fährst}} zu schnell. | Types the missing word |
+| Find the mistake | Ich helfe {{den>dem}} Mann. | Taps the wrong word; mark one whole word |
+| Word order | ~ Ich gebe dem Mann das Buch. | Puts the words in order; add other right orders after " / " |
+| Write | Ich esse Pizza. (Perfekt) => Ich habe Pizza gegessen. | Writes the whole sentence |
+
+- Give every exercise \`en\` and a \`why\`: one short sentence naming the rule and the form, e.g. "helfen takes the dative: dem Mann." The user reads it after every answer.
+- Write natural, correct German at the topic's level, about everyday life. Check every answer twice: a wrong answer key teaches a mistake.
 
 ## Tasks and study time
 

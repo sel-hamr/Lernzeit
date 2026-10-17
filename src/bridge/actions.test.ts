@@ -158,6 +158,55 @@ describe('create_story', () => {
   })
 })
 
+describe('grammar', () => {
+  const exercise = { text: 'Ich helfe {{dem|den}} Mann.', en: 'I help the man.', why: 'helfen takes the dative.' }
+
+  it('starts a new topic with its rule, examples and exercises', async () => {
+    const result = await runAction(
+      'add_grammar',
+      {
+        topic: ' Verben mit  Dativ ',
+        english: 'Verbs with the dative',
+        group: 'Verbs',
+        level: 'A2',
+        rule: 'Some verbs take a **dative** object.',
+        examples: [{ de: 'Ich helfe dir.', en: 'I help you.' }],
+        exercises: [exercise, { text: '~ Das gehört mir.' }],
+      },
+      database,
+    )
+    expect(result).toMatchObject({ created: true, added: 2, skipped: [], topic: { title: 'Verben mit Dativ', group: 'Verbs', level: 'A2', exercises: 2 } })
+    const saved = (await database.grammarTopics.get(result.topic.id))!
+    expect(saved.rule).toBe('Some verbs take a **dative** object.')
+    expect(saved.exercises[0]).toMatchObject({ text: 'Ich helfe {{dem|den}} Mann.', en: 'I help the man.', why: 'helfen takes the dative.' })
+    expect(await runAction('list_grammar_topics', {}, database)).toEqual([expect.objectContaining({ id: saved.id, title: 'Verben mit Dativ', exercises: 2 })])
+  })
+
+  it('adds to a topic found by title in any case, keeps its rule, and skips exercises it has', async () => {
+    const first = await runAction('add_grammar', { topic: 'Dativ', rule: 'The rule.', exercises: [exercise] }, database)
+    const again = await runAction(
+      'add_grammar',
+      { topic: 'dativ', rule: 'Another rule.', group: 'Ignored', exercises: [{ text: ' ich helfe {{dem|den}} mann. ' }, { text: 'Er dankt {{dem}} Arzt.' }], examples: [{ de: 'Ich danke dir.' }] },
+      database,
+    )
+    expect(again).toMatchObject({ created: false, added: 1, skipped: ['ich helfe {{dem|den}} mann.'], topic: { id: first.topic.id, exercises: 2 } })
+    const saved = (await database.grammarTopics.get(first.topic.id))!
+    expect(saved).toMatchObject({ rule: 'The rule.', group: 'My topics', examples: [{ de: 'Ich danke dir.' }] })
+  })
+
+  it('rejects exercises it cannot use, without saving anything', async () => {
+    await expectCode(runAction('add_grammar', { topic: 'X', exercises: [{ text: 'Ich helfe dem Mann.' }] }, database), 'invalid_input')
+    await expectCode(runAction('add_grammar', { topic: 'X', exercises: [{ text: 'Ich hel{{f>p}}e.' }] }, database), 'invalid_input')
+    await expectCode(runAction('add_grammar', { topic: ' ', exercises: [exercise] }, database), 'invalid_input')
+    await expectCode(runAction('add_grammar', { topic: 'X' }, database), 'invalid_input')
+    await expectCode(runAction('add_grammar', { topic: 'X', level: 'D1' as 'A1', exercises: [exercise] }, database), 'invalid_input')
+    await expectCode(runAction('add_grammar', { topic: 'X', exercises: Array.from({ length: 51 }, () => exercise) }, database), 'invalid_input')
+    const error = await expectCode(runAction('add_grammar', { topic: 'X', exercises: [exercise, { text: 'kein Gap' }] }, database), 'invalid_input')
+    expect(error.message).toContain('Exercise 2')
+    expect(await database.grammarTopics.count()).toBe(0)
+  })
+})
+
 describe('create_questions', () => {
   it('adds questions with the ai tag and a suggested answer, and leaves Your answer empty', async () => {
     const result = await runAction(

@@ -332,6 +332,12 @@ export default function SettingsPage() {
               checked={settings.countQuestionTime}
               onChange={(v) => void updateSettings({ countQuestionTime: v })}
             />
+            <Switch
+              label="Count grammar practice as study time"
+              description="Active practice time goes to the first deck's topic, for example German, unless a timer is already running for it."
+              checked={settings.countGrammarTime}
+              onChange={(v) => void updateSettings({ countGrammarTime: v })}
+            />
           </Group>
 
           <AiConnectionGroup />

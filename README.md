@@ -40,6 +40,7 @@ Everything lives in your browser, works offline, and installs on your phone.
 | **Today** | Progress per topic with time left, today's sessions, cards due, word of the day, tasks due today |
 | **Focus timer** | Countdown, Pomodoro and free mode. Keeps running through a refresh, a closed tab or a sleeping phone |
 | **Flashcards** | Word, sentence and cloze cards, three practice directions, typing and listening modes |
+| **Grammar** | A course from A1 to B1: 27 topics with the rule, examples and 384 explained exercises of four kinds, a path with progress, and spaced review. Your own topics and words too |
 | **Stories** | Short German stories read with your decks: words light up by how well you know them, and any word can become a card |
 | **Questions** | German questions like in the speaking part of an exam: write your own answer once, then answer from memory and compare |
 | **History** | Week calendar, 16-week heatmap, streaks, hours per topic and flashcard stats |
@@ -79,6 +80,21 @@ Shows progress per topic with the time left, start buttons, today's sessions, ca
 - Add images by uploading, pasting with <kbd>Ctrl</kbd>+<kbd>V</kbd> or dropping a file. They are resized to 600 px wide WebP before saving. A card can use an emoji instead, and the editor links to an image search for the word.
 - The **+** button quick-adds an English and German pair, tagged `incomplete`.
 - Review time can count toward the deck's topic automatically.
+
+</details>
+
+<details>
+<summary><b>Grammar</b></summary>
+<br />
+
+- A grammar course that stands on its own: 27 topics from A1 to B1 in seven sections (nouns and articles, cases, pronouns, prepositions, verbs, sentences, adjectives). Each has **the rule** with tables, **examples** you can listen to, and 12 to 16 **exercises**: 384 in all.
+- **Four kinds of exercise:** fill the gap (pick with <kbd>1</kbd>–<kbd>4</kbd> or type), find the mistake (tap the wrong word), put the words in order (tap them), and write the sentence (rewrite or translate).
+- **Every answer is explained.** After each one you read why it is right, such as *helfen takes the dative: dem Mann*, and **Ask Claude why** opens a Claude chat with the exercise, your answer and the rule, for more examples.
+- **A path to follow.** Topics are ordered by level with a ring that fills as you learn them; **Continue** takes you to the next one. A topic is mastered when you know 80% of its exercises.
+- **Review that keeps it learned.** A wrong answer comes back in the same round and again minutes later; right answers come back after 1, 3, 7, 16, 35 and 75 days. **Start review** mixes everything due from every topic.
+- Topics that fit your cards also ask about **your own words**: *Der, die, das* your nouns' genders, *Plural* their plurals, *Präsens*, *Präteritum* and *Perfekt* your verbs in that tense, from the card's **conjugation** (six forms per tense, never built by rules; all 139 starter verbs have one).
+- **Add your own** topics and exercises in the editor, in plain text, or let your AI app write them with `add_grammar` (see [AI connection](#ai-connection)). Starter topics can be edited too.
+- `ue` for `ü` and lowercase are accepted, but a missing umlaut is wrong, because *Äpfel* and *fährst* are the point. Active practice time can count toward German. [docs/grammar.md](docs/grammar.md) has the details.
 
 </details>
 
@@ -132,7 +148,7 @@ Four columns: Backlog, To do, Doing and Done. Drag cards between columns and reo
 <summary><b>Settings</b></summary>
 <br />
 
-Topics and per-weekday goals, decks, Pomodoro lengths, end sound, German voice and speed, typing and listening modes, which study time counts automatically (reviews, reading, question practice), light/dark/system theme, goal reminders, JSON backup and restore, "protect storage" and reset.
+Topics and per-weekday goals, decks, Pomodoro lengths, end sound, German voice and speed, typing and listening modes, which study time counts automatically (reviews, reading, question practice, grammar practice), light/dark/system theme, goal reminders, JSON backup and restore, "protect storage" and reset.
 
 </details>
 
@@ -169,7 +185,7 @@ Then open [http://localhost:5173](http://localhost:5173).
 
 ## AI connection
 
-An AI app such as Claude Code can add decks, cards, stories, practice questions, tasks and study time to Lernzeit through the MCP server in [`mcp/`](mcp). It never reads your cards or history, and it cannot edit or delete anything. Your data stays in the browser: the server passes each request to the open Lernzeit tab, which saves it.
+An AI app such as Claude Code can add decks, cards, stories, practice questions, grammar topics and exercises, tasks and study time to Lernzeit through the MCP server in [`mcp/`](mcp). It never reads your cards or history, and it cannot edit or delete anything. Your data stays in the browser: the server passes each request to the open Lernzeit tab, which saves it.
 
 Set it up in two steps: add the server to your AI app with a token, then turn on **Settings → AI connection** in the browser you want. [docs/mcp-bridge.md](docs/mcp-bridge.md) has the details.
 
@@ -194,7 +210,7 @@ And 45 questions in six sets, each with its English, a suggested answer and usef
 
 ### Bring your own cards
 
-- **CSV** with the columns `english, german, gender, plural, example_de, example_en, tags, deck`, plus an optional `emoji` column.
+- **CSV** with the columns `english, german, gender, plural, example_de, example_en, tags, deck`, plus optional `emoji`, `verb_forms` and `present`, `past`, `perfect` columns. Each tense column holds six forms separated by commas, for verb questions in Grammar.
 - **Card pack**: a JSON file with `"format": "lernzeit-cards"`, shaped like the starter file. Importing a pack again only adds the cards you don't have yet.
 
 ## Keyboard shortcuts
@@ -207,6 +223,10 @@ And 45 questions in six sets, each with its English, a suggested answer and usef
 | <kbd>1</kbd> – <kbd>4</kbd> | Review | Rate Again, Hard, Good or Easy |
 | <kbd>Z</kbd> | Review | Undo the last rating |
 | <kbd>Esc</kbd> | Review | Back to the library |
+| <kbd>1</kbd> – <kbd>4</kbd> | Grammar practice | Pick a choice; der, die, das are always 1, 2, 3 |
+| <kbd>Enter</kbd> | Grammar practice | Check a typed answer or word order, then go to the next question |
+| <kbd>Backspace</kbd> | Grammar practice | Take back the last word when putting words in order |
+| <kbd>Esc</kbd> | Grammar practice | Back to the topic |
 | <kbd>Enter</kbd> | Questions practice | Answer, then go to the next question |
 | <kbd>Shift</kbd> + <kbd>Enter</kbd> | Questions practice | New line in your answer |
 | <kbd>Esc</kbd> | Questions practice | Back to the questions |
@@ -220,14 +240,14 @@ src/
 ├── components/   Shared UI: buttons, dialogs, form controls, chips, station clock, card image
 ├── data/         Database actions (timer, cards, topics, tasks, import/export) and React hooks
 ├── db/           Dexie schema, types, first-run seed
-├── features/     One folder per page: today, timer, flashcards, stories, questions, history, board, settings
+├── features/     One folder per page: today, timer, flashcards, grammar, stories, questions, history, board, settings
 ├── lib/          Pure logic: time maths, goals and streaks, FSRS wrapper, review queue,
-│                 answer checking, German helpers, story word matching, question practice order, image resizing, speech, sounds
+│                 answer checking, German helpers, grammar topics and practice rounds, story word matching, question practice order, image resizing, speech, sounds
 └── index.css     Design tokens (colours, type scale, radii) for light and dark themes
 mcp/              MCP server for AI apps (an npm workspace)
 ```
 
-The logic that decides correctness lives in `src/lib` and `src/data` as plain functions, covered by `src/lib/core.test.ts`, `src/lib/reader.test.ts`, `src/lib/questions.test.ts` and `src/data/data.test.ts`. The data tests run against an in-memory IndexedDB.
+The logic that decides correctness lives in `src/lib` and `src/data` as plain functions, covered by `src/lib/core.test.ts`, `src/lib/grammar.test.ts`, `src/lib/drills.test.ts`, `src/lib/conjugation.test.ts`, `src/lib/reader.test.ts`, `src/lib/questions.test.ts` and `src/data/data.test.ts`. The data tests run against an in-memory IndexedDB.
 
 ## Tech stack
 

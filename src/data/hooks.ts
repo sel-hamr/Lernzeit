@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, DEFAULT_SETTINGS, KV_KEYS } from '@/db/db'
-import type { ActiveTimer, Card, CardReview, Deck, ImageFit, Question, QuestionResponse, ReviewLog, Session, Settings, Story, Task, Topic } from '@/db/types'
+import type { ActiveTimer, Card, CardReview, Deck, DrillStat, ExerciseStat, GrammarTopic, ImageFit, Question, QuestionResponse, ReviewLog, Session, Settings, Story, Task, Topic } from '@/db/types'
 import { buildQueue, usageToday } from '@/lib/queue'
 import { dateKey, nextMidnightMs } from '@/lib/time'
 import type { PendingNote } from './timer'
@@ -82,6 +82,26 @@ export function useQuestions(): Question[] | undefined {
 /** Every answer typed in practice, oldest first. */
 export function useResponses(): QuestionResponse[] | undefined {
   return useLiveQuery(() => db.responses.orderBy('at').toArray(), [])
+}
+
+/** Grammar topics, oldest first. */
+export function useGrammarTopics(): GrammarTopic[] | undefined {
+  return useLiveQuery(() => db.grammarTopics.orderBy('createdAt').toArray(), [])
+}
+
+/** `undefined` while loading, `null` when there is no such topic. */
+export function useGrammarTopic(id: string | undefined): GrammarTopic | null | undefined {
+  return useLiveQuery(async () => (id ? ((await db.grammarTopics.get(id)) ?? null) : null), [id])
+}
+
+/** How each grammar exercise has gone. */
+export function useExerciseStats(): ExerciseStat[] | undefined {
+  return useLiveQuery(() => db.exerciseStats.toArray(), [])
+}
+
+/** How each card does in each drill. */
+export function useDrillStats(): DrillStat[] | undefined {
+  return useLiveQuery(() => db.drillStats.toArray(), [])
 }
 
 /** Current time, refreshed every `intervalMs` while `enabled`. */

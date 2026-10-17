@@ -1,7 +1,8 @@
 import type { LernzeitDB } from './db'
 import { KV_KEYS, newId } from './db'
-import type { Deck, StoredImage, Topic } from './types'
+import type { Card, Deck, StoredImage, Topic } from './types'
 import { prepareCardPack, writeCardPack, type CardPack, type PackResult } from '@/data/io'
+import { cleanConjugation } from '@/lib/conjugation'
 import { installStarterQuestions, loadStarterQuestions } from '@/data/questions'
 import { installStarterStories, loadStarterStories } from '@/data/stories'
 import { uniformGoals } from '@/lib/goals'
@@ -112,4 +113,28 @@ export async function ensureSeeded(database: LernzeitDB): Promise<void> {
       await database.kv.put({ key: KV_KEYS.seeded, value: now })
     },
   )
+}
+
+/**
+ * Starter verbs saved before cards had a conjugation get the pack's tables,
+ * so grammar practice can ask them. Runs once. A verb you changed (other verb
+ * forms than the pack) or gave a table yourself is left alone. Returns how
+ * many cards were filled.
+ */
+export async function addStarterConjugations(database: LernzeitDB, pack?: CardPack): Promise<number> {
+  if (await database.kv.get(KV_KEYS.starterConjugations)) return 0
+  const starter = pack ?? (await loadStarterPack())
+  const tables = new Map(starter.cards.filter((c) => c.id && c.conjugation).map((c) => [c.id!, c]))
+  return database.transaction('rw', [database.cards, database.kv], async () => {
+    if (await database.kv.get(KV_KEYS.starterConjugations)) return 0
+    const cards = (await database.cards.bulkGet([...tables.keys()])).filter((c): c is Card => !!c)
+    const filled = cards.flatMap((card) => {
+      const source = tables.get(card.id)!
+      if (card.conjugation || card.verbForms !== source.verbForms) return []
+      return [{ ...card, conjugation: cleanConjugation(source.conjugation) }]
+    })
+    await database.cards.bulkPut(filled)
+    await database.kv.put({ key: KV_KEYS.starterConjugations, value: Date.now() })
+    return filled.length
+  })
 }

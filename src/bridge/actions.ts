@@ -1,20 +1,26 @@
-import { db, type LernzeitDB } from '@/db/db'
-import type { Deck, Story, Topic } from '@/db/types'
+import { db, newId, type LernzeitDB } from '@/db/db'
+import type { Deck, GrammarTopic, Story, Topic } from '@/db/types'
 import { createDeck } from '@/data/cards'
 import { writeCardPack, type CardPack, type CardPackCard } from '@/data/io'
+import { DEFAULT_GROUP, saveTopic } from '@/data/grammar'
 import { saveQuestion } from '@/data/questions'
 import { defaultStoryTopicId, parseLevel, saveStory } from '@/data/stories'
 import { createTask } from '@/data/tasks'
 import { logManualSession } from '@/data/topics'
 import { splitArticle } from '@/lib/german'
+import { exerciseProblem } from '@/lib/grammar'
 import { countWords, splitParagraphs } from '@/lib/reader'
 import { dateKey, MINUTE } from '@/lib/time'
 import {
   BridgeError,
   MAX_CARDS_PER_CALL,
+  MAX_GRAMMAR_EXAMPLES_PER_CALL,
+  MAX_GRAMMAR_EXERCISES_PER_CALL,
+  MAX_GRAMMAR_TEXT,
   MAX_HINT_WORDS,
   MAX_QUESTION_CHARS,
   MAX_QUESTIONS_PER_CALL,
+  MAX_RULE_CHARS,
   MAX_SET_NAME,
   MAX_STORY_CHARS,
   MAX_STORY_TITLE,
@@ -27,8 +33,11 @@ import {
   type CreateCardsResult,
   type CreateDeckParams,
   type CreateDeckResult,
+  type AddGrammarParams,
+  type AddGrammarResult,
   type CreateQuestionsParams,
   type CreateQuestionsResult,
+  type GrammarTopicSummary,
   type CreateStoryParams,
   type CreateStoryResult,
   type CreateTaskParams,
@@ -232,6 +241,76 @@ async function createQuestions({ set, questions }: CreateQuestionsParams, databa
   })
 }
 
+function describeTopic(topic: GrammarTopic): GrammarTopicSummary {
+  return { id: topic.id, title: topic.title, english: topic.english, level: topic.level, group: topic.group, exercises: topic.exercises.length }
+}
+
+async function listGrammarTopics(_params: unknown, database: LernzeitDB): Promise<GrammarTopicSummary[]> {
+  return (await database.grammarTopics.orderBy('createdAt').toArray()).map(describeTopic)
+}
+
+/**
+ * Adds a grammar topic, or exercises and examples to one. An existing topic
+ * keeps its title, section and rule; a rule is only filled in when it has none.
+ */
+async function addGrammar(params: AddGrammarParams, database: LernzeitDB): Promise<AddGrammarResult> {
+  const { topic: name, english, group, level, summary, rule, examples = [], exercises = [] } = params
+  const title = name.trim().replace(/\s+/g, ' ')
+  if (!title) throw invalid('Name the topic.')
+  if (title.length > MAX_GRAMMAR_TEXT) throw invalid(`Keep the topic title under ${MAX_GRAMMAR_TEXT} characters.`)
+  if (exercises.length > MAX_GRAMMAR_EXERCISES_PER_CALL) throw invalid(`Send at most ${MAX_GRAMMAR_EXERCISES_PER_CALL} exercises per call.`)
+  if (examples.length > MAX_GRAMMAR_EXAMPLES_PER_CALL) throw invalid(`Send at most ${MAX_GRAMMAR_EXAMPLES_PER_CALL} examples per call.`)
+  if ((rule?.length ?? 0) > MAX_RULE_CHARS) throw invalid(`Keep the rule under ${MAX_RULE_CHARS} characters.`)
+  if (level !== undefined && !parseLevel(level)) throw invalid('level must be one of A1, A2, B1, B2, C1 or C2.')
+  exercises.forEach((e, i) => {
+    if ([e.text, e.en, e.why].some((text) => (text?.length ?? 0) > MAX_GRAMMAR_TEXT)) throw invalid(`Keep exercise ${i + 1} under ${MAX_GRAMMAR_TEXT} characters per field.`)
+    const problem = exerciseProblem(e.text)
+    if (problem) throw invalid(`Exercise ${i + 1} ("${e.text.trim()}"): ${problem}.`)
+  })
+  examples.forEach((e, i) => {
+    if (!e.de.trim()) throw invalid(`Example ${i + 1} needs German text.`)
+    if ([e.de, e.en].some((text) => (text?.length ?? 0) > MAX_GRAMMAR_TEXT)) throw invalid(`Keep example ${i + 1} under ${MAX_GRAMMAR_TEXT} characters.`)
+  })
+
+  return database.transaction('rw', [database.grammarTopics, database.exerciseStats], async () => {
+    const topics = await database.grammarTopics.toArray()
+    const existing = topics.find((t) => t.id === name) ?? topics.find((t) => key(t.title) === key(title))
+    if (existing && !exercises.length && !examples.length && !rule?.trim()) throw invalid('Send exercises, examples or a rule to add to the topic.')
+    if (!existing && !exercises.length && !rule?.trim()) throw invalid('A new topic needs a rule or some exercises.')
+
+    const seen = new Set(existing?.exercises.map((e) => key(e.text)))
+    const skipped: string[] = []
+    const fresh = exercises.flatMap((e) => {
+      if (seen.has(key(e.text))) {
+        skipped.push(e.text.trim())
+        return []
+      }
+      seen.add(key(e.text))
+      return [{ id: newId(), text: e.text, en: e.en, why: e.why }]
+    })
+    const knownExamples = new Set(existing?.examples.map((e) => key(e.de)))
+    const newExamples = examples.filter((e) => !knownExamples.has(key(e.de)) && knownExamples.add(key(e.de)))
+
+    const saved = existing
+      ? await saveTopic(
+          {
+            ...existing,
+            rule: existing.rule.trim() ? existing.rule : (rule ?? ''),
+            examples: [...existing.examples, ...newExamples],
+            exercises: [...existing.exercises, ...fresh],
+          },
+          existing.id,
+          database,
+        )
+      : await saveTopic(
+          { title, english, group: group?.trim() || DEFAULT_GROUP, level, summary, rule: rule ?? '', examples: newExamples, exercises: fresh, drill: undefined },
+          undefined,
+          database,
+        )
+    return { topic: describeTopic(saved), created: !existing, added: fresh.length, skipped }
+  })
+}
+
 async function createTaskAction(
   { title, description, priority = 'medium', status = 'todo', dueDate, topic }: CreateTaskParams,
   database: LernzeitDB,
@@ -266,6 +345,8 @@ const handlers: { [A in ActionName]: Handler<A> } = {
   create_cards: createCards,
   create_story: createStory,
   create_questions: createQuestions,
+  list_grammar_topics: listGrammarTopics,
+  add_grammar: addGrammar,
   create_task: createTaskAction,
   log_study_time: logStudyTime,
 }

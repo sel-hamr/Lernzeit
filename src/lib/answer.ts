@@ -49,7 +49,15 @@ function splitLeadingArticle(s: string): { article?: string; rest: string } {
   return { rest: s }
 }
 
-export function checkAnswer(typed: string, expected: string): CheckResult {
+export interface CheckOptions {
+  /**
+   * Accept a missing umlaut (Apfel for Äpfel) as a slip. On by default;
+   * drills turn it off, because the umlaut is what they test.
+   */
+  missingUmlaut?: boolean
+}
+
+export function checkAnswer(typed: string, expected: string, { missingUmlaut = true }: CheckOptions = {}): CheckResult {
   const input = tidy(typed)
   const target = tidy(expected)
   const diff = diffChars(input, target)
@@ -83,7 +91,7 @@ export function checkAnswer(typed: string, expected: string): CheckResult {
     return { verdict: 'close', notes: [...notes, 'Write umlauts as ä, ö, ü and ß'], diff }
   }
   if (foldTyped(al) === foldTyped(bl)) {
-    return { verdict: 'close', notes: [...notes, 'Watch the umlauts'], diff }
+    return { verdict: missingUmlaut ? 'close' : 'wrong', notes: [...notes, 'Watch the umlauts'], diff }
   }
 
   return { verdict: 'wrong', notes: [], diff }

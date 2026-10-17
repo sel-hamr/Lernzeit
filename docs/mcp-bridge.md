@@ -96,6 +96,8 @@ Every tool except `list_browsers` takes an optional `browser` (its name).
 | `create_cards` | `deck` (name or id), `cards[]` | added count, skipped words | `writeCardPack` |
 | `create_story` | `title`, `text`, `translation`?, `level`?, `tags`?, `topic`? | the story, and whether it was created | `saveStory` |
 | `create_questions` | `set`, `questions[]` | the set's name, added count, skipped questions | `saveQuestion` |
+| `list_grammar_topics` | – | id, title, English, level, section, exercise count | `db.grammarTopics` |
+| `add_grammar` | `topic` (title or id), `exercises[]`?, `examples[]`?, and for a new topic `rule`?, `english`?, `group`?, `level`?, `summary`? | the topic, whether it was created, added count, skipped exercises | `saveTopic` |
 | `create_task` | `title`, `description`?, `priority`?, `status`?, `dueDate`?, `topic`? | the new task | `createTask` |
 | `log_study_time` | `topic`, `minutes`, `start`?, `note`? | the saved session | `logManualSession` |
 
@@ -106,7 +108,7 @@ Every tool except `list_browsers` takes an optional `browser` (its name).
 
 ### `create_cards`
 
-- Each card has `english` and `german`, plus any of `type` (`word`, `sentence`, `cloze`), `gender`, `plural`, `verbForms`, `partOfSpeech`, `exampleDe`, `exampleEn`, `tags`, `emoji` and `imageQuery`.
+- Each card has `english` and `german`, plus any of `type` (`word`, `sentence`, `cloze`), `gender`, `plural`, `verbForms`, `conjugation` (the present, past and perfect as six forms each, for grammar practice), `partOfSpeech`, `exampleDe`, `exampleEn`, `tags`, `emoji` and `imageQuery`.
 - A leading article moves into `gender` ("der Hund" becomes `Hund`, `der`). Text with `{{…}}` becomes a cloze card.
 - Every card gets the tag `ai`, so you can find and check them in the Library.
 - A card whose German text is already in the deck (ignoring case) is skipped and listed in `skipped`.
@@ -128,6 +130,15 @@ Every tool except `list_browsers` takes an optional `browser` (its name).
 - Every question gets the tag `ai`. A question already in the set (ignoring case) is skipped and listed in `skipped`.
 - Up to 50 questions per call, and up to 500 characters for each question and answer.
 
+### `add_grammar`
+
+- A topic is found by id, or by title ignoring case. A title that matches none starts a new topic, which needs a `rule` or some exercises; its section defaults to *My topics*.
+- An existing topic keeps its title, section and rule. Exercises and examples are added at the end; a rule is filled in only when the topic has none.
+- Each exercise is `text`, `en`? and `why`?, in the formats of [docs/grammar.md](grammar.md#writing-a-topic): choices `{{dem|den|der}}`, a typed gap `{{fährst}}`, a mistake `{{den>dem}}`, word order `~ …`, or `prompt => answer`. A text the app cannot use is refused with its number and the reason, and nothing is saved.
+- An exercise the topic already has (ignoring case) is skipped and listed in `skipped`. The same goes for examples, silently.
+- Up to 50 exercises and 20 examples per call, up to 300 characters per field, and 8,000 for the rule.
+- The AI only sees topic names and exercise counts, never your answers or scores.
+
 ## Guide and prompts
 
 Besides the tools, the server offers:
@@ -140,6 +151,7 @@ Besides the tools, the server offers:
 | `make_cards` | A set of German cards on a theme | `theme`, `count`? (10), `level`? (A2), `deck`? |
 | `write_story` | A short German story with its translation, then useful words to add as cards | `theme`, `level`? (A2), `words`? (150) |
 | `make_questions` | German questions on a theme, each with its English and a suggested answer | `theme`, `count`? (10), `level`? (A2) |
+| `make_grammar` | Grammar exercises of every kind, each with its English and a why, added to the topic that fits or a new one | `topic`, `count`? (12), `level`? (A2) |
 | `plan_tasks` | A goal broken into board tasks, shown before they are added | `goal`, `until`?, `topic`? |
 | `help` | What the AI can do, plus a connection check | – |
 
@@ -184,7 +196,7 @@ Error codes: `no_browser`, `pick_browser`, `unknown_browser`, `disconnected`, `t
 - Data lands in one browser only. To get it onto your phone, use backup and restore. Real sync needs a cloud database, which is a separate project.
 - Only one AI app can use the bridge at a time. A second server cannot take the port; its tools return `port_in_use`, and it keeps trying in case the port frees up.
 - When Lernzeit runs from a hosted `https` address, Chrome may ask to allow access to local devices. Click Allow.
-- The AI can list decks and topics, but it cannot read your cards, history or notes.
+- The AI can list decks, topics and grammar topics, but it cannot read your cards, answers, scores, history or notes.
 
 ## Safety
 
@@ -192,7 +204,7 @@ Error codes: `no_browser`, `pick_browser`, `unknown_browser`, `disconnected`, `t
 - The switch is off in every browser until you turn it on.
 - **Token:** a secret you put in the server config and paste in Settings. The server drops any connection with the wrong token, comparing in constant time.
 - **Origin check:** any website can try to open a WebSocket to localhost, so the server only accepts pages from the local dev and preview addresses and from `LERNZEIT_ORIGINS`.
-- There are no delete or edit tools. The AI can only add things and list decks and topics.
+- There are no delete or edit tools. The AI can only add things and list decks, topics and grammar topics.
 - The server writes logs to stderr only, because stdout carries the MCP messages.
 
 ## Setup

@@ -17,6 +17,10 @@ const StoriesPage = lazy(() => import('@/features/stories/StoriesPage'))
 const ReaderPage = lazy(() => import('@/features/stories/ReaderPage'))
 const QuestionsPage = lazy(() => import('@/features/questions/QuestionsPage'))
 const PracticePage = lazy(() => import('@/features/questions/PracticePage'))
+const GrammarPage = lazy(() => import('@/features/grammar/GrammarPage'))
+const TopicPage = lazy(() => import('@/features/grammar/TopicPage'))
+const GrammarPracticePage = lazy(() => import('@/features/grammar/PracticePage'))
+const GrammarReviewPage = lazy(() => import('@/features/grammar/ReviewPage'))
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'))
 
 function PageFallback() {
@@ -37,6 +41,10 @@ function Pages() {
           <Route path="/stories/:storyId" element={<ReaderPage />} />
           <Route path="/questions" element={<QuestionsPage />} />
           <Route path="/questions/practice" element={<PracticePage />} />
+          <Route path="/grammar" element={<GrammarPage />} />
+          <Route path="/grammar/review" element={<GrammarReviewPage />} />
+          <Route path="/grammar/:topicId" element={<TopicPage />} />
+          <Route path="/grammar/:topicId/practice" element={<GrammarPracticePage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/board" element={<BoardPage />} />
           <Route path="/settings" element={<SettingsPage />} />

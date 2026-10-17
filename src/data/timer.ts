@@ -252,6 +252,11 @@ export async function recordQuestionTime(run: MeasuredRun & { set?: string }, da
   await saveMeasuredRun({ ...rest, source: 'questions', note: set ? `Questions: ${set}` : 'Questions' }, database)
 }
 
+export async function recordGrammarTime(run: MeasuredRun & { title: string }, database: LernzeitDB = db) {
+  const { title, ...rest } = run
+  await saveMeasuredRun({ ...rest, source: 'grammar', note: `Grammar: ${title}` }, database)
+}
+
 export async function deleteSession(id: string, database: LernzeitDB = db) {
   await database.sessions.delete(id)
 }
