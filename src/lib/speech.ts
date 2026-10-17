@@ -1,4 +1,7 @@
-/** German text-to-speech with the browser's built-in voices (no API needed). */
+/**
+ * German text-to-speech with the browser's built-in voices (no API needed).
+ * The app speaks through `speak` in data/voice, which can use the offline Thorsten voice instead.
+ */
 
 const supported = typeof window !== 'undefined' && 'speechSynthesis' in window
 
@@ -21,7 +24,7 @@ export function onVoicesChanged(callback: () => void): () => void {
   return () => speechSynthesis.removeEventListener('voiceschanged', callback)
 }
 
-export function speak(text: string, opts: { voiceURI?: string; rate?: number; lang?: string } = {}) {
+export function browserSpeak(text: string, opts: { voiceURI?: string; rate?: number; lang?: string } = {}) {
   if (!supported || !text.trim()) return
   speechSynthesis.cancel()
   const utterance = new SpeechSynthesisUtterance(text)
@@ -36,6 +39,6 @@ export function speak(text: string, opts: { voiceURI?: string; rate?: number; la
   speechSynthesis.speak(utterance)
 }
 
-export function stopSpeaking() {
+export function browserStop() {
   if (supported) speechSynthesis.cancel()
 }

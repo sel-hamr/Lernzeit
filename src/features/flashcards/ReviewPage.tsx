@@ -17,7 +17,7 @@ import { checkAnswer, type CheckResult } from '@/lib/answer'
 import { isTypingTarget } from '@/lib/browser'
 import { germanText, isPluralOnly, parseCloze, splitArticle, stripCloze, wordKind } from '@/lib/german'
 import { buildPracticeQueue, LEARN_AHEAD_MS, pickNextReview } from '@/lib/queue'
-import { speak, stopSpeaking } from '@/lib/speech'
+import { prepareSpeech, speak, stopSpeaking, voiceOptions } from '@/data/voice'
 import { directionsFor, GRADE_LABEL, GRADES, previewGrades, State } from '@/lib/srs'
 import { formatInterval, MINUTE } from '@/lib/time'
 
@@ -316,7 +316,7 @@ export default function ReviewPage() {
   // A round of cards to study ahead of schedule, so there is always a word to practise.
   const practiceIds = useCallback(() => {
     const selected = deckParam ? decks.filter((d) => d.id === deckParam) : decks
-    return buildPracticeQueue({ reviews: allReviews ?? [], decks: selected, createdAt: (id) => cardById.get(id)?.createdAt ?? 0 }).map((r) => r.id)
+    return buildPracticeQueue({ reviews: allReviews ?? [], decks: selected, now: Date.now(), createdAt: (id) => cardById.get(id)?.createdAt ?? 0 }).map((r) => r.id)
   }, [allReviews, decks, deckParam, cardById])
 
   // Take a snapshot of the queue once, so the session does not shift under you.
@@ -364,15 +364,15 @@ export default function ReviewPage() {
   }, [progress, review, card, allReviews, cards, pickNext])
 
   const play = useCallback(() => {
-    if (card) speak(germanText(card), { voiceURI: settings.voiceURI, rate: settings.speechRate })
-  }, [card, settings.voiceURI, settings.speechRate])
+    if (card) speak(germanText(card), voiceOptions(settings))
+  }, [card, settings])
 
   // Saves the speed (the same setting as in Settings) and replays the word so the change is heard,
   // but only when the German is already on screen or is the question, so it never gives the answer away.
   const changeRate = (rate: number) => {
     void updateSettings({ speechRate: rate })
     const germanShown = revealed || listening || review?.direction === 'deToEn'
-    if (card && germanShown) speak(germanText(card), { voiceURI: settings.voiceURI, rate })
+    if (card && germanShown) speak(germanText(card), { ...voiceOptions(settings), rate })
   }
 
   // New card on screen: reset, and in listening mode play it.
@@ -392,6 +392,16 @@ export default function ReviewPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentId])
+
+  // The offline voice makes this card's audio, and the next one's, while you think, so it plays at once.
+  const currentText = card ? germanText(card) : ''
+  const nextReview = progress?.main[0] ? reviewById.get(progress.main[0]) : undefined
+  const nextCard = nextReview ? cardById.get(nextReview.cardId) : undefined
+  const nextText = nextCard ? germanText(nextCard) : ''
+  useEffect(() => {
+    prepareSpeech(currentText, { engine: settings.voiceEngine })
+    prepareSpeech(nextText, { engine: settings.voiceEngine })
+  }, [currentText, nextText, settings.voiceEngine])
 
   const reveal = useCallback(() => {
     if (!card || !review || revealed) return
@@ -665,7 +675,7 @@ export default function ReviewPage() {
             {revealed && (
               <div className="flex animate-fade-in flex-col gap-4 border-t border-line pt-5">
                 {check && <Verdict check={check} typed={typed} />}
-                <Answer card={card} review={review} listening={listening} onSpeak={(text) => speak(text, { voiceURI: settings.voiceURI, rate: settings.speechRate })} />
+                <Answer card={card} review={review} listening={listening} onSpeak={(text) => speak(text, voiceOptions(settings))} />
               </div>
             )}
           </article>

@@ -275,7 +275,7 @@ describe('practice queue', () => {
   it('still has cards when the daily queue is empty', () => {
     const reviews = [review('a', 'enToDe', State.Review, now + 5 * DAY), review('b', 'enToDe', State.New, now)]
     expect(buildQueue({ reviews, decks: [deck], usage: new Map(), now }).queue).toEqual([])
-    expect(buildPracticeQueue({ reviews, decks: [deck] }).map((r) => r.cardId)).toEqual(['a', 'b'])
+    expect(buildPracticeQueue({ reviews, decks: [deck], now }).map((r) => r.cardId)).toEqual(['a', 'b'])
   })
 
   it('puts studied cards first, soonest due first, then new cards in the order they were added', () => {
@@ -288,7 +288,7 @@ describe('practice queue', () => {
       review('relearn', 'enToDe', State.Relearning, now + 2 * 60 * MINUTE),
     ]
     const created: Record<string, number> = { n1: 1, n2: 2 }
-    const ids = buildPracticeQueue({ reviews, decks: [deck], createdAt: (id) => created[id] ?? 0 }).map((r) => r.cardId)
+    const ids = buildPracticeQueue({ reviews, decks: [deck], now, createdAt: (id) => created[id] ?? 0 }).map((r) => r.cardId)
     expect(ids).toEqual(['over', 'relearn', 'soon', 'late', 'n1', 'n2'])
   })
 
@@ -297,10 +297,28 @@ describe('practice queue', () => {
       review('a', 'imageToDe', State.Review, now + DAY), review('a', 'enToDe', State.Review, now + DAY + 1),
       review('b', 'enToDe', State.Review, now + 2 * DAY), review('x', 'enToDe', State.Review, now, 'o'),
     ]
-    expect(buildPracticeQueue({ reviews, decks: [deck] }).map((r) => r.id)).toEqual(['a:imageToDe', 'b:enToDe', 'a:enToDe'])
-    expect(buildPracticeQueue({ reviews, decks: [deck, other], size: 2 }).map((r) => r.cardId)).toEqual(['x', 'a'])
-    expect(buildPracticeQueue({ reviews, decks: [] })).toEqual([])
+    expect(buildPracticeQueue({ reviews, decks: [deck], now }).map((r) => r.id)).toEqual(['a:imageToDe', 'b:enToDe', 'a:enToDe'])
+    expect(buildPracticeQueue({ reviews, decks: [deck, other], now, size: 2 }).map((r) => r.cardId)).toEqual(['x', 'a'])
+    expect(buildPracticeQueue({ reviews, decks: [], now })).toEqual([])
   })
+  it('puts words practised in the last hour at the back, so another round brings new words', () => {
+    const practised = (cardId: string, ago: number): CardReview => {
+      const r = review(cardId, 'enToDe', State.Review, now + DAY - ago)
+      return { ...r, fsrs: { ...r.fsrs, last_review: now - ago } }
+    }
+    const reviews = [
+      practised('just', MINUTE),
+      practised('earlier', 30 * MINUTE),
+      review('rested', 'enToDe', State.Review, now + 5 * DAY),
+      practised('yesterday', DAY),
+      review('n1', 'enToDe', State.New, now),
+    ]
+    const ids = buildPracticeQueue({ reviews, decks: [deck], now }).map((r) => r.cardId)
+    expect(ids).toEqual(['yesterday', 'rested', 'n1', 'earlier', 'just'])
+    // With only just-practised words left, the round still fills, oldest first.
+    expect(buildPracticeQueue({ reviews: [practised('just', MINUTE), practised('earlier', 30 * MINUTE)], decks: [deck], now, size: 1 }).map((r) => r.cardId)).toEqual(['earlier'])
+  })
+
   it('brings practised cards back soon instead of weeks out', () => {
     // A well-known card: FSRS alone would wait weeks after Good or Easy.
     const known = { ...newFsrs(0), state: State.Review, stability: 30, difficulty: 5, reps: 6, last_review: now - 10 * DAY, due: now + 20 * DAY }

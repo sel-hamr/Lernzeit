@@ -9,7 +9,7 @@ import { useCards, useExerciseStats, useGrammarTopic, useSettings } from '@/data
 import type { Card, GrammarTopic, TopicDrill } from '@/db/types'
 import { drillQuestions, TENSE_LABEL } from '@/lib/drills'
 import { EXERCISE_KIND, parseExercise, topicProgress, type ExerciseForm } from '@/lib/grammar'
-import { speak } from '@/lib/speech'
+import { speak, voiceOptions } from '@/data/voice'
 import { count } from '@/lib/text'
 import { practicePath } from './paths'
 import { RuleText } from './RuleText'
@@ -53,7 +53,7 @@ function Topic({ topic }: { topic: GrammarTopic }) {
   const [editing, setEditing] = useState(false)
   const [showExercises, setShowExercises] = useState(false)
 
-  const say = (text: string) => speak(text, { voiceURI: settings.voiceURI, rate: settings.speechRate })
+  const say = (text: string) => speak(text, voiceOptions(settings))
   const fitting = useMemo(() => {
     const drill = topic.drill
     return drill ? (cards ?? []).filter((c) => drillQuestions(c, drill.kind, drill.tense).length) : []

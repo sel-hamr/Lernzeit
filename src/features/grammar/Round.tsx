@@ -29,7 +29,7 @@ import {
   type RoundQuestion,
 } from '@/lib/grammar'
 import { germanText } from '@/lib/german'
-import { speak, stopSpeaking } from '@/lib/speech'
+import { speak, stopSpeaking, voiceOptions, warmUpVoice } from '@/data/voice'
 
 const GENDERS: Gender[] = ['der', 'die', 'das']
 
@@ -127,7 +127,13 @@ export function Round({ title, exit, exitLabel, initial, topics, cards, showTopi
     else inputRef.current?.focus()
   }, [result, at])
 
-  const say = useCallback((text: string) => speak(text, { voiceURI: settings.voiceURI, rate: settings.speechRate }), [settings.voiceURI, settings.speechRate])
+  const say = useCallback(
+    (text: string) => speak(text, voiceOptions(settings)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only the voice settings matter
+    [settings.voiceEngine, settings.voiceURI, settings.speechRate],
+  )
+  // Loads the offline voice now, so the first answer plays without waiting.
+  useEffect(() => warmUpVoice({ engine: settings.voiceEngine }), [settings.voiceEngine])
   const spoken = question ? (question.kind === 'gender' && card ? germanText(card) : spokenQuestion(question)) : ''
   const choices = question ? choicesOf(question) : undefined
   const mode = question ? modeOf(question) : 'type'

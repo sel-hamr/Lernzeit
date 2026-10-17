@@ -16,7 +16,7 @@ import { LAST_DECK_KEY } from '@/features/flashcards/QuickAdd'
 import { storage } from '@/lib/browser'
 import { GENDER_LABEL, germanText, wordKind } from '@/lib/german'
 import { lookupKey, type Knowledge } from '@/lib/reader'
-import { speak } from '@/lib/speech'
+import { speak, voiceOptions } from '@/data/voice'
 import type { Vocabulary } from './vocabulary'
 
 /** The chip matches the word's highlight in the text. */
@@ -31,7 +31,7 @@ export function WordPanel({ word, sentence, cardIds, vocabulary }: { word: strin
   const settings = useSettings()
   // A word added here has no form that matches the text when it was saved in its base form.
   const [addedId, setAddedId] = useState<string>()
-  const say = (text: string) => speak(text, { voiceURI: settings.voiceURI, rate: settings.speechRate })
+  const say = (text: string) => speak(text, voiceOptions(settings))
   const ids = cardIds.length ? cardIds : addedId ? [addedId] : []
   const cards = ids.map((id) => vocabulary.cards.get(id)).filter((c): c is Card => !!c)
 

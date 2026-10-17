@@ -27,7 +27,7 @@ Main use: learning **German** (my learning language) and **AI** (a study topic).
 | Spaced repetition | **ts-fsrs** (the FSRS algorithm used by modern Anki) |
 | Drag and drop | **dnd-kit** |
 | Charts | **Recharts** |
-| Audio | Browser `speechSynthesis` with a German voice (`de-DE`), free with no API |
+| Audio | Browser `speechSynthesis` with a German voice (`de-DE`), or the offline Thorsten voice (Piper in a Web Worker), both free with no API |
 | Phone | PWA (installable on my phone, works offline) |
 
 Requirements:
@@ -75,10 +75,11 @@ One card can create up to 3 practice directions. Each can be turned on or off pe
 - Spaced repetition uses **ts-fsrs**.
 - There are 4 buttons: **Again / Hard / Good / Easy**, with keyboard shortcuts 1 / 2 / 3 / 4.
 - Daily limits are configurable per deck. Default: 15 new cards and 150 reviews.
-- The review page is never empty while cards exist. With nothing due, it starts a practice round of 20 cards ahead of schedule: studied cards that are due soonest first (cards held back by the review limit lead), then new cards past the new limit. Ratings still update FSRS, but the next due date is capped at 10 minutes (Again), 1 hour (Hard), 1 day (Good) or 2 days (Easy). A finished session offers **Practise more**.
+- The review page is never empty while cards exist. With nothing due, it starts a practice round of 20 cards ahead of schedule: studied cards that are due soonest first (cards held back by the review limit lead), then new cards past the new limit. Ratings still update FSRS, but the next due date is capped at 10 minutes (Again), 1 hour (Hard), 1 day (Good) or 2 days (Easy). A finished session offers **Practise more**. Cards rated in the last hour go to the end of a practice round, so another round brings other words.
 - The same word (any direction) is never shown twice in a row while another word is left in the session. A card rated Again, or another direction of the word just shown, waits for the next word.
 - **Show answer** is on the Space key.
 - When the answer is shown, the German audio plays automatically. There is also a 🔊 button to replay it.
+- **Thorsten voice** (optional, Settings): an offline German voice. The model downloads once (63 MB) and stays in the browser. Clips are saved per text (up to 100 MB, least recently used dropped first, not in backups) and play at the chosen speed without changing pitch. Review makes the current and next card's audio ahead. Until the voice is downloaded, or if it fails, the browser voice speaks.
 - **Typing mode** (optional toggle): I type the answer.
   - It accepts small mistakes like `ue` for `ü` or a missing umlaut, but always shows the correct spelling.
   - It highlights wrong letters.
@@ -181,7 +182,7 @@ A small "+" button that is always visible.
 - **Settings**:
   - daily card limits
   - Pomodoro lengths
-  - German voice choice
+  - German voice choice: the offline Thorsten voice (downloaded the first time it is picked, can be removed) or a browser voice
   - theme
   - backup/restore
 

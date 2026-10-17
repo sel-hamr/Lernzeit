@@ -13,7 +13,7 @@ import { isDueToday, isOverdue, toggleTaskDone } from '@/data/tasks'
 import { useStartTimer } from '@/features/timer/useStartTimer'
 import { PRIORITY_ORDER } from '@/lib/colors'
 import { germanText } from '@/lib/german'
-import { speak } from '@/lib/speech'
+import { speak, voiceOptions } from '@/data/voice'
 import { dateKey, formatClock, formatDayMonthShort, formatHM, formatLongDate } from '@/lib/time'
 import { isPaused } from '@/lib/timer'
 
@@ -175,7 +175,7 @@ function WordOfTheDay() {
           variant="outline"
           iconOnly
           aria-label="Play German audio"
-          onClick={() => speak(germanText(card), { voiceURI: settings.voiceURI, rate: settings.speechRate })}
+          onClick={() => speak(germanText(card), voiceOptions(settings))}
         >
           <Volume2 size={18} strokeWidth={1.8} />
         </Button>

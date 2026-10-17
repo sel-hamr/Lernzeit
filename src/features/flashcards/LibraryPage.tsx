@@ -14,7 +14,7 @@ import { useAllReviews, useCards, useDecks, useLogsForCard, useNow, useSettings,
 import type { Card, CardReview, Deck, Topic } from '@/db/types'
 import { useMediaQuery } from '@/lib/browser'
 import { GENDER_LABEL, germanText, stripCloze, wordKind } from '@/lib/german'
-import { speak } from '@/lib/speech'
+import { speak, voiceOptions } from '@/data/voice'
 import { DIRECTION_LABEL } from '@/lib/srs'
 import { formatDueLabel, formatNextReview } from '@/lib/time'
 import { DeckDialog } from './DeckDialog'
@@ -72,7 +72,7 @@ function CardDetail({ card, deck, reviews, now }: { card: Card; deck?: Deck; rev
   const { openCardEditor } = useUI()
   const summary = summarizeCard(card, deck, reviews)
   const allDirections = card.type === 'cloze' ? (['cloze'] as const) : (['imageToDe', 'enToDe', 'deToEn'] as const)
-  const say = () => speak(germanText(card), { voiceURI: settings.voiceURI, rate: settings.speechRate })
+  const say = () => speak(germanText(card), voiceOptions(settings))
 
   const rows: [string, React.ReactNode][] = []
   if (card.type === 'word') {

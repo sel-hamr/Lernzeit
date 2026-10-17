@@ -296,6 +296,19 @@ export interface StoredImage {
   fit: ImageFit
 }
 
+/**
+ * Audio made by an offline voice, kept so the same text is only made once.
+ * Not part of backups: clips can always be made again.
+ */
+export interface SpeechClip {
+  /** Voice id and text, see clipKey. */
+  key: string
+  blob: Blob
+  /** blob.size, kept so the store can stay under its size limit without reading blobs. */
+  bytes: number
+  usedAt: number
+}
+
 export type Priority = 'high' | 'medium' | 'low'
 export type TaskStatus = 'backlog' | 'todo' | 'doing' | 'done'
 
@@ -313,6 +326,8 @@ export interface Task {
 }
 
 export type EndSound = 'bell' | 'chime' | 'none'
+/** Where German audio comes from: the browser's voices or the offline Thorsten voice. */
+export type VoiceEngine = 'browser' | 'thorsten'
 export type ThemePref = 'light' | 'dark' | 'system'
 
 export interface Settings {
@@ -321,6 +336,7 @@ export interface Settings {
   pomodoroFocus: number
   pomodoroBreak: number
   endSound: EndSound
+  voiceEngine: VoiceEngine
   voiceURI?: string
   speechRate: number
   autoPlayAudio: boolean

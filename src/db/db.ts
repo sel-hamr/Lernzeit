@@ -13,6 +13,7 @@ import type {
   ReviewLog,
   Session,
   Settings,
+  SpeechClip,
   StoredImage,
   Story,
   Task,
@@ -31,6 +32,7 @@ export class LernzeitDB extends Dexie {
   stories!: EntityTable<Story, 'id'>
   questions!: EntityTable<Question, 'id'>
   responses!: EntityTable<QuestionResponse, 'id'>
+  clips!: EntityTable<SpeechClip, 'key'>
   drillStats!: EntityTable<DrillStat, 'id'>
   grammarTopics!: EntityTable<GrammarTopic, 'id'>
   exerciseStats!: EntityTable<ExerciseStat, 'id'>
@@ -58,9 +60,12 @@ export class LernzeitDB extends Dexie {
       responses: 'id, questionId, at',
     })
     this.version(4).stores({
-      drillStats: 'id, cardId, drill',
+      clips: 'key, usedAt',
     })
     this.version(5).stores({
+      drillStats: 'id, cardId, drill',
+    })
+    this.version(6).stores({
       grammarTopics: 'id, group, createdAt',
       exerciseStats: 'id, topicId',
     })
@@ -74,6 +79,7 @@ export const DEFAULT_SETTINGS: Settings = {
   pomodoroFocus: 25,
   pomodoroBreak: 5,
   endSound: 'bell',
+  voiceEngine: 'browser',
   speechRate: 0.95,
   autoPlayAudio: true,
   countReviewTime: true,

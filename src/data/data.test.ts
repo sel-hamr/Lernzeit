@@ -17,6 +17,7 @@ import { drillQuestions, pickRound } from '@/lib/drills'
 import { buildTopicRound, exerciseProblem, parseExercise, parseInline, parseRule, wordsOf } from '@/lib/grammar'
 import { groupBySet } from '@/lib/questions'
 import { alignTranslation, annotate, buildLexicon, coverage, splitParagraphs } from '@/lib/reader'
+import { clearClips, clipKey, readClip, saveClip } from './clips'
 
 let database: LernzeitDB
 let counter = 0
@@ -686,5 +687,47 @@ describe('grammar', () => {
     } finally {
       await other.delete()
     }
+  })
+})
+
+describe('speech clips', () => {
+  const wav = (n: number) => new Blob([new Uint8Array(n)], { type: 'audio/wav' })
+
+  it('keys clips by voice and trimmed text, so spacing does not make a new clip', () => {
+    expect(clipKey('de_DE-thorsten-medium', '  der Hund ')).toBe(clipKey('de_DE-thorsten-medium', 'der Hund'))
+    expect(clipKey('de_DE-thorsten-medium', 'der Hund')).not.toBe(clipKey('de_DE-thorsten-high', 'der Hund'))
+  })
+
+  it('reads back a saved clip and marks it as used', async () => {
+    const key = clipKey('v', 'der Hund')
+    expect(await readClip(key, database)).toBeUndefined()
+    await saveClip(key, wav(8), database)
+    vi.setSystemTime(at(2026, 10, 15, 9))
+    expect((await readClip(key, database))?.size).toBe(8)
+    expect((await database.clips.get(key))?.usedAt).toBe(at(2026, 10, 15, 9).getTime())
+  })
+
+  it('drops the least recently used clips once they pass the size limit', async () => {
+    for (let i = 0; i < 5; i++) {
+      vi.setSystemTime(at(2026, 10, 14, 15, i))
+      await saveClip(`v:${i}`, wav(10), database, 30)
+    }
+    expect((await database.clips.toArray()).map((c) => c.key).sort()).toEqual(['v:2', 'v:3', 'v:4'])
+    // Playing a clip keeps it.
+    vi.setSystemTime(at(2026, 10, 14, 16))
+    await readClip('v:2', database)
+    await saveClip('v:5', wav(10), database, 30)
+    expect((await database.clips.toArray()).map((c) => c.key).sort()).toEqual(['v:2', 'v:4', 'v:5'])
+    // A clip bigger than the limit is still kept until the next one.
+    await saveClip('v:big', wav(50), database, 30)
+    expect((await database.clips.toArray()).map((c) => c.key)).toEqual(['v:big'])
+    await clearClips(database)
+    expect(await database.clips.count()).toBe(0)
+  })
+
+  it('leaves clips out of backups', async () => {
+    await database.images.clear() // images go through FileReader, which Node does not have
+    await saveClip('v:a', wav(1), database)
+    expect(Object.keys(await exportBackup(database))).not.toContain('clips')
   })
 })

@@ -11,7 +11,7 @@ import type { Card, CardType, Gender, Tense } from '@/db/types'
 import type { CardEditorRequest } from '@/app/ui'
 import { tenseProblem, TENSES } from '@/lib/conjugation'
 import { parseCloze, splitArticle, stripCloze } from '@/lib/german'
-import { speak } from '@/lib/speech'
+import { speak, voiceOptions } from '@/data/voice'
 import { ImagePicker } from './ImagePicker'
 
 const TYPE_OPTIONS: { value: CardType; label: string }[] = [
@@ -305,10 +305,7 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
                 iconOnly
                 aria-label="Listen"
                 onClick={() =>
-                  speak(word && state.gender !== 'none' ? `${state.gender} ${state.german}` : stripCloze(state.german), {
-                    voiceURI: settings.voiceURI,
-                    rate: settings.speechRate,
-                  })
+                  speak(word && state.gender !== 'none' ? `${state.gender} ${state.german}` : stripCloze(state.german), voiceOptions(settings))
                 }
               >
                 <Volume2 size={17} strokeWidth={1.8} />

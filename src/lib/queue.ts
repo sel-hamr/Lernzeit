@@ -114,31 +114,39 @@ export function buildQueue(opts: {
 /** How many cards one practice round holds. */
 export const PRACTICE_SIZE = 20
 
+/** A card rated this recently is left for last in a practice round, so another round brings other words. */
+export const PRACTICE_REST_MS = 60 * 60_000
+
 /**
  * Cards to practise when nothing is due, so a session never starts empty.
  * Studied cards come first, soonest due first (so cards held back by the
- * daily review limit lead), then new cards beyond the daily new limit.
+ * daily review limit lead), then new cards beyond the daily new limit, then
+ * cards rated within PRACTICE_REST_MS, longest ago first.
  * Grading them still updates the schedule, like reviewing ahead in Anki.
  */
 export function buildPracticeQueue(opts: {
   reviews: CardReview[]
   decks: Deck[]
+  now: number
   createdAt?: (cardId: string) => number
   size?: number
 }): CardReview[] {
-  const { reviews, decks, createdAt, size = PRACTICE_SIZE } = opts
+  const { reviews, decks, now, createdAt, size = PRACTICE_SIZE } = opts
   const deckIds = new Set(decks.map((d) => d.id))
   const studied: CardReview[] = []
   const fresh: CardReview[] = []
+  const recent: CardReview[] = []
   for (const r of reviews) {
     if (!deckIds.has(r.deckId)) continue
     if (r.state === State.New) fresh.push(r)
+    else if ((r.fsrs.last_review ?? 0) > now - PRACTICE_REST_MS) recent.push(r)
     else studied.push(r)
   }
   studied.sort((a, b) => a.due - b.due)
   const order = (r: CardReview) => createdAt?.(r.cardId) ?? 0
   fresh.sort((a, b) => order(a) - order(b) || DIRECTION_RANK[a.direction] - DIRECTION_RANK[b.direction])
-  return [...spreadSiblings(studied.slice(0, size)), ...spreadSiblings(fresh)].slice(0, size)
+  recent.sort((a, b) => (a.fsrs.last_review ?? 0) - (b.fsrs.last_review ?? 0))
+  return [...spreadSiblings(studied.slice(0, size)), ...spreadSiblings(fresh), ...spreadSiblings(recent)].slice(0, size)
 }
 
 /** What is left of a review session, as review ids. */
