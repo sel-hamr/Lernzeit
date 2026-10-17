@@ -14,7 +14,7 @@ import { recordQuestionTime } from '@/data/timer'
 import type { Question, QuestionResponse } from '@/db/types'
 import { isTypingTarget, useStoredToggle } from '@/lib/browser'
 import { compareWithAnswer, hintWords, lastAnswered, practiceOrder, type Comparison } from '@/lib/questions'
-import { speak, stopSpeaking } from '@/lib/speech'
+import { speak, stopSpeaking, voiceOptions, warmUpVoice } from '@/data/voice'
 import { count } from '@/lib/text'
 import { dateKey, formatDayMonthShort } from '@/lib/time'
 import { QuestionEditorDialog } from './QuestionEditor'
@@ -86,7 +86,9 @@ function Practice({ set, questions, responses, onAgain }: { set?: string; questi
     else nextRef.current?.focus()
   }, [phase, at])
 
-  const say = (text: string) => speak(text, { voiceURI: settings.voiceURI, rate: settings.speechRate })
+  const say = (text: string) => speak(text, voiceOptions(settings))
+  // Loads the offline voice now, so the first word you tap plays without waiting.
+  useEffect(() => warmUpVoice({ engine: settings.voiceEngine }), [settings.voiceEngine])
 
   const reset = useCallback(() => {
     setPhase('ask')

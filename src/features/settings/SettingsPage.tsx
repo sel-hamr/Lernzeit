@@ -16,12 +16,12 @@ import { describeGoals } from '@/lib/goals'
 import { isStandalone, useInstallPrompt } from '@/lib/install'
 import { notificationPermission, requestNotificationPermission, showNotification } from '@/lib/notify'
 import { END_SOUND_LABEL, playEndSound, unlockAudio } from '@/lib/sound'
-import { germanVoices, onVoicesChanged, speak, speechSupported } from '@/lib/speech'
 import { dateKey, formatHM } from '@/lib/time'
 import { count } from '@/lib/text'
 import { AiConnectionGroup } from './AiConnectionGroup'
 import { Group } from './Group'
 import { TopicDialog } from './TopicDialog'
+import { VoiceField } from './VoiceField'
 
 /* A list row that opens a dialog: an inset hover surface that leaves the dividers aligned, and a chevron. */
 const rowClass =
@@ -29,12 +29,6 @@ const rowClass =
 
 function RowChevron() {
   return <ChevronRight size={16} strokeWidth={1.8} aria-hidden className="-mr-1 shrink-0 text-muted transition-colors group-hover:text-ink" />
-}
-
-function useVoices() {
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>(() => germanVoices())
-  useEffect(() => onVoicesChanged(() => setVoices(germanVoices())), [])
-  return voices
 }
 
 function TopicsGroup() {
@@ -197,7 +191,6 @@ function StorageInfo() {
 
 export default function SettingsPage() {
   const settings = useSettings()
-  const voices = useVoices()
   const { toast, confirm } = useFeedback()
   const { canInstall, install } = useInstallPrompt()
   const [permission, setPermission] = useState(notificationPermission())
@@ -339,21 +332,7 @@ export default function SettingsPage() {
 
         <div className="flex flex-col gap-5">
           <Group title="Flashcards and audio">
-            <Field label="German voice" htmlFor="voice" hint={speechSupported() ? (voices.length ? 'Voices come from your browser and system.' : 'No German voice found. Install one in your system settings.') : 'Speech is not supported in this browser.'}>
-              <div className="flex gap-2">
-                <Select id="voice" className="flex-1" value={settings.voiceURI ?? ''} onChange={(e) => void updateSettings({ voiceURI: e.target.value || undefined })}>
-                  <option value="">Automatic</option>
-                  {voices.map((v) => (
-                    <option key={v.voiceURI} value={v.voiceURI}>
-                      {v.name} ({v.lang})
-                    </option>
-                  ))}
-                </Select>
-                <Button variant="outline" iconOnly aria-label="Test voice" onClick={() => speak('Der Hund spielt im Garten.', { voiceURI: settings.voiceURI, rate: settings.speechRate })}>
-                  <Volume2 size={17} strokeWidth={1.8} />
-                </Button>
-              </div>
-            </Field>
+            <VoiceField />
             <Field label={`Speaking speed · ${settings.speechRate.toFixed(2)}×`} htmlFor="rate">
               <input
                 id="rate"

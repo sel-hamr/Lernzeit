@@ -11,7 +11,7 @@ import { markStoryOpened, markStoryRead } from '@/data/stories'
 import type { Story } from '@/db/types'
 import { isTypingTarget, useMediaQuery, useStoredToggle } from '@/lib/browser'
 import { readingMinutes, sentenceAt } from '@/lib/reader'
-import { speak, stopSpeaking } from '@/lib/speech'
+import { speak, stopSpeaking, voiceOptions, warmUpVoice } from '@/data/voice'
 import { count } from '@/lib/text'
 import { CoverageBar, CoverageLegend, DifficultyChip } from './Coverage'
 import { percent } from './difficulty'
@@ -56,7 +56,9 @@ function Reader({ story }: { story: Story }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [piece])
 
-  const say = (text: string) => speak(text, { voiceURI: settings.voiceURI, rate: settings.speechRate })
+  const say = (text: string) => speak(text, voiceOptions(settings))
+  // Loads the offline voice now, so the first word you tap plays without waiting.
+  useEffect(() => warmUpVoice({ engine: settings.voiceEngine }), [settings.voiceEngine])
 
   const finish = async () => {
     await markStoryRead(story.id)
