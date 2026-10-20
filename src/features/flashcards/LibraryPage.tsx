@@ -1,7 +1,7 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import clsx from 'clsx'
-import { Copy, FolderPlus, Plus, Search, Settings2, Upload, Volume2 } from 'lucide-react'
+import { Check, Copy, FolderPlus, ListChecks, Plus, Search, Settings2, Upload, Volume2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Chip, EmptyState, PageHeader } from '@/components/ui/primitives'
 import { Segmented, TextSelect } from '@/components/ui/form'
@@ -16,6 +16,7 @@ import { useMediaQuery } from '@/lib/browser'
 import { GENDER_LABEL, germanText, stripCloze, wordKind } from '@/lib/german'
 import { speak, voiceOptions } from '@/data/voice'
 import { directionLabel } from '@/lib/srs'
+import { pickedState } from '@/lib/picked'
 import { formatDueLabel, formatNextReview } from '@/lib/time'
 import { DeckDialog } from './DeckDialog'
 import { ImportCsvDialog } from './ImportCsvDialog'
@@ -28,7 +29,26 @@ function CardTitle({ card, className }: { card: Card; className?: string }) {
   return <CardGerman card={card} className={className} />
 }
 
-function CardTile({ card, deck, topic, summary, selected, now, onSelect }: { card: Card; deck?: Deck; topic?: Topic; summary: CardSummary; selected: boolean; now: number; onSelect: () => void }) {
+/** A card in the grid. In select mode (`picking`) a tap ticks it for practice instead of opening it. */
+function CardTile({
+  card,
+  deck,
+  topic,
+  summary,
+  selected,
+  picking,
+  now,
+  onSelect,
+}: {
+  card: Card
+  deck?: Deck
+  topic?: Topic
+  summary: CardSummary
+  selected: boolean
+  picking: boolean
+  now: number
+  onSelect: () => void
+}) {
   const due = summary.isNew ? { label: 'New', isDue: false } : formatDueLabel(summary.due, now)
   const incomplete = card.tags.includes(INCOMPLETE_TAG)
   return (
@@ -37,10 +57,21 @@ function CardTile({ card, deck, topic, summary, selected, now, onSelect }: { car
       onClick={onSelect}
       aria-pressed={selected}
       className={clsx(
-        'flex flex-col gap-2.5 rounded-flash border p-1.5 pb-3 text-left transition-colors',
-        selected ? 'border-line-strong bg-sidebar' : 'border-transparent hover:bg-soft',
+        'relative flex flex-col gap-2.5 rounded-flash border p-1.5 pb-3 text-left transition-colors',
+        selected ? (picking ? 'border-sage-border bg-sage/50' : 'border-line-strong bg-sidebar') : 'border-transparent hover:bg-soft',
       )}
     >
+      {picking && (
+        <span
+          aria-hidden
+          className={clsx(
+            'absolute top-3 left-3 z-1 flex size-6 items-center justify-center rounded-full border transition-colors',
+            selected ? 'border-button-dark bg-button-dark text-on-dark' : 'border-line-strong bg-main/90',
+          )}
+        >
+          {selected && <Check size={14} strokeWidth={2.4} />}
+        </span>
+      )}
       <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt={card.english} className="h-29.5" />
       <div className="flex min-w-0 flex-col gap-0.5 px-1.5">
         <CardTitle card={card} className={clsx('font-semibold', card.type === 'word' ? 'text-[15px]' : 'line-clamp-2 text-small')} />
@@ -156,6 +187,9 @@ export function LibraryPage() {
   const [shown, setShown] = useState(PAGE)
   const [deckDialog, setDeckDialog] = useState<{ id: string | null } | null>(null)
   const [importOpen, setImportOpen] = useState(false)
+  // Select mode: the cards ticked for a round of their own, in the order they were ticked.
+  const [picking, setPicking] = useState(false)
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set())
   const deferredFilter = useDeferredValue(filter)
 
   const deckParam = params.get('deck')
@@ -216,6 +250,24 @@ export function LibraryPage() {
   const cardsHere = deckFilter === 'all' ? total : (cards?.filter((c) => c.deckId === deckFilter).length ?? 0)
   const reviewHref = deckFilter === 'all' ? '/flashcards/review' : `/flashcards/review?deck=${deckFilter}`
   const topicOf = (deck?: Deck) => topics.find((t) => t.id === deck?.topicId)
+
+  // Picks are kept across decks and filters, so one round can mix them. Deleted cards drop out.
+  const pickedHere = useMemo(() => {
+    const ids = new Set((cards ?? []).map((c) => c.id))
+    return [...picked].filter((id) => ids.has(id))
+  }, [picked, cards])
+  const allShownPicked = visible.length > 0 && visible.every((c) => picked.has(c.id))
+  const togglePick = (id: string) =>
+    setPicked((prev) => {
+      const next = new Set(prev)
+      if (!next.delete(id)) next.add(id)
+      return next
+    })
+  const pickShown = () => setPicked((prev) => new Set([...prev, ...visible.map((c) => c.id)]))
+  const stopPicking = () => {
+    setPicking(false)
+    setPicked(new Set())
+  }
 
   return (
     <>
@@ -279,6 +331,17 @@ export function LibraryPage() {
             <option value="az">A to Z</option>
             <option value="incomplete">Incomplete first</option>
           </TextSelect>
+          <Button
+            variant={picking ? 'soft' : 'ghost'}
+            size="sm"
+            aria-pressed={picking}
+            disabled={!total}
+            title="Pick the cards to practise"
+            icon={<ListChecks size={16} strokeWidth={1.8} />}
+            onClick={() => (picking ? stopPicking() : setPicking(true))}
+          >
+            Select
+          </Button>
         </div>
       </div>
 
@@ -314,9 +377,10 @@ export function LibraryPage() {
                   deck={deckById.get(card.deckId)}
                   topic={topicOf(deckById.get(card.deckId))}
                   summary={summaries.get(card.id)!}
-                  selected={selected?.id === card.id}
+                  selected={picking ? picked.has(card.id) : selected?.id === card.id}
+                  picking={picking}
                   now={now}
-                  onSelect={() => select(card.id)}
+                  onSelect={() => (picking ? togglePick(card.id) : select(card.id))}
                 />
               ))}
             </div>
@@ -326,7 +390,7 @@ export function LibraryPage() {
               </Button>
             )}
           </div>
-          {wide && selected && (
+          {wide && selected && !picking && (
             <section className="sticky top-8 flex min-w-0 flex-[1_1_280px] flex-col rounded-section border border-line bg-main p-2.5 pb-4 shadow-panel">
               <CardDetail card={selected} deck={deckById.get(selected.deckId)} reviews={reviewsByCard.get(selected.id) ?? []} now={now} />
             </section>
@@ -334,8 +398,45 @@ export function LibraryPage() {
         </div>
       )}
 
+      {picking && (
+        // Above the phone's quick-add button, which has nothing to do while picking.
+        <div className="sticky bottom-[calc(68px+env(safe-area-inset-bottom))] z-40 md:bottom-4 md:z-10">
+          <div role="toolbar" aria-label="Picked cards" className="flex flex-col gap-2 rounded-section border border-line bg-main p-2 shadow-panel sm:flex-row sm:items-center sm:bg-main/95 sm:backdrop-blur-sm">
+            <div className="flex min-w-0 flex-1 items-center gap-1 pl-2">
+              <span className="mr-auto text-small font-medium tabular-nums" aria-live="polite">
+                {pickedHere.length ? `${pickedHere.length} ${pickedHere.length === 1 ? 'card' : 'cards'} picked` : 'Tap cards to pick them'}
+              </span>
+              {!allShownPicked && (
+                <Button variant="ghost" size="sm" onClick={pickShown}>
+                  Select all {visible.length}
+                </Button>
+              )}
+              {pickedHere.length > 0 && (
+                <Button variant="ghost" size="sm" onClick={() => setPicked(new Set())}>
+                  Clear
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={stopPicking}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                className="flex-1 sm:flex-none"
+                disabled={!pickedHere.length}
+                onClick={() => navigate('/flashcards/review', { state: pickedState(pickedHere) })}
+              >
+                Practise {pickedHere.length || ''}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!wide && (
-        <Dialog open={!!selectedId && !!selected} onClose={() => select(null)} title="Card">
+        <Dialog open={!picking && !!selectedId && !!selected} onClose={() => select(null)} title="Card">
           {selected && <CardDetail card={selected} deck={deckById.get(selected.deckId)} reviews={reviewsByCard.get(selected.id) ?? []} now={now} />}
         </Dialog>
       )}

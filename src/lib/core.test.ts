@@ -4,7 +4,8 @@ import { checkAnswer, diffChars } from './answer'
 import { germanText, parseCloze, splitArticle, wordKind } from './german'
 import { computeStreak, goalFor, indexMinutes, isGoalHit, topicStreak, uniformGoals, withGoalChange } from './goals'
 import { heatLevel, topicWeek, weekSummary } from './history'
-import { buildPracticeQueue, buildQueue, pickNextReview, usageToday } from './queue'
+import { buildPickedQueue, buildPracticeQueue, buildQueue, pickNextReview, studiesAhead, usageToday } from './queue'
+import { pickedState, readPicked } from './picked'
 import { splitAtMidnight } from './sessions'
 import { applyGrade, newFsrs, previewGrades, State } from './srs'
 import { addDays, dateKey, formatHM, formatTimer, startOfWeek, weekdayOf, DAY, MINUTE } from './time'
@@ -342,6 +343,44 @@ describe('practice queue', () => {
     expect(applyGrade(known, 3, now, true).due).toBe(practice[3].due)
     // Never later than FSRS: a new card's Again stays at a minute.
     expect(previewGrades(newFsrs(now), now, true)[1].due).toBe(previewGrades(newFsrs(now), now)[1].due)
+  })
+})
+
+describe('picked cards', () => {
+  const now = at(2026, 10, 14, 12)
+  const review = (cardId: string, direction: CardReview['direction'], state: number = State.Review, due = now + DAY): CardReview => ({
+    id: `${cardId}:${direction}`, cardId, deckId: 'd', direction, fsrs: { ...newFsrs(0), state, due }, due, state,
+  })
+  const reviews = [
+    review('a', 'deToEn'), review('a', 'enToDe'), review('a', 'imageToDe'),
+    review('b', 'enToDe', State.New, now), review('c', 'cloze'), review('other', 'enToDe'),
+  ]
+  const all = () => ['imageToDe', 'enToDe', 'deToEn'] as CardReview['direction'][]
+
+  it('keeps the picked order and asks each card once before its other directions', () => {
+    const ids = buildPickedQueue({ reviews, cardIds: ['b', 'a', 'c'], directions: (id) => (id === 'c' ? ['cloze'] : all()) }).map((r) => r.id)
+    expect(ids).toEqual(['b:enToDe', 'a:imageToDe', 'c:cloze', 'a:enToDe', 'a:deToEn'])
+  })
+
+  it('asks only the directions the deck practises, once per card, and skips deleted cards', () => {
+    const ids = buildPickedQueue({ reviews, cardIds: ['a', 'gone', 'a'], directions: () => ['enToDe'] }).map((r) => r.id)
+    expect(ids).toEqual(['a:enToDe'])
+    expect(buildPickedQueue({ reviews, cardIds: [], directions: all })).toEqual([])
+  })
+
+  it('treats only known cards that are not due yet as studied ahead', () => {
+    expect(studiesAhead(review('a', 'enToDe', State.Review, now + DAY), now)).toBe(true)
+    expect(studiesAhead(review('a', 'enToDe', State.Review, now - MINUTE), now)).toBe(false)
+    expect(studiesAhead(review('a', 'enToDe', State.New, now + DAY), now)).toBe(false)
+    expect(studiesAhead(review('a', 'enToDe', State.Relearning, now + DAY), now)).toBe(false)
+  })
+
+  it('reads the picked ids back from the navigation state', () => {
+    expect(readPicked(pickedState(new Set(['a', 'b'])))).toEqual(['a', 'b'])
+    expect(readPicked(null)).toBeUndefined()
+    expect(readPicked({ pickedCards: [] })).toBeUndefined()
+    expect(readPicked({ pickedCards: ['a', 3] })).toBeUndefined()
+    expect(readPicked({ other: true })).toBeUndefined()
   })
 })
 
