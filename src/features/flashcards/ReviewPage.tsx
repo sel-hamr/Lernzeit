@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import clsx from 'clsx'
 import { Check, Headphones, Keyboard, Pencil, Undo2, Volume2, VolumeX, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { LetterButtons } from '@/components/LetterButtons'
 import { EmptyState, Kbd } from '@/components/ui/primitives'
 import { CardImage } from '@/components/CardImage'
 import { CardGerman } from '@/components/GermanWord'
@@ -11,14 +12,14 @@ import { useUI } from '@/app/ui'
 import { db, newId, updateSettings } from '@/db/db'
 import type { Card, CardReview, Deck, Grade } from '@/db/types'
 import { gradeReview, undoGrade } from '@/data/cards'
-import { useActiveTimer, useAllReviews, useCards, useDecks, useSettings, useStudyQueue } from '@/data/hooks'
+import { useActiveTimer, useAllReviews, useCards, useDecks, useLanguage, useNativeText, useSettings, useStudyQueue } from '@/data/hooks'
 import { recordReviewTime } from '@/data/timer'
 import { checkAnswer, type CheckResult } from '@/lib/answer'
 import { isTypingTarget } from '@/lib/browser'
 import { germanText, isPluralOnly, parseCloze, splitArticle, stripCloze, wordKind } from '@/lib/german'
 import { buildPracticeQueue, LEARN_AHEAD_MS, pickNextReview } from '@/lib/queue'
 import { prepareSpeech, speak, stopSpeaking, voiceOptions } from '@/data/voice'
-import { directionsFor, GRADE_LABEL, GRADES, previewGrades, State } from '@/lib/srs'
+import { directionLabel, directionsFor, GRADE_LABEL, GRADES, previewGrades, State } from '@/lib/srs'
 import { formatInterval, MINUTE } from '@/lib/time'
 
 interface Progress {
@@ -80,16 +81,17 @@ function hasPicture(card: Pick<Card, 'imageId' | 'emoji'>): boolean {
   return !!card.imageId || !!card.emoji
 }
 
-/** "What is this in German?" with an optional hint, for when a picture could mean more than one word. */
+/** "What is this in French?" with an optional hint, for when a picture could mean more than one word. */
 function PictureQuestion({ card }: { card: Card }) {
+  const language = useLanguage()
   const [hint, setHint] = useState(false)
   return (
     <div className="flex flex-col gap-4">
       <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="What is this?" className="h-55 sm:h-65" />
       <div className="flex flex-col items-center gap-1.5 text-center text-body text-muted">
-        <span>What is this in German?</span>
+        <span>What is this in {language.name}?</span>
         {hint ? (
-          <span className="animate-fade-in text-small">
+          <span className="animate-fade-in text-small" dir="auto">
             {wordKind(card)} · {card.english}
           </span>
         ) : (
@@ -103,6 +105,8 @@ function PictureQuestion({ card }: { card: Card }) {
 }
 
 function Prompt({ card, review, listening, onPlay }: { card: Card; review: CardReview; listening: boolean; onPlay: () => void }) {
+  const language = useLanguage()
+  const nativeText = useNativeText()
   if (listening) {
     return (
       <div className="flex flex-col items-center gap-4 py-6">
@@ -129,15 +133,17 @@ function Prompt({ card, review, listening, onPlay }: { card: Card; review: CardR
             <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="" className="h-45 sm:h-55" />
           )}
           <div className="flex flex-col items-center gap-2 px-2 py-4 text-center">
-            <div className={clsx('font-semibold tracking-[-0.01em]', card.type === 'word' ? 'text-[30px]' : 'text-[22px] leading-snug')}>{card.english}</div>
-            <div className="text-small text-muted">{card.type === 'word' ? `${wordKind(card)} · in German` : 'Say it in German'}</div>
+            <div className={clsx('font-semibold tracking-[-0.01em]', card.type === 'word' ? 'text-[30px]' : 'text-[22px] leading-snug')} {...nativeText}>
+              {card.english}
+            </div>
+            <div className="text-small text-muted">{card.type === 'word' ? `${wordKind(card)} · in ${language.name}` : `Say it in ${language.name}`}</div>
           </div>
         </div>
       )
     case 'deToEn':
       return (
         <div className="flex flex-col items-center gap-2 px-2 py-6 text-center">
-          <div className={clsx('font-semibold tracking-[-0.01em]', card.type === 'word' ? 'text-[30px]' : 'text-[22px] leading-snug')}>
+          <div className={clsx('font-semibold tracking-[-0.01em]', card.type === 'word' ? 'text-[30px]' : 'text-[22px] leading-snug')} lang={language.speech} dir="auto">
             <CardGerman card={card} />
           </div>
           <div className="text-small text-muted">What does it mean?</div>
@@ -148,10 +154,14 @@ function Prompt({ card, review, listening, onPlay }: { card: Card; review: CardR
         <div className="flex flex-col gap-4">
           {hasPicture(card) && <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="Hint" className="h-45 sm:h-55" />}
           <div className="flex flex-col items-center gap-2 px-2 py-2 text-center">
-            <div className="text-[22px] leading-snug font-semibold tracking-[-0.01em]" lang="de">
+            <div className="text-[22px] leading-snug font-semibold tracking-[-0.01em]" lang={language.speech} dir="auto">
               <ClozeSentence text={card.german} reveal={false} />
             </div>
-            {card.english && <div className="text-small text-muted">{card.english}</div>}
+            {card.english && (
+              <div className="text-small text-muted" {...nativeText}>
+                {card.english}
+              </div>
+            )}
           </div>
         </div>
       )
@@ -214,19 +224,25 @@ function Highlighted({ sentence, word }: { sentence: string; word: string }) {
 
 /** The example sentence under a word's answer. Skipped when it only repeats the card. */
 function Example({ card, onSpeak }: { card: Card; onSpeak: (text: string) => void }) {
+  const language = useLanguage()
+  const nativeText = useNativeText()
   const de = card.exampleDe?.trim()
   const en = card.exampleEn?.trim()
   const repeats = (text?: string) => !!text && [card.german, card.english, germanText(card)].some((t) => sameText(text, t))
   if (!de || repeats(de)) return null
   return (
-    <figure className="mt-1 flex w-full flex-col gap-1.5 rounded-row border border-line bg-soft px-4 py-3.5 text-left">
+    <figure className="mt-1 flex w-full flex-col gap-1.5 rounded-row border border-line bg-soft px-4 py-3.5 text-start">
       <div className="flex items-start gap-3">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <figcaption className="text-chip font-medium text-muted">Example</figcaption>
-          <p lang="de" className="text-[18px] leading-snug text-pretty">
+          <p lang={language.speech} dir="auto" className="text-[18px] leading-snug text-pretty">
             <Highlighted sentence={de} word={splitArticle(card.german).word} />
           </p>
-          {en && !repeats(en) && <p className="text-[15px] leading-snug text-pretty text-muted">{en}</p>}
+          {en && !repeats(en) && (
+            <p {...nativeText} className="text-[15px] leading-snug text-pretty text-muted">
+              {en}
+            </p>
+          )}
         </div>
         <button
           type="button"
@@ -242,10 +258,12 @@ function Example({ card, onSpeak }: { card: Card; onSpeak: (text: string) => voi
 }
 
 function Answer({ card, review, listening, onSpeak }: { card: Card; review: CardReview; listening: boolean; onSpeak: (text: string) => void }) {
+  const language = useLanguage()
+  const nativeText = useNativeText()
   const showImage = (listening || review.direction === 'deToEn') && hasPicture(card) && card.type === 'word'
   if (review.direction === 'deToEn' && !listening) {
     return (
-      <div className="flex flex-col items-center gap-1.5 text-center">
+      <div className="flex flex-col items-center gap-1.5 text-center" {...nativeText}>
         <div className={clsx('font-semibold tracking-[-0.01em]', card.type === 'word' ? 'text-[26px]' : 'text-[20px] leading-snug')}>{card.english}</div>
         {card.exampleEn && <div className="text-[15px] leading-snug text-pretty text-muted">{card.exampleEn}</div>}
       </div>
@@ -254,10 +272,10 @@ function Answer({ card, review, listening, onSpeak }: { card: Card; review: Card
   return (
     <div className="flex flex-col items-center gap-3 text-center">
       {showImage && <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="" className="h-45 w-full sm:h-55" />}
-      <div className={clsx('font-semibold tracking-[-0.01em]', card.type === 'word' ? 'text-[30px]' : 'text-[22px] leading-snug')} lang="de">
+      <div className={clsx('font-semibold tracking-[-0.01em]', card.type === 'word' ? 'text-[30px]' : 'text-[22px] leading-snug')} lang={language.speech} dir="auto">
         {card.type === 'cloze' ? <ClozeSentence text={card.german} reveal /> : <CardGerman card={card} />}
       </div>
-      <div className="flex flex-col gap-1 text-[16px] leading-snug text-muted">
+      <div className="flex flex-col gap-1 text-[16px] leading-snug text-muted" dir="auto">
         {card.type === 'word' && (
           <span>
             {card.english}
@@ -288,6 +306,7 @@ export default function ReviewPage() {
   const decks = useDecks()
   const allReviews = useAllReviews()
   const settings = useSettings()
+  const language = useLanguage()
   const timer = useActiveTimer()
 
   const [progress, setProgress] = useState<Progress | null>(null)
@@ -607,10 +626,10 @@ export default function ReviewPage() {
           <article key={review.id + progress.reviewed} className="flex animate-flip-in flex-col gap-5 rounded-flash border border-line bg-main p-3 pb-6 shadow-panel sm:p-4 sm:pb-7">
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-1 text-chip text-muted">
               <span className="min-w-0">
-                {deck?.name} · {listening ? 'Listening' : directionLabel(review.direction)}
+                {deck?.name} · {listening ? 'Listening' : directionLabel(review.direction, { learning: language.name, native: language.native.name })}
               </span>
               <div className="ml-auto flex items-center gap-1">
-                <button type="button" onClick={play} aria-label="Play German audio" className="flex size-8 items-center justify-center rounded-full hover:bg-field hover:text-ink">
+                <button type="button" onClick={play} aria-label={`Play ${language.name} audio`} className="flex size-8 items-center justify-center rounded-full hover:bg-field hover:text-ink">
                   <Volume2 size={16} strokeWidth={1.8} />
                 </button>
                 <SpeedButtons rate={settings.speechRate} onChange={changeRate} />
@@ -637,13 +656,14 @@ export default function ReviewPage() {
                   value={typed}
                   readOnly={revealed}
                   onChange={(e) => setTyped(e.target.value)}
-                  placeholder={expectedAnswer(card, review.direction, listening).german ? 'Type in German, e.g. der Hund' : 'Type in English'}
+                  placeholder={expectedAnswer(card, review.direction, listening).german ? `Type in ${language.name}${language.code === 'de' ? ', e.g. der Hund' : ''}` : `Type in ${language.native.name}`}
                   aria-label="Your answer"
                   autoComplete="off"
                   autoCapitalize="off"
                   autoCorrect="off"
                   spellCheck={false}
-                  lang={expectedAnswer(card, review.direction, listening).german ? 'de' : 'en'}
+                  lang={expectedAnswer(card, review.direction, listening).german ? language.speech : language.native.code}
+                  dir="auto"
                   className={clsx(
                     'h-12 rounded-row border bg-main px-4 text-center text-[17px] outline-none transition-colors',
                     !check && 'border-line-strong focus:border-sage-dot',
@@ -653,21 +673,12 @@ export default function ReviewPage() {
                   )}
                 />
                 {!revealed && (
-                  <div className="flex flex-wrap justify-center gap-1.5 text-chip text-muted">
-                    {['ä', 'ö', 'ü', 'ß'].map((ch) => (
-                      <button
-                        key={ch}
-                        type="button"
-                        onClick={() => {
-                          setTyped((t) => t + ch)
-                          inputRef.current?.focus()
-                        }}
-                        className="h-7 w-8 rounded-md border border-line bg-main text-small text-ink hover:bg-field"
-                      >
-                        {ch}
-                      </button>
-                    ))}
-                  </div>
+                  <LetterButtons
+                    onLetter={(ch) => {
+                      setTyped((t) => t + ch)
+                      inputRef.current?.focus()
+                    }}
+                  />
                 )}
               </form>
             )}
@@ -725,10 +736,6 @@ export default function ReviewPage() {
       )}
     </div>
   )
-}
-
-function directionLabel(direction: CardReview['direction']): string {
-  return { imageToDe: 'Image → German', enToDe: 'English → German', deToEn: 'German → English', cloze: 'Cloze' }[direction]
 }
 
 function ModeToggle({ on, label, icon, onClick }: { on: boolean; label: string; icon: React.ReactNode; onClick: () => void }) {

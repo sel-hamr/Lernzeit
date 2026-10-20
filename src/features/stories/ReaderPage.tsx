@@ -6,7 +6,7 @@ import { Dialog } from '@/components/ui/Dialog'
 import { EmptyState, PageHeader, Section } from '@/components/ui/primitives'
 import { PillToggle } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
-import { useSettings, useStory } from '@/data/hooks'
+import { useLanguage, useLearningText, useSettings, useStory } from '@/data/hooks'
 import { markStoryOpened, markStoryRead } from '@/data/stories'
 import type { Story } from '@/db/types'
 import { isTypingTarget, useMediaQuery, useStoredToggle } from '@/lib/browser'
@@ -22,6 +22,8 @@ import { annotateStory, useVocabulary } from './vocabulary'
 import { WordPanel } from './WordPanel'
 
 function Reader({ story }: { story: Story }) {
+  const language = useLanguage()
+  const learning = useLearningText()
   const vocabulary = useVocabulary()
   const settings = useSettings()
   const navigate = useNavigate()
@@ -92,7 +94,7 @@ function Reader({ story }: { story: Story }) {
           Stories
         </Link>
         <PageHeader
-          title={<span lang="de">{story.title}</span>}
+          title={<span {...learning}>{story.title}</span>}
           subtitle={subtitle}
           actions={
             <Button variant="outline" icon={<Pencil size={15} strokeWidth={1.8} />} onClick={() => setEditing(true)}>
@@ -173,7 +175,7 @@ function Reader({ story }: { story: Story }) {
               <div className="flex flex-col gap-4 p-3.5">
                 <div className="flex flex-col gap-1">
                   <h2 className="text-section font-semibold">Tap a word</h2>
-                  <p className="text-small text-muted">See its card with the picture and the English, or add it to a deck.</p>
+                  <p className="text-small text-muted">See its card with the picture and the {language.native.name}, or add it to a deck.</p>
                 </div>
                 <HighlightKey />
               </div>

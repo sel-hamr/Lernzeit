@@ -147,7 +147,7 @@ async function createCards({ deck: deckRef, cards }: CreateCardsParams, database
   if (!cards.length) throw invalid('Send at least one card.')
   if (cards.length > MAX_CARDS_PER_CALL) throw invalid(`Send at most ${MAX_CARDS_PER_CALL} cards per call.`)
   cards.forEach((card, i) => {
-    if (!card.english.trim() || !card.german.trim()) throw invalid(`Card ${i + 1} needs both English and German.`)
+    if (!card.english.trim() || !card.german.trim()) throw invalid(`Card ${i + 1} needs both english (the meaning) and german (the word in the language you learn).`)
   })
 
   const tables = [database.topics, database.decks, database.cards, database.reviews, database.images]
@@ -175,7 +175,7 @@ async function createCards({ deck: deckRef, cards }: CreateCardsParams, database
 async function createStory({ title, text, translation, level, tags, topic }: CreateStoryParams, database: LernzeitDB): Promise<CreateStoryResult> {
   if (!title.trim()) throw invalid('A story needs a title.')
   if (title.length > MAX_STORY_TITLE) throw invalid(`Keep the title under ${MAX_STORY_TITLE} characters.`)
-  if (!text.trim()) throw invalid('A story needs German text.')
+  if (!text.trim()) throw invalid('A story needs text.')
   if (text.length > MAX_STORY_CHARS || (translation?.length ?? 0) > MAX_STORY_CHARS) {
     throw invalid(`Keep the text and the translation under ${MAX_STORY_CHARS} characters each.`)
   }
@@ -208,7 +208,7 @@ async function createQuestions({ set, questions }: CreateQuestionsParams, databa
   if (!questions.length) throw invalid('Send at least one question.')
   if (questions.length > MAX_QUESTIONS_PER_CALL) throw invalid(`Send at most ${MAX_QUESTIONS_PER_CALL} questions per call.`)
   questions.forEach((q, i) => {
-    if (!q.question.trim()) throw invalid(`Question ${i + 1} needs German text.`)
+    if (!q.question.trim()) throw invalid(`Question ${i + 1} needs text.`)
     if ([q.question, q.english, q.suggested].some((text) => (text?.length ?? 0) > MAX_QUESTION_CHARS)) {
       throw invalid(`Keep question ${i + 1} and its answers under ${MAX_QUESTION_CHARS} characters each.`)
     }
@@ -268,7 +268,7 @@ async function addGrammar(params: AddGrammarParams, database: LernzeitDB): Promi
     if (problem) throw invalid(`Exercise ${i + 1} ("${e.text.trim()}"): ${problem}.`)
   })
   examples.forEach((e, i) => {
-    if (!e.de.trim()) throw invalid(`Example ${i + 1} needs German text.`)
+    if (!e.de.trim()) throw invalid(`Example ${i + 1} needs text.`)
     if ([e.de, e.en].some((text) => (text?.length ?? 0) > MAX_GRAMMAR_TEXT)) throw invalid(`Keep example ${i + 1} under ${MAX_GRAMMAR_TEXT} characters.`)
   })
 

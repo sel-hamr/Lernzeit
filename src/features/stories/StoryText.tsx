@@ -4,6 +4,7 @@ import { Volume2 } from 'lucide-react'
 import type { Gender } from '@/db/types'
 import type { Piece, WordStatus } from '@/lib/reader'
 import { statusOf, type AnnotatedStory, type Vocabulary } from './vocabulary'
+import { useLanguage, useLearningText, useNativeText } from '@/data/hooks'
 
 /** A word in the story, by its paragraph and its offset in that paragraph. */
 export interface WordRef {
@@ -61,6 +62,8 @@ export function StoryText({
   onSelect: (ref: WordRef) => void
   onSpeak: (text: string) => void
 }) {
+  const learning = useLearningText()
+  const nativeText = useNativeText()
   const [focused, setFocused] = useState<string | null>(null)
   const keys = story.paragraphs.flatMap((p, paragraph) => p.pieces.filter((piece) => piece.words).map((piece) => wordKey({ paragraph, start: piece.start })))
   // After an edit the focused word may be gone; then the first word takes the tab stop.
@@ -71,7 +74,7 @@ export function StoryText({
     <div role="group" aria-label="Story. Use the arrow keys to move between words." className="flex flex-col gap-6" onKeyDown={moveBetweenWords}>
       {story.paragraphs.map((paragraph, index) => (
         <div key={index} className="grid grid-cols-[1fr_auto] items-start gap-x-3 gap-y-2">
-          <p lang="de" className="text-[17px] leading-[1.9] text-pretty sm:text-[19px]">
+          <p {...learning} className="text-[17px] leading-[1.9] text-pretty sm:text-[19px]">
             {paragraph.pieces.map((piece) => {
               if (!piece.words) return piece.text
               const ref = { paragraph: index, start: piece.start }
@@ -108,37 +111,50 @@ export function StoryText({
           >
             <Volume2 size={16} strokeWidth={1.7} />
           </button>
-          {showTranslation && story.translation && <p className="col-start-1 text-body text-pretty text-muted">{story.translation[index]}</p>}
+          {showTranslation && story.translation && (
+            <p {...nativeText} className="col-start-1 text-body text-pretty text-muted">
+              {story.translation[index]}
+            </p>
+          )}
         </div>
       ))}
     </div>
   )
 }
 
-/** What the highlights mean, with a sample of each. */
+const GERMAN_SAMPLES = ['Haus', 'gehen', 'gut', 'Nudeln']
+
+/** What the highlights mean, with a sample of each: German words, or the words of the language's voice sample. */
 export function HighlightKey() {
+  const learning = useLearningText()
+  const language = useLanguage()
+  const german = language.code === 'de'
+  const words = german ? GERMAN_SAMPLES : (language.sample.match(/[\p{L}\p{M}]+/gu) ?? [])
+  const sample = (i: number) => words[i % Math.max(words.length, 1)] ?? language.name
   const rows: { sample: string; status: WordStatus; text: string }[] = [
-    { sample: 'Haus', status: 'new', text: 'In a deck, not studied yet' },
-    { sample: 'gehen', status: 'learning', text: 'Learning' },
-    { sample: 'gut', status: 'known', text: 'Known: next review three weeks or more away' },
-    { sample: 'Nudeln', status: 'unknown', text: 'Not in your decks: tap it to add it' },
+    { sample: sample(0), status: 'new', text: 'In a deck, not studied yet' },
+    { sample: sample(1), status: 'learning', text: 'Learning' },
+    { sample: sample(2), status: 'known', text: 'Known: next review three weeks or more away' },
+    { sample: sample(3), status: 'unknown', text: 'Not in your decks: tap it to add it' },
   ]
   return (
     <div className="flex flex-col gap-3 text-small">
       <ul className="flex flex-col gap-2.5">
         {rows.map((row) => (
           <li key={row.status} className="flex items-baseline gap-3">
-            <span lang="de" className={clsx('w-16 shrink-0 rounded-sm px-1 text-center text-body', STATUS_CLASS[row.status])}>
+            <span {...learning} className={clsx('min-w-16 shrink-0 rounded-sm px-1 text-center text-body', STATUS_CLASS[row.status])}>
               {row.sample}
             </span>
             <span className="text-muted">{row.text}</span>
           </li>
         ))}
       </ul>
-      <p className="text-muted">
-        Nouns take their gender colour: <span className="font-medium text-der">der</span>, <span className="font-medium text-die">die</span>,{' '}
-        <span className="font-medium text-das">das</span>.
-      </p>
+      {german && (
+        <p className="text-muted">
+          Nouns take their gender colour: <span className="font-medium text-der">der</span>, <span className="font-medium text-die">die</span>,{' '}
+          <span className="font-medium text-das">das</span>.
+        </p>
+      )}
     </div>
   )
 }

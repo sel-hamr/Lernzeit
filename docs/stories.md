@@ -9,7 +9,7 @@ Read short German stories with your decks. Every word that is in a deck is highl
 | Word matching | [src/lib/reader.ts](../src/lib/reader.ts) | Splits a text into words, lists the forms each card stands for, finds the cards behind each word, says how well a card is known |
 | Active time | [src/lib/activity.ts](../src/lib/activity.ts) | Counts reading time while the page is visible and someone scrolled, tapped or typed in the last two minutes |
 | Data | [src/data/stories.ts](../src/data/stories.ts) | Save, delete, mark as read, starter stories |
-| Starter stories | [src/db/starter/stories/](../src/db/starter/stories) | 103 stories by theme, loaded on demand |
+| Starter stories | [src/languages/de/stories/](../src/languages/de/stories) | The German pack's 103 stories by theme. Other packs have theirs in `src/languages/<code>/texts.ts` |
 | Pages | [src/features/stories/](../src/features/stories) | Stories list, reader, word panel, editor, Write with AI |
 | Prompt | [src/lib/storyPrompt.ts](../src/lib/storyPrompt.ts) | Picks a deck's words and builds the prompt for Claude |
 | AI | [src/bridge/actions.ts](../src/bridge/actions.ts), [mcp/src/tools.ts](../mcp/src/tools.ts) | The `create_story` tool and the `write_story` prompt |

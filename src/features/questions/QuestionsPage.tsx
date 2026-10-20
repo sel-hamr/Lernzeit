@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/Button'
 import { buttonClass } from '@/components/ui/buttonClass'
 import { Chip, EmptyState, PageHeader, Section } from '@/components/ui/primitives'
 import { useFeedback } from '@/components/ui/feedback'
-import { useQuestions, useResponses } from '@/data/hooks'
-import { installStarterQuestions } from '@/data/questions'
+import { useLanguage, useLearningText, useQuestions, useResponses } from '@/data/hooks'
+import { addStarterContent } from '@/data/languages'
 import type { Question } from '@/db/types'
 import { groupBySet } from '@/lib/questions'
 import { count } from '@/lib/text'
@@ -15,6 +15,7 @@ import { practicePath } from './paths'
 import { QuestionEditorDialog } from './QuestionEditor'
 
 function QuestionRow({ question, responses, onOpen }: { question: Question; responses: number; onOpen: () => void }) {
+  const learning = useLearningText()
   return (
     <li>
       <button
@@ -23,7 +24,7 @@ function QuestionRow({ question, responses, onOpen }: { question: Question; resp
         className="flex w-full flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-3.5 text-left transition-colors hover:bg-soft"
       >
         <div className="flex min-w-0 flex-[999_1_240px] flex-col gap-0.5">
-          <span lang="de" className="text-body font-medium">
+          <span {...learning} className="text-body font-medium">
             {question.question}
           </span>
           {question.english && <span className="text-small text-muted">{question.english}</span>}
@@ -38,6 +39,8 @@ function QuestionRow({ question, responses, onOpen }: { question: Question; resp
 }
 
 export default function QuestionsPage() {
+  const learning = useLearningText()
+  const language = useLanguage()
   const questions = useQuestions()
   const responses = useResponses()
   const { toast } = useFeedback()
@@ -63,7 +66,7 @@ export default function QuestionsPage() {
   const addStarter = async () => {
     setInstalling(true)
     try {
-      const added = await installStarterQuestions()
+      const added = await addStarterContent('questions')
       toast(added ? `Added ${count(added, 'starter question')}` : 'All starter questions are already here')
     } finally {
       setInstalling(false)
@@ -120,7 +123,7 @@ export default function QuestionsPage() {
               </div>
             }
           >
-            Practise answering German questions, like in the speaking part of an exam. Write your own answer once, then answer from memory and compare.
+            Practise answering {language.name} questions, like in the speaking part of an exam. Write your own answer once, then answer from memory and compare.
           </EmptyState>
         </div>
       ) : (
@@ -132,7 +135,7 @@ export default function QuestionsPage() {
               <Section key={set} className="overflow-hidden">
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4">
                   <div className="flex min-w-0 flex-[999_1_220px] flex-col gap-0.5">
-                    <h2 lang="de" className="text-section font-semibold">
+                    <h2 {...learning} className="text-section font-semibold">
                       {set}
                     </h2>
                     <p className="text-small text-muted tabular-nums">

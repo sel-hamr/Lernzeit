@@ -184,6 +184,16 @@ describe('typed answers', () => {
     expect(checkAnswer('das Hund', 'der Hund').verdict).toBe('wrong')
   })
 
+  it('does the same for French and Spanish articles and accents', () => {
+    expect(checkAnswer('maison', 'la maison')).toMatchObject({ verdict: 'close', notes: ['Remember the article: la'] })
+    expect(checkAnswer('le maison', 'la maison').verdict).toBe('wrong')
+    expect(checkAnswer('el perro', 'el perro').verdict).toBe('exact')
+    expect(checkAnswer("l'ecole", "l'école")).toMatchObject({ verdict: 'close', notes: ['Watch the accents'] })
+    expect(checkAnswer('Como estas', '¿Cómo estás?').verdict).toBe('close')
+    expect(checkAnswer('ecole', 'école', { missingUmlaut: false }).verdict).toBe('wrong')
+    expect(checkAnswer('كيف حالك', 'كيف حالك؟').verdict).toBe('exact')
+  })
+
   it('rejects a different word', () => {
     expect(checkAnswer('Katze', 'der Hund').verdict).toBe('wrong')
     expect(checkAnswer('', 'der Hund').verdict).toBe('wrong')

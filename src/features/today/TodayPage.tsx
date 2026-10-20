@@ -6,7 +6,7 @@ import { Chip, Dot, EmptyState, PageHeader, PriorityChip, ProgressBar, Section, 
 import { CardImage } from '@/components/CardImage'
 import { CardGerman } from '@/components/GermanWord'
 import { useUI } from '@/app/ui'
-import { useCards, useSettings, useStudyQueue, useTasks, useTopics } from '@/data/hooks'
+import { useCards, useLanguage, useSettings, useStudyQueue, useTasks, useTopics } from '@/data/hooks'
 import { useTodayProgress, type TopicProgress } from '@/data/progress'
 import { useStreaks, useWordOfTheDay } from '@/data/stats'
 import { isDueToday, isOverdue, toggleTaskDone } from '@/data/tasks'
@@ -61,6 +61,7 @@ function GoalRow({ row, running, onStart }: { row: TopicProgress; running: boole
 }
 
 function DailyGoals() {
+  const language = useLanguage()
   const progress = useTodayProgress()
   const startTimer = useStartTimer()
   const navigate = useNavigate()
@@ -69,7 +70,7 @@ function DailyGoals() {
       <SectionHeader title="Daily goals" action={<span className="text-small text-muted">Resets at midnight</span>} className="pb-2" />
       {progress.topics.length === 0 ? (
         <EmptyState title="No topics yet" action={<Button onClick={() => navigate('/settings')}>Add a topic</Button>}>
-          Topics hold your daily goals, for example German 2:30 h a day.
+          Topics hold your daily goals, for example {language.name} 30 min a day.
         </EmptyState>
       ) : (
         progress.topics.map((row) => (
@@ -137,6 +138,7 @@ function TodaysSessions() {
 function WordOfTheDay() {
   const { card, loaded } = useWordOfTheDay()
   const settings = useSettings()
+  const language = useLanguage()
   const { openCardEditor } = useUI()
   if (!loaded) return <Section className="h-75" />
   if (!card) {
@@ -159,8 +161,8 @@ function WordOfTheDay() {
           <div className="text-[24px] font-semibold tracking-[-0.01em]">
             <CardGerman card={card} />
           </div>
-          <div className="text-body text-muted">
-            {card.gender ? 'the ' : ''}
+          <div className="self-start text-body text-muted" dir="auto">
+            {card.gender && language.native.code === 'en' ? 'the ' : ''}
             {card.english}
             {card.plural && (
               <>
@@ -169,12 +171,16 @@ function WordOfTheDay() {
               </>
             )}
           </div>
-          {card.exampleDe && <div className="pt-1.5 text-body">{card.exampleDe}</div>}
+          {card.exampleDe && (
+            <div className="pt-1.5 text-body" lang={language.speech} dir="auto">
+              {card.exampleDe}
+            </div>
+          )}
         </div>
         <Button
           variant="outline"
           iconOnly
-          aria-label="Play German audio"
+          aria-label={`Play ${language.name} audio`}
           onClick={() => speak(germanText(card), voiceOptions(settings))}
         >
           <Volume2 size={18} strokeWidth={1.8} />

@@ -10,12 +10,12 @@ import { CardImage } from '@/components/CardImage'
 import { CardGerman } from '@/components/GermanWord'
 import { useUI } from '@/app/ui'
 import { INCOMPLETE_TAG } from '@/data/cards'
-import { useAllReviews, useCards, useDecks, useLogsForCard, useNow, useSettings, useStudyQueue, useTopics } from '@/data/hooks'
+import { useAllReviews, useCards, useDecks, useLanguage, useLogsForCard, useNow, useSettings, useStudyQueue, useTopics } from '@/data/hooks'
 import type { Card, CardReview, Deck, Topic } from '@/db/types'
 import { useMediaQuery } from '@/lib/browser'
 import { GENDER_LABEL, germanText, stripCloze, wordKind } from '@/lib/german'
 import { speak, voiceOptions } from '@/data/voice'
-import { DIRECTION_LABEL } from '@/lib/srs'
+import { directionLabel } from '@/lib/srs'
 import { formatDueLabel, formatNextReview } from '@/lib/time'
 import { DeckDialog } from './DeckDialog'
 import { ImportCsvDialog } from './ImportCsvDialog'
@@ -67,6 +67,7 @@ function CardTile({ card, deck, topic, summary, selected, now, onSelect }: { car
 
 function CardDetail({ card, deck, reviews, now }: { card: Card; deck?: Deck; reviews: CardReview[]; now: number }) {
   const settings = useSettings()
+  const language = useLanguage()
   const logs = useLogsForCard(card.id)
   const navigate = useNavigate()
   const { openCardEditor } = useUI()
@@ -76,13 +77,13 @@ function CardDetail({ card, deck, reviews, now }: { card: Card; deck?: Deck; rev
 
   const rows: [string, React.ReactNode][] = []
   if (card.type === 'word') {
-    rows.push(['English', card.english])
+    rows.push([language.native.name, card.english])
     if (card.plural) rows.push(['Plural', card.plural])
     if (card.verbForms) rows.push(['Verb forms', card.verbForms])
     if (card.exampleDe) rows.push(['Example', card.exampleDe])
     if (card.exampleEn) rows.push(['Translation', card.exampleEn])
   } else {
-    rows.push(['English', card.english])
+    rows.push([language.native.name, card.english])
   }
   if (card.tags.length) rows.push(['Tags', card.tags.join(', ')])
   rows.push(['Next review', summary.isNew ? 'New card' : formatNextReview(summary.due, now)])
@@ -100,7 +101,7 @@ function CardDetail({ card, deck, reviews, now }: { card: Card; deck?: Deck; rev
           </h2>
           <div className="text-small text-muted">{kind}</div>
         </div>
-        <Button variant="outline" iconOnly aria-label="Play German audio" onClick={say}>
+        <Button variant="outline" iconOnly aria-label={`Play ${language.name} audio`} onClick={say}>
           <Volume2 size={18} strokeWidth={1.8} />
         </Button>
       </div>
@@ -108,7 +109,9 @@ function CardDetail({ card, deck, reviews, now }: { card: Card; deck?: Deck; rev
         {rows.map(([label, value]) => (
           <div key={label} className="contents">
             <dt className="text-muted">{label}</dt>
-            <dd className="text-right tabular-nums">{value}</dd>
+            <dd className="text-right tabular-nums" dir="auto">
+              {value}
+            </dd>
           </div>
         ))}
       </dl>
@@ -119,7 +122,7 @@ function CardDetail({ card, deck, reviews, now }: { card: Card; deck?: Deck; rev
             const on = summary.directions.includes(d)
             return (
               <Chip key={d} tone={on ? 'sage' : 'soft'} className={clsx('py-1', !on && 'font-normal')}>
-                {DIRECTION_LABEL[d]}
+                {directionLabel(d, { learning: language.name, native: language.native.name })}
               </Chip>
             )
           })}

@@ -1,11 +1,13 @@
-import { db, KV_KEYS, newId, type LernzeitDB } from '@/db/db'
-import type { StarterTopic } from '@/db/starter/grammar'
+import { db, newId, type LernzeitDB } from '@/db/db'
 import type { ExerciseStat, GrammarTopic } from '@/db/types'
 import { nextExerciseStat } from '@/lib/grammar'
 import { parseLevel } from './stories'
 
 /** Topics added without a section go here. */
 export const DEFAULT_GROUP = 'My topics'
+
+/** A grammar topic from a language pack, as it is installed. */
+export type StarterTopic = Omit<GrammarTopic, 'createdAt' | 'updatedAt'>
 
 export type TopicInput = Pick<GrammarTopic, 'title' | 'english' | 'group' | 'level' | 'summary' | 'rule' | 'examples' | 'exercises' | 'drill'>
 
@@ -62,15 +64,8 @@ export async function saveExerciseAnswer(topicId: string, exerciseId: string, co
   })
 }
 
-/** The bundled grammar topics, loaded on demand so they stay out of the main bundle. */
-export async function loadStarterTopics(): Promise<StarterTopic[]> {
-  const { STARTER_TOPICS } = await import('@/db/starter/grammar')
-  return STARTER_TOPICS
-}
-
 /** Adds the starter topics that are missing. Returns how many were added. */
-export async function installStarterTopics(database: LernzeitDB = db, topics?: StarterTopic[]): Promise<number> {
-  const starter = topics ?? (await loadStarterTopics())
+export async function installStarterTopics(starter: StarterTopic[], database: LernzeitDB = db): Promise<number> {
   return database.transaction('rw', database.grammarTopics, async () => {
     const present = new Set((await database.grammarTopics.bulkGet(starter.map((t) => t.id))).filter((t) => !!t).map((t) => t.id))
     const now = Date.now()
@@ -81,7 +76,7 @@ export async function installStarterTopics(database: LernzeitDB = db, topics?: S
   })
 }
 
-/** Bump when the starter topics change, so every install picks up the new version once. */
+/** Bump when a pack's grammar topics change, so every install picks up the new version once. */
 export const STARTER_GRAMMAR_VERSION = 2
 
 const CONTENT: (keyof StarterTopic)[] = ['title', 'english', 'group', 'level', 'summary', 'rule', 'examples', 'exercises', 'drill']
@@ -108,19 +103,4 @@ export async function refreshStarterTopics(database: LernzeitDB, topics: Starter
     }
     return updated
   })
-}
-
-/**
- * Installs the starter topics the first time the app opens with grammar, for
- * new and existing users alike, and updates them when the app's version is
- * newer. Deleted topics stay deleted; **Starter topics** adds them back.
- */
-export async function syncStarterTopics(database: LernzeitDB = db): Promise<{ added: number; updated: number }> {
-  const synced = (await database.kv.get(KV_KEYS.starterGrammar))?.value
-  if (synced === STARTER_GRAMMAR_VERSION) return { added: 0, updated: 0 }
-  const topics = await loadStarterTopics()
-  const added = synced === undefined ? await installStarterTopics(database, topics) : 0
-  const updated = await refreshStarterTopics(database, topics)
-  await database.kv.put({ key: KV_KEYS.starterGrammar, value: STARTER_GRAMMAR_VERSION })
-  return { added, updated }
 }

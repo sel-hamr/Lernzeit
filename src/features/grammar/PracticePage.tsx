@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { EmptyState, ProgressBar } from '@/components/ui/primitives'
-import { useCards, useDrillStats, useExerciseStats, useGrammarTopic } from '@/data/hooks'
+import { useCards, useDrillStats, useExerciseStats, useGrammarTopic, useLearningText } from '@/data/hooks'
 import type { Card, DrillStat, ExerciseStat, GrammarTopic } from '@/db/types'
 import { buildTopicRound, topicProgress } from '@/lib/grammar'
 import { topicPath } from './paths'
@@ -57,6 +57,7 @@ function TopicRound({
   exerciseStats: ExerciseStat[]
   onAgain: () => void
 }) {
+  const learning = useLearningText()
   // How much of the topic you knew when the round started, to show how far it moved.
   const [before] = useState(() => topicProgress(topic, new Map(exerciseStats.map((s) => [s.id, s]))))
   const after = useMemo(() => topicProgress(topic, new Map(exerciseStats.map((s) => [s.id, s]))), [topic, exerciseStats])
@@ -78,7 +79,7 @@ function TopicRound({
         after.total > 0 && (
           <div className="flex w-full max-w-sm flex-col gap-2 text-left">
             <div className="flex items-baseline justify-between gap-3 text-small">
-              <span lang="de" className="font-medium">
+              <span {...learning} className="font-medium">
                 {topic.title}
               </span>
               <span className="text-muted tabular-nums">

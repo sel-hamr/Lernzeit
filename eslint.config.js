@@ -17,8 +17,8 @@ export default tseslint.config(
     },
   },
   {
-    // The MCP server runs in Node, not the browser.
-    files: ['mcp/**/*.ts'],
+    // The MCP server, the lz command and the scripts run in Node, not the browser.
+    files: ['mcp/**/*.ts', 'bin/**/*.ts', 'scripts/**/*.ts'],
     languageOptions: { globals: globals.node },
   },
 )

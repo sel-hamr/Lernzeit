@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WebSocket as NodeWebSocket } from 'ws'
 import { BrowserHub } from '../../mcp/src/hub.ts'
 import { LernzeitDB } from '@/db/db'
-import { ensureSeeded } from '@/db/seed'
+import { seedGerman } from '@/test/fixtures'
 import { handleRequest } from './actions'
 import { connectBridge, type BridgeOptions } from './connection'
 import { BridgeError } from './protocol'
@@ -30,7 +30,7 @@ const stops: (() => void)[] = []
 
 beforeEach(async () => {
   database = new LernzeitDB(`bridge-e2e-${counter++}`)
-  await ensureSeeded(database)
+  await seedGerman(database)
   vi.stubGlobal('WebSocket', PageWebSocket)
   hub = new BrowserHub({ token: TOKEN, origins: new Set([ORIGIN]) })
   await hub.start(0)

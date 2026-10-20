@@ -1,10 +1,12 @@
 import { db, newId, type LernzeitDB } from '@/db/db'
-import type { StarterQuestion } from '@/db/starter/questions'
 import type { Question, QuestionResponse } from '@/db/types'
 import { parseLevel } from './stories'
 
 /** Questions added without a set go here. */
 export const DEFAULT_SET = 'My questions'
+
+/** A question from a language pack, as it is installed. */
+export type StarterQuestion = Pick<Question, 'id' | 'set' | 'question' | 'english' | 'suggested' | 'words' | 'level' | 'tags'>
 
 export type QuestionInput = Pick<Question, 'set' | 'question' | 'english' | 'myAnswer' | 'suggested' | 'words' | 'level' | 'tags'>
 
@@ -38,7 +40,7 @@ function unique(items: string[]): string[] {
 
 export async function saveQuestion(input: QuestionInput, existingId?: string, database: LernzeitDB = db): Promise<Question> {
   const data = normalizeQuestion(input)
-  if (!data.question) throw new Error('A question needs some German text')
+  if (!data.question) throw new Error('A question needs some text')
   return database.transaction('rw', database.questions, async () => {
     const now = Date.now()
     const previous = existingId ? await database.questions.get(existingId) : undefined
@@ -65,19 +67,8 @@ export async function saveResponse(questionId: string, text: string, database: L
   return response
 }
 
-/** The bundled starter questions, loaded on demand so they stay out of the main bundle. */
-export async function loadStarterQuestions(): Promise<StarterQuestion[]> {
-  const { STARTER_QUESTIONS } = await import('@/db/starter/questions')
-  return STARTER_QUESTIONS
-}
-
-/**
- * Adds the starter questions that are missing. Returns how many were added.
- * Inside another transaction, pass `questions` loaded beforehand: a
- * transaction cannot wait for a module to load.
- */
-export async function installStarterQuestions(database: LernzeitDB = db, questions?: StarterQuestion[]): Promise<number> {
-  const starter = questions ?? (await loadStarterQuestions())
+/** Adds the starter questions that are missing. Returns how many were added. */
+export async function installStarterQuestions(starter: StarterQuestion[], database: LernzeitDB = db): Promise<number> {
   return database.transaction('rw', database.questions, async () => {
     const present = new Set((await database.questions.bulkGet(starter.map((q) => q.id))).filter((q) => !!q).map((q) => q.id))
     const now = Date.now()

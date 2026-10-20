@@ -80,7 +80,7 @@ export const EXERCISE_KIND: Record<ExerciseForm['type'], string> = {
 }
 
 const GAP_RE = /\{\{(.+?)\}\}/
-const PUNCTUATION_RE = /^[.,!?;:…"“”„)]*$/
+const PUNCTUATION_RE = /^[.,!?;:…"“”„»)¿¡،؟؛]*$/
 
 const spellings = (text: string) =>
   text
@@ -250,7 +250,7 @@ export function wordsOf(sentence: string): string[] {
   return sentence
     .trim()
     .split(/\s+/)
-    .map((w) => w.replace(/[.,!?;:…"“”„]/g, ''))
+    .map((w) => w.replace(/[.,!?;:…"“”„«»¿¡،؟؛]/g, ''))
     .filter(Boolean)
 }
 
@@ -258,7 +258,7 @@ export function wordsOf(sentence: string): string[] {
 function plain(sentence: string): string {
   return sentence
     .toLocaleLowerCase('de-DE')
-    .replace(/[.,!?;:…"“”„]/g, '')
+    .replace(/[.,!?;:…"“”„«»¿¡،؟؛]/g, '')
     .replace(/\s+/g, ' ')
     .trim()
 }
@@ -311,7 +311,7 @@ export function exerciseQuestion(topicId: string, exercise: GrammarExercise, ran
     const words = [...head, form.shown + stuck, ...(tail ? tail.split(/\s+/) : [])]
     prompt = { type: 'mistake', before: form.before, after: form.after, answers: form.answers, words, wrongIndex: head.length }
   } else if (form.type === 'order') {
-    const end = /[.!?…]+$/.exec(form.answers[0].trim())?.[0] ?? ''
+    const end = /[.!?…؟]+$/.exec(form.answers[0].trim())?.[0] ?? ''
     const words = wordsOf(form.answers[0])
     // When another order starts differently, a capital would give the first word away: Ich → ich.
     const lower = words[0].toLocaleLowerCase('de-DE')
@@ -529,7 +529,20 @@ export function levelGroups(topics: GrammarTopic[]): { group: string; topics: Gr
 /* ---------------------------------------------------------------- AI ---- */
 
 /** A message for Claude about one answer: the exercise, your answer, the right one and the topic's rule. */
-export function askClaudePrompt({ topic, question, answer, correct }: { topic: GrammarTopic; question: ExerciseQuestion; answer: string; correct: boolean }): string {
+export function askClaudePrompt({
+  topic,
+  question,
+  answer,
+  correct,
+  language = { name: 'German', native: 'English' },
+}: {
+  topic: GrammarTopic
+  question: ExerciseQuestion
+  answer: string
+  correct: boolean
+  /** German and English when left out. */
+  language?: { name: string; native: string }
+}): string {
   const { form } = question
   const shown =
     form.type === 'gap'
@@ -541,14 +554,14 @@ export function askClaudePrompt({ topic, question, answer, correct }: { topic: G
           : form.prompt
   const mine = form.type === 'mistake' ? form.words[Number(answer)] : answer
   const facts = [
-    `I'm learning German grammar: "${topic.title}"${topic.english ? ` (${topic.english})` : ''}${topic.level ? `, level ${topic.level}` : ''}.`,
+    `I'm learning ${language.name} grammar: "${topic.title}"${topic.english ? ` (${topic.english})` : ''}${topic.level ? `, level ${topic.level}` : ''}.`,
     `Exercise: ${shown}`,
     question.english && `Meaning: ${question.english}`,
     mine?.trim() ? `My answer: ${mine.trim()}${correct ? ' (right)' : ' (wrong)'}` : 'I did not know the answer.',
     `Right answer: ${filledSentence(question)}`,
     question.why && `The app says: ${question.why}`,
   ]
-  const ask = `Explain simply, in English, why the right answer is right${correct ? '' : ' and what was wrong with mine'}. Then give two more example sentences and three short sentences for me to try, with the answers at the end.`
+  const ask = `Explain simply, in ${language.native}, why the right answer is right${correct ? '' : ' and what was wrong with mine'}. Then give two more example sentences and three short sentences for me to try, with the answers at the end.`
   return `${facts.filter(Boolean).join('\n')}\n\n${ask}`
 }
 

@@ -121,6 +121,39 @@ describe('card forms', () => {
   })
 })
 
+describe('other languages', () => {
+  /** Only the words that have a card. */
+  const found = (text: string, lexicon: ReturnType<typeof buildLexicon>) => matches(annotate(text, lexicon)).filter(([, ids]) => ids.length)
+
+  it('finds a noun written with its article on its own, and with an elided article', () => {
+    const lexicon = buildLexicon([
+      card('chien', 'le chien', { partOfSpeech: 'noun' }),
+      card('ecole', "l'école", { partOfSpeech: 'noun' }),
+      card('perro', 'el perro', { partOfSpeech: 'noun' }),
+    ])
+    expect(found("Mon chien va à l'école avec un chien.", lexicon)).toEqual([
+      ['chien', ['chien']],
+      ['école', ['ecole']],
+      ['chien', ['chien']],
+    ])
+    expect(found('Los perros y el perro.', lexicon)).toEqual([
+      ['perros', ['perro']],
+      ['el perro', ['perro']],
+    ])
+  })
+
+  it('finds Arabic words with ال and the letters written onto them', () => {
+    const lexicon = buildLexicon([card('kitab', 'كتاب', { partOfSpeech: 'noun' }), card('shams', 'الشمس', { partOfSpeech: 'noun' })])
+    expect(found('الكتاب على الطاولة، وكتاب آخر بالكتاب. الشمس وشمس.', lexicon)).toEqual([
+      ['الكتاب', ['kitab']],
+      ['وكتاب', ['kitab']],
+      ['بالكتاب', ['kitab']],
+      ['الشمس', ['shams']],
+      ['وشمس', ['shams']],
+    ])
+  })
+})
+
 describe('annotate', () => {
   const lexicon = buildLexicon([
     card('art', 'der / die / das', { partOfSpeech: 'article' }),

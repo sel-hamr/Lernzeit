@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router'
-import { Bell, ChevronRight, Download, HardDriveDownload, Plus, Smartphone, Sparkles, Trash2, Upload, Volume2 } from 'lucide-react'
+import { Bell, ChevronRight, Download, HardDriveDownload, Plus, Smartphone, Trash2, Upload, Volume2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Chip, Dot, PageHeader } from '@/components/ui/primitives'
 import { Field, Input, Segmented, Select, Switch } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
-import { db, updateSettings } from '@/db/db'
-import { installStarterPack } from '@/db/seed'
+import { updateSettings } from '@/db/db'
 import type { EndSound, ThemePref } from '@/db/types'
-import { useCards, useDecks, useSettings, useTopics } from '@/data/hooks'
+import { useCards, useDecks, useLanguage, useSettings, useTopics } from '@/data/hooks'
 import { downloadFile, exportBackup, resetAllData, restoreBackup } from '@/data/io'
 import { DeckDialog } from '@/features/flashcards/DeckDialog'
 import { ImportCsvDialog } from '@/features/flashcards/ImportCsvDialog'
@@ -20,6 +19,7 @@ import { dateKey, formatHM } from '@/lib/time'
 import { count } from '@/lib/text'
 import { AiConnectionGroup } from './AiConnectionGroup'
 import { Group } from './Group'
+import { LanguageGroup } from './LanguageGroup'
 import { TopicDialog } from './TopicDialog'
 import { VoiceField } from './VoiceField'
 
@@ -67,20 +67,6 @@ function DecksGroup() {
   const topics = useTopics(true)
   const [dialog, setDialog] = useState<{ id: string | null } | null>(null)
   const [importOpen, setImportOpen] = useState(false)
-  const [installing, setInstalling] = useState(false)
-  const { toast } = useFeedback()
-
-  const addStarter = async () => {
-    setInstalling(true)
-    try {
-      const result = await installStarterPack(db)
-      toast(result.cards ? `Added ${count(result.cards, 'starter card')}` : 'All starter cards are already here')
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Could not add the starter decks', { tone: 'error' })
-    } finally {
-      setInstalling(false)
-    }
-  }
 
   return (
     <Group
@@ -88,9 +74,6 @@ function DecksGroup() {
       description="Daily limits and practice directions are set per deck."
       action={
         <div className="flex flex-wrap justify-end gap-2">
-          <Button size="sm" variant="ghost" disabled={installing} icon={<Sparkles size={15} strokeWidth={1.8} />} onClick={() => void addStarter()} title="My Words, German Top Words and Everyday Sentences. Only missing cards are added.">
-            Starter decks
-          </Button>
           <Button size="sm" variant="ghost" icon={<Upload size={15} strokeWidth={1.8} />} onClick={() => setImportOpen(true)}>
             Import
           </Button>
@@ -191,6 +174,7 @@ function StorageInfo() {
 
 export default function SettingsPage() {
   const settings = useSettings()
+  const language = useLanguage()
   const { toast, confirm } = useFeedback()
   const { canInstall, install } = useInstallPrompt()
   const [permission, setPermission] = useState(notificationPermission())
@@ -272,6 +256,7 @@ export default function SettingsPage() {
 
       <div className="grid items-start gap-5 xl:grid-cols-2">
         <div className="flex flex-col gap-5">
+          <LanguageGroup />
           <TopicsGroup />
           <DecksGroup />
 
@@ -309,7 +294,7 @@ export default function SettingsPage() {
             </div>
             <Switch
               label="Count flashcard reviews as study time"
-              description="Review time goes to the deck's topic, for example German."
+              description={`Review time goes to the deck's topic, for example ${language.name}.`}
               checked={settings.countReviewTime}
               onChange={(v) => void updateSettings({ countReviewTime: v })}
             />
@@ -321,13 +306,13 @@ export default function SettingsPage() {
             />
             <Switch
               label="Count question practice as study time"
-              description="Active practice time goes to the first deck's topic, for example German, unless a timer is already running for it."
+              description={`Active practice time goes to the first deck's topic, for example ${language.name}, unless a timer is already running for it.`}
               checked={settings.countQuestionTime}
               onChange={(v) => void updateSettings({ countQuestionTime: v })}
             />
             <Switch
               label="Count grammar practice as study time"
-              description="Active practice time goes to the first deck's topic, for example German, unless a timer is already running for it."
+              description={`Active practice time goes to the first deck's topic, for example ${language.name}, unless a timer is already running for it.`}
               checked={settings.countGrammarTime}
               onChange={(v) => void updateSettings({ countGrammarTime: v })}
             />
@@ -352,8 +337,8 @@ export default function SettingsPage() {
               />
             </Field>
             <Switch label="Play audio when the answer is shown" checked={settings.autoPlayAudio} onChange={(v) => void updateSettings({ autoPlayAudio: v })} />
-            <Switch label="Typing mode" description="Type each answer. Small slips such as ue for ü are accepted." checked={settings.typingMode} onChange={(v) => void updateSettings({ typingMode: v })} />
-            <Switch label="Listening mode" description="Hear the German and type what you heard." checked={settings.listeningMode} onChange={(v) => void updateSettings({ listeningMode: v })} />
+            <Switch label="Typing mode" description="Type each answer. Small slips such as a missing accent are accepted." checked={settings.typingMode} onChange={(v) => void updateSettings({ typingMode: v })} />
+            <Switch label="Listening mode" description={`Hear the ${language.name} and type what you heard.`} checked={settings.listeningMode} onChange={(v) => void updateSettings({ listeningMode: v })} />
           </Group>
 
           <Group title="Appearance">
@@ -370,7 +355,7 @@ export default function SettingsPage() {
             />
           </Group>
 
-          <Group title="Reminders" description="A notification if a goal is still open at these times, for example “You still have 1:00 h of German today”.">
+          <Group title="Reminders" description={`A notification if a goal is still open at these times, for example “You still have 1:00 h of ${language.name} today”.`}>
             <Switch
               label="Goal reminders"
               description={

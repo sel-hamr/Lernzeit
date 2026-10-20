@@ -14,10 +14,10 @@ import { State } from './srs'
 
 /* --------------------------------------------------------------- Text ---- */
 
-/** Letters, joined by hyphens: "Hund", "E-Mail", "Straße". */
-const WORD_RE = /\p{L}+(?:-\p{L}+)*/gu
+/** Letters with their marks (Arabic vowel signs), joined by hyphens: "Hund", "E-Mail", "Straße". */
+const WORD_RE = /[\p{L}\p{M}]+(?:-[\p{L}\p{M}]+)*/gu
 const SPACES_RE = /^\s+$/
-const SENTENCE_END_RE = /[.!?…:]/
+const SENTENCE_END_RE = /[.!?…:؟]/
 
 /** The lowercase key words are looked up by. Umlauts and ß stay: schon is not schön. */
 export function lookupKey(text: string): string {
@@ -182,6 +182,14 @@ const KEEP_ER = new Set(['unser', 'euer'])
 /** Words that are not the verb itself: "ist gegangen", "freute sich". */
 const VERB_HELPERS = new Set(['ist', 'hat', 'sich'])
 const ARTICLE_PREFIX_RE = /^(?:der|die|das)\s+/i
+/**
+ * Articles other languages write on the card: "le chien", "l'école", "el perro".
+ * The text has the noun with any article, so the noun counts on its own too.
+ */
+const WRITTEN_ARTICLES = new Set(['le', 'la', 'les', 'l', 'un', 'une', 'el', 'los', 'las', 'unos', 'unas', 'the'])
+const ARABIC_RE = /\p{Script=Arabic}/u
+/** Arabic writes "the", "and" and "with" onto the word: الكتاب, والكتاب, بالكتاب. */
+const ARABIC_PREFIXES = ['ال', 'وال', 'بال', 'فال', 'لل', 'و', 'ب', 'ل', 'ف']
 
 /** Lookup keys of every word in `text`. */
 function wordsOf(text: string): string[] {
@@ -299,6 +307,17 @@ function addDeterminer(forms: FormSet, word: string) {
   for (const ending of DETERMINER_ENDINGS) forms.addWord(stem + ending, INFLECTED)
 }
 
+/** The word without the article written before it: ["le", "chien"] -> ["chien"]. */
+function withoutArticle(words: string[]): string[] {
+  return words.length > 1 && WRITTEN_ARTICLES.has(words[0]) ? words.slice(1) : words
+}
+
+function addArabic(forms: FormSet, word: string) {
+  const base = word.startsWith('ال') && word.length > 3 ? word.slice(2) : word
+  forms.addWord(base, LISTED)
+  for (const prefix of ARABIC_PREFIXES) forms.addWord(prefix + base, INFLECTED)
+}
+
 /** Every form a card stands for in a text. Cloze cards stand for none. */
 export function cardForms(card: LexCard): Form[] {
   const forms = new FormSet()
@@ -319,6 +338,8 @@ export function cardForms(card: LexCard): Form[] {
   for (const alternative of alternatives(card.german)) {
     const words = wordsOf(alternative)
     forms.add(words, LISTED)
+    const head = withoutArticle(words)
+    if (head !== words) forms.add(head, LISTED)
     if (verb && words.length === 2 && words[0] === 'sich') {
       // "sich freuen": the verb on its own counts too.
       forms.addWord(words[1], LISTED)
@@ -327,9 +348,10 @@ export function cardForms(card: LexCard): Form[] {
       // "spazieren gehen" splits in a sentence: "Wir gehen im Park spazieren."
       forms.addWord(words[0], INFLECTED)
     }
-    if (words.length !== 1) continue
-    const [word] = words
-    if (noun) addNoun(forms, word)
+    if (head.length !== 1) continue
+    const [word] = head
+    if (ARABIC_RE.test(word)) addArabic(forms, word)
+    else if (noun) addNoun(forms, word)
     else if (verb) addPresent(forms, word)
     else if (pos === 'adjective') addAdjective(forms, word)
     else if (pos && DETERMINER_POS.has(pos)) addDeterminer(forms, word)

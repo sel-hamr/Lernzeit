@@ -3,6 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "bin": {
+    "lz": "bin/lz.ts"
+  },
   "workspaces": [
     "mcp"
   ],
@@ -10,6 +13,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "start": "node bin/lz.ts",
+    "lang:add": "node scripts/add-language.ts",
     "typecheck": "tsc -b && npm run typecheck -w mcp",
     "test": "vitest run && npm test -w mcp",
     "lint": "eslint ."

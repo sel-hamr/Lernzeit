@@ -3,13 +3,14 @@ import { Link, useNavigate } from 'react-router'
 import clsx from 'clsx'
 import { ArrowRight, BookA, Check, Delete, Lightbulb, MessageCircle, Volume2, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { LetterButtons } from '@/components/LetterButtons'
 import { EmptyState, Kbd } from '@/components/ui/primitives'
 import { CardImage } from '@/components/CardImage'
 import { Diff } from '@/components/Diff'
 import { CardGerman, GermanWord } from '@/components/GermanWord'
 import { saveDrillAnswer } from '@/data/drills'
 import { saveExerciseAnswer } from '@/data/grammar'
-import { useDecks, useSettings, useTopics } from '@/data/hooks'
+import { useDecks, useLanguage, useLearningText, useSettings, useTopics } from '@/data/hooks'
 import { pickStoryTopic } from '@/data/stories'
 import { useActiveStudyTime, type ActiveRun } from '@/data/studyTime'
 import { recordGrammarTime } from '@/data/timer'
@@ -92,6 +93,7 @@ export interface RoundProps {
 
 /** A practice or review round: one question at a time, wrong answers come back, a summary at the end. */
 export function Round({ title, exit, exitLabel, initial, topics, cards, showTopic, timeId, timeTitle, empty, summary, onAgain }: RoundProps) {
+  const learning = useLearningText()
   const navigate = useNavigate()
   const settings = useSettings()
   const decks = useDecks()
@@ -239,7 +241,7 @@ export function Round({ title, exit, exitLabel, initial, topics, cards, showTopi
     <Shell title={title} exit={exit} progress={at / items.length} position={`${at + 1} / ${items.length}`}>
       <article key={`${questionKey(question)}:${at}`} className="flex animate-flip-in flex-col items-center gap-4 rounded-flash border border-line bg-main p-3 pb-6 text-center shadow-panel sm:p-4 sm:pb-7">
         <div className="flex w-full items-center justify-between gap-3 px-1 text-chip text-muted">
-          <span lang="de" className="min-w-0 truncate">
+          <span {...learning} className="min-w-0 truncate">
             {label}
           </span>
           <button
@@ -291,24 +293,15 @@ export function Round({ title, exit, exitLabel, initial, topics, cards, showTopi
               autoComplete="off"
               autoCapitalize="none"
               spellCheck={false}
-              lang="de"
+              {...learning}
               className="h-12 rounded-row border border-line-strong bg-main px-4 text-center text-[18px] outline-none transition-colors focus:border-sage-dot"
             />
-            <div className="flex flex-wrap justify-center gap-1.5">
-              {['ä', 'ö', 'ü', 'ß'].map((ch) => (
-                <button
-                  key={ch}
-                  type="button"
-                  onClick={() => {
-                    setTyped((t) => t + ch)
-                    inputRef.current?.focus()
-                  }}
-                  className="h-7 w-8 rounded-md border border-line bg-main text-small text-ink hover:bg-field"
-                >
-                  {ch}
-                </button>
-              ))}
-            </div>
+            <LetterButtons
+              onLetter={(ch) => {
+                setTyped((t) => t + ch)
+                inputRef.current?.focus()
+              }}
+            />
           </form>
         )}
       </article>
@@ -325,7 +318,7 @@ export function Round({ title, exit, exitLabel, initial, topics, cards, showTopi
               <button
                 key={choice}
                 type="button"
-                lang="de"
+                {...learning}
                 onClick={() => answer(choice)}
                 className={clsx(
                   'flex min-h-14 items-center justify-center gap-2 rounded-row border px-3 py-2 font-semibold transition-[background-color,transform] active:scale-[0.98]',
@@ -393,13 +386,14 @@ function placeholderOf(question: RoundQuestion): string {
 
 /** An exercise: the gap, the words to tap or order, or the sentence to rewrite. Once answered, the right sentence. */
 function ExercisePrompt({ question, answered, given, built, onTap }: { question: ExerciseQuestion; answered: boolean; given: string | null; built: string[]; onTap: (i: number) => void }) {
+  const learning = useLearningText()
   const { form } = question
   const english = question.english && <p className="text-body text-muted">{question.english}</p>
 
   if (form.type === 'gap') {
     return (
       <div className="flex flex-col items-center gap-1.5 px-2 pt-4">
-        <h2 lang="de" className={BIG}>
+        <h2 {...learning} className={BIG}>
           {form.before}
           <span className={answered ? 'text-sage-ink' : 'text-muted'}>{answered ? form.answers[0] : '___'}</span>
           {form.after}
@@ -414,12 +408,12 @@ function ExercisePrompt({ question, answered, given, built, onTap }: { question:
       const tapped = given ? form.words[Number(given)] : undefined
       return (
         <div className="flex flex-col items-center gap-1.5 px-2 pt-4">
-          <h2 lang="de" className={BIG}>
+          <h2 {...learning} className={BIG}>
             {form.before}
             <span className="text-sage-ink">{form.answers[0]}</span>
             {form.after}
           </h2>
-          <p lang="de" className="text-body text-muted">
+          <p {...learning} className="text-body text-muted">
             The mistake was <span className="text-red-ink line-through">{form.words[form.wrongIndex]}</span>
             {tapped && Number(given) !== form.wrongIndex && <> · you tapped “{tapped}”</>}
           </p>
@@ -430,7 +424,7 @@ function ExercisePrompt({ question, answered, given, built, onTap }: { question:
     return (
       <div className="flex flex-col items-center gap-3 px-1 pt-3">
         <p className="text-body text-muted">Tap the wrong word.</p>
-        <div lang="de" className="flex flex-wrap justify-center gap-1.5">
+        <div {...learning} className="flex flex-wrap justify-center gap-1.5">
           {form.words.map((word, i) => (
             <button
               key={i}
@@ -452,7 +446,7 @@ function ExercisePrompt({ question, answered, given, built, onTap }: { question:
       <div className="flex w-full flex-col items-center gap-2 px-1 pt-3">
         {english ?? <p className="text-body text-muted">Build the sentence.</p>}
         <div
-          lang="de"
+          {...learning}
           aria-label="Your sentence"
           className={clsx(
             'flex min-h-16 w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-row border border-dashed px-3 py-3 text-[22px] font-semibold',
@@ -476,11 +470,11 @@ function ExercisePrompt({ question, answered, given, built, onTap }: { question:
 
   return (
     <div className="flex flex-col items-center gap-1.5 px-2 pt-4">
-      <h2 lang="de" className="text-[22px] leading-snug font-semibold text-balance sm:text-[24px]">
+      <h2 {...learning} className="text-[22px] leading-snug font-semibold text-balance sm:text-[24px]">
         {form.prompt}
       </h2>
       {answered && (
-        <p lang="de" className="pt-1 text-[20px] font-semibold text-sage-ink">
+        <p {...learning} className="pt-1 text-[20px] font-semibold text-sage-ink">
           {form.answers[0]}
         </p>
       )}
@@ -491,9 +485,10 @@ function ExercisePrompt({ question, answered, given, built, onTap }: { question:
 
 /** The words still to place, and buttons to take them back. */
 function WordBank({ tiles, used, onPick, onUndo, onClear }: { tiles: string[]; used: number[]; onPick: (i: number) => void; onUndo: () => void; onClear: () => void }) {
+  const learning = useLearningText()
   return (
     <div className="flex w-full flex-col items-center gap-3 px-1">
-      <div lang="de" className="flex flex-wrap justify-center gap-2" role="group" aria-label="Words">
+      <div {...learning} className="flex flex-wrap justify-center gap-2" role="group" aria-label="Words">
         {tiles.map((word, i) =>
           used.includes(i) ? (
             <span key={i} aria-hidden className="rounded-row border border-dashed border-line px-3 py-2 text-[18px] text-transparent">
@@ -527,10 +522,11 @@ function WordBank({ tiles, used, onPick, onUndo, onClear }: { tiles: string[]; u
 
 /** A question about one of your cards. */
 function CardPrompt({ question, card, answered }: { question: Exclude<RoundQuestion, ExerciseQuestion>; card?: Card; answered: boolean }) {
+  const learning = useLearningText()
   if (!card) return null
   if (question.kind === 'gender') {
     return (
-      <h2 lang="de" className={BIG}>
+      <h2 {...learning} className={BIG}>
         {answered ? <CardGerman card={card} /> : <>___ {card.german}</>}
       </h2>
     )
@@ -538,7 +534,7 @@ function CardPrompt({ question, card, answered }: { question: Exclude<RoundQuest
   if (question.kind === 'plural') {
     return (
       <div className="flex flex-col items-center gap-1">
-        <h2 lang="de" className={BIG}>
+        <h2 {...learning} className={BIG}>
           <GermanWord word={card.german} gender={card.gender} />
         </h2>
         <p className="text-body text-muted">Plural?</p>
@@ -548,17 +544,17 @@ function CardPrompt({ question, card, answered }: { question: Exclude<RoundQuest
   const pronoun = question.impersonal ? 'es' : PERSON_LABEL[question.person]
   return (
     <div className="flex flex-col items-center gap-1.5 px-2 pt-4">
-      <h2 lang="de" className={BIG}>
+      <h2 {...learning} className={BIG}>
         {pronoun} <span className={answered ? 'text-sage-ink' : 'text-muted'}>{answered ? question.answers[0] : '___'}</span>
       </h2>
       <p className="text-body text-muted">
-        <span lang="de" className="font-medium text-ink-2">
+        <span {...learning} className="font-medium text-ink-2">
           {question.infinitive}
         </span>
         {card.english && ` · ${card.english}`}
       </p>
       {answered && card.conjugation?.[question.tense] && (
-        <p lang="de" className="text-small text-muted">
+        <p {...learning} className="text-small text-muted">
           {TENSE_LABEL[question.tense]}: {card.conjugation[question.tense]}
         </p>
       )}
@@ -575,6 +571,7 @@ function wrongLabel(question: RoundQuestion, given: string | null): string {
 }
 
 function Feedback({ question, result, given, typed }: { question: RoundQuestion; result: DrillResult; given: string | null; typed: string }) {
+  const learning = useLearningText()
   const { check } = result
   const exact = check ? check.verdict === 'exact' : result.correct
   const blank = !given?.trim()
@@ -604,18 +601,18 @@ function Feedback({ question, result, given, typed }: { question: RoundQuestion;
         </div>
       )}
       {yourOrder && (
-        <p lang="de" className="text-body">
+        <p {...learning} className="text-body">
           <span className="text-muted">You built </span>
           <span className="text-red-ink">{given}</span>
         </p>
       )}
       {question.kind === 'plural' && (
-        <p lang="de" className="text-[22px] font-semibold">
+        <p {...learning} className="text-[22px] font-semibold">
           {question.answer}
         </p>
       )}
       {others.length > 0 && (
-        <p lang="de" className="text-small text-muted">
+        <p {...learning} className="text-small text-muted">
           Also right: {others.join(' · ')}
         </p>
       )}
@@ -625,12 +622,16 @@ function Feedback({ question, result, given, typed }: { question: RoundQuestion;
 
 /** Why the answer is right, and a way to ask Claude for more. */
 function Explain({ question, topic, given, correct }: { question: ExerciseQuestion; topic?: GrammarTopic; given: string; correct: boolean }) {
-  const href = useMemo(() => (topic ? claudeChatUrl(askClaudePrompt({ topic, question, answer: given, correct })) : undefined), [topic, question, given, correct])
+  const { name, native } = useLanguage()
+  const href = useMemo(
+    () => (topic ? claudeChatUrl(askClaudePrompt({ topic, question, answer: given, correct, language: { name, native: native.name } })) : undefined),
+    [topic, question, given, correct, name, native.name],
+  )
   if (!question.why && !href) return null
   return (
     <div className="flex w-full max-w-md animate-fade-in flex-col gap-2.5 rounded-row bg-field px-4 py-3 text-left">
       {question.why && (
-        <p className="flex gap-2 text-body text-pretty">
+        <p className="flex gap-2 text-body text-pretty" dir={native.rtl ? 'rtl' : 'ltr'}>
           <Lightbulb size={16} strokeWidth={1.8} className="mt-0.5 shrink-0 text-(--t-sand-ink)" aria-hidden />
           <span>{question.why}</span>
         </p>
@@ -646,13 +647,14 @@ function Explain({ question, topic, given, correct }: { question: ExerciseQuesti
 }
 
 function Shell({ title, exit, progress, position, children }: { title: string; exit: string; progress: number; position?: string; children: ReactNode }) {
+  const learning = useLearningText()
   return (
     <div className="mx-auto flex w-full max-w-160 flex-col gap-5">
       <div className="flex items-center justify-between gap-3">
         <Link to={exit} className="flex items-center gap-1.5 text-small text-muted hover:text-ink">
           <X size={16} strokeWidth={1.8} /> End
         </Link>
-        <span lang="de" className="min-w-0 truncate text-small font-medium">
+        <span {...learning} className="min-w-0 truncate text-small font-medium">
           {title}
         </span>
         <span className="min-w-12 text-right text-small text-muted tabular-nums">{position}</span>
@@ -713,6 +715,7 @@ function Finished({
   exitLabel: string
   onAgain: () => void
 }) {
+  const learning = useLearningText()
   const navigate = useNavigate()
   return (
     <div className="flex animate-rise flex-col items-center gap-4 rounded-flash border border-line bg-main px-6 py-10 text-center">
@@ -731,7 +734,7 @@ function Finished({
           <h3 className="text-small text-muted">To work on · they come back in your review</h3>
           <ul className="flex flex-col gap-1.5">
             {missed.map((q) => (
-              <li key={questionKey(q)} lang="de" className="text-body">
+              <li key={questionKey(q)} {...learning} className="text-body">
                 <MissedRow question={q} card={q.kind === 'exercise' ? undefined : cards.get(q.cardId)} />
               </li>
             ))}

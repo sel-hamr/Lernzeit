@@ -7,8 +7,8 @@ import { buttonClass } from '@/components/ui/buttonClass'
 import { Segmented } from '@/components/ui/form'
 import { Chip, EmptyState, PageHeader, ProgressBar, Section } from '@/components/ui/primitives'
 import { useFeedback } from '@/components/ui/feedback'
-import { installStarterTopics } from '@/data/grammar'
-import { useExerciseStats, useGrammarTopics, useNow } from '@/data/hooks'
+import { addStarterContent } from '@/data/languages'
+import { useExerciseStats, useGrammarTopics, useLearningText, useNow } from '@/data/hooks'
 import type { ExerciseStat, GrammarTopic } from '@/db/types'
 import { useStoredToggle } from '@/lib/browser'
 import { dueExercises, groupTopics, levelGroups, nextTopic, topicProgress, type TopicProgress } from '@/lib/grammar'
@@ -18,13 +18,14 @@ import { practicePath, topicPath } from './paths'
 import { TopicEditorDialog } from './TopicEditor'
 
 function TopicRow({ topic, progress }: { topic: GrammarTopic; progress: TopicProgress }) {
+  const learning = useLearningText()
   return (
     <li>
       <Link to={topicPath(topic.id)} className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-soft">
         <StatusMark progress={progress} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="flex flex-wrap items-baseline gap-x-2">
-            <span lang="de" className="text-body font-medium">
+            <span {...learning} className="text-body font-medium">
               {topic.title}
             </span>
             {topic.english && <span className="text-small text-muted">{topic.english}</span>}
@@ -76,6 +77,7 @@ function StatusMark({ progress }: { progress: TopicProgress }) {
 
 /** The next topic on your path, and today's review. */
 function Course({ topics, stats, progressOf }: { topics: GrammarTopic[]; stats: ExerciseStat[]; progressOf: (t: GrammarTopic) => TopicProgress }) {
+  const learning = useLearningText()
   const navigate = useNavigate()
   const now = useNow(MINUTE)
   const statsById = useMemo(() => new Map(stats.map((s) => [s.id, s])), [stats])
@@ -91,7 +93,7 @@ function Course({ topics, stats, progressOf }: { topics: GrammarTopic[]; stats: 
         {next && progress ? (
           <>
             <div className="flex flex-col gap-1">
-              <h2 lang="de" className="text-[22px] leading-tight font-semibold tracking-[-0.01em]">
+              <h2 {...learning} className="text-[22px] leading-tight font-semibold tracking-[-0.01em]">
                 {next.title}
               </h2>
               <p className="flex flex-wrap items-center gap-2 text-body text-muted">
@@ -172,7 +174,7 @@ export default function GrammarPage() {
   const addStarter = async () => {
     setInstalling(true)
     try {
-      const added = await installStarterTopics()
+      const added = await addStarterContent('topics')
       toast(added ? `Added ${count(added, 'starter topic')}` : 'All starter topics are already here')
     } finally {
       setInstalling(false)

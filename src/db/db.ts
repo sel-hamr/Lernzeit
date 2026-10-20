@@ -91,12 +91,17 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'light',
   remindersEnabled: false,
   reminderTimes: ['18:00'],
+  // Installs from before language packs learn German from English; Welcome sets these for a new one.
+  learning: 'de',
+  native: 'en',
+  levels: [],
 }
 
 export const KV_KEYS = {
   settings: 'settings',
   activeTimer: 'activeTimer',
   pendingNote: 'pendingNote',
+  /** Set by the first-launch German seed from before language packs, and by restoring a backup. */
   seeded: 'seeded',
   remindersFired: 'remindersFired',
   bridge: 'bridge',

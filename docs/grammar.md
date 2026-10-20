@@ -10,8 +10,8 @@ A grammar course inside Lernzeit, from A1 to B1. Each topic teaches the **rule**
 | Card questions | [src/lib/drills.ts](../src/lib/drills.ts) | Questions about your cards (gender, plural, verb forms); ordering by need and retries, shared with exercises |
 | Conjugation tables | [src/lib/conjugation.ts](../src/lib/conjugation.ts) | Reads a verb card's conjugation; no grammar rules |
 | Data | [src/data/grammar.ts](../src/data/grammar.ts), [src/data/drills.ts](../src/data/drills.ts) | Save and delete topics, install and update the starter topics, scores of exercises and cards |
-| Starter topics | [src/db/starter/grammar.ts](../src/db/starter/grammar.ts) | The 27 topics and their 384 exercises, loaded on demand |
-| Starter verb tables | [src/db/starter/german-starter.json](../src/db/starter/german-starter.json), [src/db/seed.ts](../src/db/seed.ts) | The conjugation of all 139 starter verbs, and the one-time step that adds it to starter verbs saved before |
+| Starter topics | [src/languages/de/grammar.ts](../src/languages/de/grammar.ts) | The German pack's 27 topics and their 384 exercises, loaded on demand. Other packs have theirs in `src/languages/<code>/grammar.ts` ([languages.md](languages.md)) |
+| Starter verb tables | [src/languages/de/words.json](../src/languages/de/words.json), [src/data/languages.ts](../src/data/languages.ts) | The conjugation of all 139 starter verbs, and the one-time step that adds it to starter verbs saved before |
 | Pages | [src/features/grammar/](../src/features/grammar) | The Grammar page, a topic, practice and review (one shared round), the topic editor |
 | AI | [src/bridge/actions.ts](../src/bridge/actions.ts), [mcp/src/tools.ts](../mcp/src/tools.ts) | `list_grammar_topics`, `add_grammar` and the `make_grammar` prompt |
 

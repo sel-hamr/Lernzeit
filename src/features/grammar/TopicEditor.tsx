@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Field, Input, Select, Textarea } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
 import { DEFAULT_GROUP, deleteTopic, saveTopic } from '@/data/grammar'
-import { useGrammarTopics } from '@/data/hooks'
+import { useGrammarTopics, useLanguage, useLearningText } from '@/data/hooks'
 import { parseLevel, STORY_LEVELS } from '@/data/stories'
 import { newId } from '@/db/db'
 import type { GrammarTopic, TopicDrill } from '@/db/types'
@@ -42,6 +42,9 @@ export function TopicEditorDialog(props: EditorProps) {
 }
 
 function TopicEditor({ open, topic, onClose, onCreated, onDeleted }: EditorProps) {
+  const learning = useLearningText()
+  const language = useLanguage()
+  const de = language.code === 'de'
   const topics = useGrammarTopics()
   const { toast, confirm } = useFeedback()
   const formId = useId()
@@ -135,10 +138,17 @@ function TopicEditor({ open, topic, onClose, onCreated, onDeleted }: EditorProps
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Title" htmlFor="topic-title">
-            <Input id="topic-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Der Dativ" autoComplete="off" lang="de" autoFocus={!topic} />
+            <Input id="topic-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={de ? 'Der Dativ' : undefined} autoComplete="off" {...learning} autoFocus={!topic} />
           </Field>
-          <Field label="English (optional)" htmlFor="topic-english">
-            <Input id="topic-english" value={english} onChange={(e) => setEnglish(e.target.value)} placeholder="The dative case" autoComplete="off" />
+          <Field label={`${language.native.name} (optional)`} htmlFor="topic-english">
+            <Input
+              id="topic-english"
+              value={english}
+              onChange={(e) => setEnglish(e.target.value)}
+              placeholder={de && language.native.code === 'en' ? 'The dative case' : undefined}
+              autoComplete="off"
+              dir="auto"
+            />
           </Field>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -162,17 +172,19 @@ function TopicEditor({ open, topic, onClose, onCreated, onDeleted }: EditorProps
           </Field>
         </div>
         <Field label="Summary (optional)" htmlFor="topic-summary" hint="One line under the title.">
-          <Input id="topic-summary" value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="To whom? dem, der, dem, den." autoComplete="off" />
+          <Input id="topic-summary" value={summary} onChange={(e) => setSummary(e.target.value)} placeholder={de ? 'To whom? dem, der, dem, den.' : undefined} autoComplete="off" dir="auto" />
         </Field>
         <Field
           label="Rule"
           htmlFor="topic-rule"
           hint="A blank line starts a new paragraph. Lines starting with - make a list, lines like | a | b | a table, ### a heading. **bold**, *italic*."
         >
-          <Textarea id="topic-rule" rows={8} value={rule} onChange={(e) => setRule(e.target.value)} placeholder={'The dative answers *Wem?*\n\n| | masculine | feminine |\n|---|---|---|\n| Dativ | dem | der |'} />
+          <Textarea id="topic-rule" rows={8} value={rule} onChange={(e) => setRule(e.target.value)} placeholder={de ? 'The dative answers *Wem?*\n\n| | masculine | feminine |\n|---|---|---|\n| Dativ | dem | der |' : undefined}
+            dir="auto"
+          />
         </Field>
-        <Field label="Examples" htmlFor="topic-examples" hint="One per line: German = English. The English is optional.">
-          <Textarea id="topic-examples" rows={4} value={examples} onChange={(e) => setExamples(e.target.value)} placeholder="Ich helfe dem Mann. = I help the man." lang="de" />
+        <Field label="Examples" htmlFor="topic-examples" hint={`One per line: ${language.name} = ${language.native.name}. The ${language.native.name} is optional.`}>
+          <Textarea id="topic-examples" rows={4} value={examples} onChange={(e) => setExamples(e.target.value)} placeholder={de ? 'Ich helfe dem Mann. = I help the man.' : undefined} {...learning} />
         </Field>
         <Field
           label="Exercises"
@@ -180,7 +192,7 @@ function TopicEditor({ open, topic, onClose, onCreated, onDeleted }: EditorProps
           error={exerciseError}
           hint={
             <>
-              One per line, then <code>= English</code> and <code>{'// why'}</code> if you like. Fill the gap: <code>{'{{dem}}'}</code> typed, <code>{'{{dem|den|der}}'}</code> choices, the first
+              One per line, then <code>= {language.native.name}</code> and <code>{'// why'}</code> if you like. Fill the gap: <code>{'{{dem}}'}</code> typed, <code>{'{{dem|den|der}}'}</code> choices, the first
               one right. Find the mistake: <code>{'{{den>dem}}'}</code>. Word order: start with <code>~</code>. Write a sentence: <code>{'prompt => answer'}</code>.
             </>
           }
@@ -197,18 +209,21 @@ function TopicEditor({ open, topic, onClose, onCreated, onDeleted }: EditorProps
               'die Kinder: Ich helfe … => Ich helfe den Kindern.',
             ].join('\n')}
             aria-invalid={!!exerciseError}
-            lang="de"
+            {...learning}
           />
         </Field>
-        <Field label="Also practise with my cards" htmlFor="topic-drill" hint="Adds questions about your own words to this topic's practice.">
-          <Select id="topic-drill" value={drill} onChange={(e) => setDrill(e.target.value)}>
-            {DRILLS.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        {/* The card drills ask German genders, plurals and verb tables. */}
+        {(de || drill) && (
+          <Field label="Also practise with my cards" htmlFor="topic-drill" hint="Adds questions about your own words to this topic's practice.">
+            <Select id="topic-drill" value={drill} onChange={(e) => setDrill(e.target.value)}>
+              {DRILLS.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
       </form>
     </Dialog>
   )

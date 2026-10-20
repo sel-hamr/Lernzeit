@@ -3,10 +3,11 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import clsx from 'clsx'
 import { ArrowRight, Check, Languages, Lightbulb, MessageCircleQuestionMark, Pencil, Volume2, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { LetterButtons } from '@/components/LetterButtons'
 import { PillToggle } from '@/components/ui/form'
 import { EmptyState, Kbd } from '@/components/ui/primitives'
 import { Diff } from '@/components/Diff'
-import { useDecks, useQuestions, useResponses, useSettings, useTopics } from '@/data/hooks'
+import { useDecks, useLearningText, useQuestions, useResponses, useSettings, useTopics } from '@/data/hooks'
 import { saveResponse } from '@/data/questions'
 import { pickStoryTopic } from '@/data/stories'
 import { useActiveStudyTime, type ActiveRun } from '@/data/studyTime'
@@ -51,6 +52,7 @@ export default function PracticePage() {
 }
 
 function Practice({ set, questions, responses, onAgain }: { set?: string; questions: Question[]; responses: QuestionResponse[]; onAgain: () => void }) {
+  const learning = useLearningText()
   const navigate = useNavigate()
   const settings = useSettings()
   const decks = useDecks()
@@ -184,7 +186,7 @@ function Practice({ set, questions, responses, onAgain }: { set?: string; questi
     <Shell title={title} progress={at / order.length} position={`${at + 1} of ${order.length}`}>
       <article key={question.id + at} className="flex animate-flip-in flex-col gap-5 rounded-flash border border-line bg-main p-3 pb-6 shadow-panel sm:p-4 sm:pb-7">
         <div className="flex items-center justify-between gap-3 px-1 text-chip text-muted">
-          <span lang="de" className="min-w-0 truncate">
+          <span {...learning} className="min-w-0 truncate">
             {[question.set, question.level].filter(Boolean).join(' · ')}
           </span>
           <div className="flex items-center gap-1">
@@ -198,7 +200,7 @@ function Practice({ set, questions, responses, onAgain }: { set?: string; questi
         </div>
 
         <div className="flex flex-col items-center gap-1.5 px-2 pt-2 text-center">
-          <h2 lang="de" className="text-[26px] leading-tight font-semibold tracking-[-0.01em] text-balance sm:text-[30px]">
+          <h2 {...learning} className="text-[26px] leading-tight font-semibold tracking-[-0.01em] text-balance sm:text-[30px]">
             {question.question}
           </h2>
           {phase === 'ask' && showEnglish && question.english && <p className="text-body text-muted">{question.english}</p>}
@@ -232,7 +234,7 @@ function Practice({ set, questions, responses, onAgain }: { set?: string; questi
                   <button
                     key={word}
                     type="button"
-                    lang="de"
+                    {...learning}
                     onClick={() => addWord(word)}
                     className={clsx(
                       'h-8 rounded-full border px-3 text-small transition-colors',
@@ -261,24 +263,15 @@ function Practice({ set, questions, responses, onAgain }: { set?: string; questi
               autoComplete="off"
               autoCapitalize="sentences"
               spellCheck={false}
-              lang="de"
+              {...learning}
               className="resize-none rounded-row border border-line-strong bg-main px-4 py-3 text-center text-[17px] leading-normal outline-none transition-colors focus:border-sage-dot"
             />
-            <div className="flex flex-wrap justify-center gap-1.5">
-              {['ä', 'ö', 'ü', 'ß'].map((ch) => (
-                <button
-                  key={ch}
-                  type="button"
-                  onClick={() => {
-                    setTyped((t) => t + ch)
-                    inputRef.current?.focus()
-                  }}
-                  className="h-7 w-8 rounded-md border border-line bg-main text-small text-ink hover:bg-field"
-                >
-                  {ch}
-                </button>
-              ))}
-            </div>
+            <LetterButtons
+              onLetter={(ch) => {
+                setTyped((t) => t + ch)
+                inputRef.current?.focus()
+              }}
+            />
           </form>
         ) : (
           <div className="flex animate-fade-in flex-col gap-4 border-t border-line px-1 pt-5">
@@ -286,7 +279,7 @@ function Practice({ set, questions, responses, onAgain }: { set?: string; questi
               {phase === 'answered' && response && (
                 <Row label="You">
                   <div className="flex flex-col items-start gap-1.5">
-                    <p lang="de">{comparison?.kind === 'close' ? <Diff parts={comparison.diff} /> : response.text}</p>
+                    <p {...learning}>{comparison?.kind === 'close' ? <Diff parts={comparison.diff} /> : response.text}</p>
                     {comparison && <ComparisonChip comparison={comparison} />}
                   </div>
                 </Row>
@@ -357,13 +350,14 @@ function Practice({ set, questions, responses, onAgain }: { set?: string; questi
 }
 
 function Shell({ title, progress, position, children }: { title: string; progress: number; position?: string; children: ReactNode }) {
+  const learning = useLearningText()
   return (
     <div className="mx-auto flex w-full max-w-160 flex-col gap-5">
       <div className="flex items-center justify-between gap-3">
         <Link to="/questions" className="flex items-center gap-1.5 text-small text-muted hover:text-ink">
           <X size={16} strokeWidth={1.8} /> End
         </Link>
-        <span lang="de" className="min-w-0 truncate text-small font-medium">
+        <span {...learning} className="min-w-0 truncate text-small font-medium">
           {title}
         </span>
         <span className="min-w-12 text-right text-small text-muted tabular-nums">{position}</span>
@@ -401,9 +395,10 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function Spoken({ text, onPlay }: { text: string; onPlay: (text: string) => void }) {
+  const learning = useLearningText()
   return (
     <div className="flex items-start gap-2">
-      <p lang="de" className="font-medium">
+      <p {...learning} className="font-medium">
         {text}
       </p>
       <button
@@ -438,6 +433,7 @@ function ComparisonChip({ comparison }: { comparison: Comparison }) {
 }
 
 function OldResponses({ responses }: { responses: QuestionResponse[] }) {
+  const learning = useLearningText()
   const [all, setAll] = useState(false)
   const shown = all ? responses : responses.slice(0, OLD_SHOWN)
   return (
@@ -447,7 +443,7 @@ function OldResponses({ responses }: { responses: QuestionResponse[] }) {
         {shown.map((r) => (
           <li key={r.id} className="grid grid-cols-[56px_1fr] gap-3 text-body">
             <span className="pt-px text-small text-muted tabular-nums">{formatDayMonthShort(dateKey(r.at))}</span>
-            <span lang="de">{r.text}</span>
+            <span {...learning}>{r.text}</span>
           </li>
         ))}
       </ul>

@@ -4,11 +4,35 @@ import { db, DEFAULT_SETTINGS, KV_KEYS } from '@/db/db'
 import type { ActiveTimer, Card, CardReview, Deck, DrillStat, ExerciseStat, GrammarTopic, ImageFit, Question, QuestionResponse, ReviewLog, Session, Settings, Story, Task, Topic } from '@/db/types'
 import { buildQueue, usageToday } from '@/lib/queue'
 import { dateKey, nextMidnightMs } from '@/lib/time'
+import { hasLearningData, languageOf, type Language } from './languages'
 import type { PendingNote } from './timer'
 
 export function useSettings(): Settings {
   const row = useLiveQuery(() => db.kv.get(KV_KEYS.settings), [])
   return useMemo(() => ({ ...DEFAULT_SETTINGS, ...((row?.value as Partial<Settings>) ?? {}) }), [row])
+}
+
+/** The language you learn and your own, from Settings. */
+export function useLanguage(): Language {
+  const { learning, native } = useSettings()
+  return useMemo(() => languageOf({ learning, native }), [learning, native])
+}
+
+/** Attributes for text in the language you learn: its `lang`, and a direction that follows the text, for Arabic. */
+export function useLearningText(): { lang: string; dir: 'auto' } {
+  const { speech } = useLanguage()
+  return useMemo(() => ({ lang: speech, dir: 'auto' }), [speech])
+}
+
+/** Attributes for text in your own language (meanings, translations, explanations): its `lang` and direction. */
+export function useNativeText(): { lang: string; dir: 'rtl' | 'ltr' } {
+  const { native } = useLanguage()
+  return useMemo(() => ({ lang: native.code, dir: native.rtl ? 'rtl' : 'ltr' }), [native.code, native.rtl])
+}
+
+/** False while there is nothing to learn yet (Welcome then offers the packs); undefined while loading. */
+export function useHasLearningData(): boolean | undefined {
+  return useLiveQuery(() => hasLearningData(db), [])
 }
 
 const EMPTY: never[] = []
