@@ -47,7 +47,10 @@ interface LevelGuide {
   words: Record<StoryLength, number>
   paragraphs: string
   plot: string
+  /** Rules for any language. */
   rules: string[]
+  /** The same rules with German grammar terms, used instead for German. */
+  germanRules?: string[]
   /** How to use the words I know. */
   useWords: string
   /** How many of the next new words the story may bring in. */
@@ -63,13 +66,19 @@ const LEVEL_GUIDE: Record<StoryLevel, LevelGuide> = {
     plot: 'Someone wants something, something small happens, and it ends well.',
     rules: [
       'Short sentences of 4 to 8 words, one idea each.',
+      'Present tense only.',
+      'Main clauses only, linked with simple words for and, but, or and then.',
+      'Repeat key words instead of using synonyms.',
+    ],
+    germanRules: [
+      'Short sentences of 4 to 8 words, one idea each.',
       'Present tense only. Modal verbs such as können and möchten are fine.',
       'Main clauses only. Link ideas with und, aber, oder and dann.',
       'Repeat key words instead of using synonyms.',
     ],
     useWords: 'Build the story mostly from the words below.',
     newWords: 3,
-    otherWords: 'Any other word must be one of the most common German words.',
+    otherWords: 'Any other word must be one of the most common words of the language.',
   },
   A2: {
     name: 'elementary',
@@ -77,6 +86,12 @@ const LEVEL_GUIDE: Record<StoryLevel, LevelGuide> = {
     paragraphs: '3 or 4 paragraphs',
     plot: 'Someone wants something, a small problem comes up, and it is solved.',
     rules: [
+      'Sentences of up to 12 words.',
+      'Present tense, and the common past tense for what happened.',
+      'A few clauses with because, that or if; keep most sentences simple.',
+      'A little simple dialogue is fine.',
+    ],
+    germanRules: [
       'Sentences of up to 12 words.',
       'Present tense, and Perfekt for what happened. War and hatte are fine.',
       'A few clauses with weil, dass or wenn; keep most sentences simple.',
@@ -93,6 +108,11 @@ const LEVEL_GUIDE: Record<StoryLevel, LevelGuide> = {
     plot: 'A real story with a clear beginning, middle and end.',
     rules: [
       'Clear sentences of up to 18 words, with some subordinate and relative clauses.',
+      'Tell the story in the past tenses stories use.',
+      'Include some dialogue and some feelings and opinions.',
+    ],
+    germanRules: [
+      'Clear sentences of up to 18 words, with some subordinate and relative clauses.',
       'Tell the story in Präteritum; use Perfekt in dialogue.',
       'Include some dialogue and some feelings and opinions.',
     ],
@@ -107,6 +127,11 @@ const LEVEL_GUIDE: Record<StoryLevel, LevelGuide> = {
     plot: 'A real story with some tension and a satisfying end.',
     rules: [
       'Natural, varied sentences, some of them long.',
+      'All tenses, the passive and the conditional where they sound natural.',
+      'A wider vocabulary, with some common idioms.',
+    ],
+    germanRules: [
+      'Natural, varied sentences, some of them long.',
       'All tenses, the passive and Konjunktiv II where they sound natural.',
       'A wider vocabulary, with some common idioms.',
     ],
@@ -120,6 +145,11 @@ const LEVEL_GUIDE: Record<StoryLevel, LevelGuide> = {
     paragraphs: '5 to 7 paragraphs',
     plot: 'A rich story with characters, tension and a thoughtful end.',
     rules: [
+      'Rich, idiomatic language with complex sentences.',
+      'Any grammar, including reported speech.',
+      'Precise, varied vocabulary, idioms and some figurative language.',
+    ],
+    germanRules: [
       'Rich, idiomatic German with complex sentences.',
       'Any grammar, including Konjunktiv I in reported speech.',
       'Precise, varied vocabulary, idioms and some figurative language.',
@@ -151,25 +181,29 @@ export interface StoryPromptInput {
   /** What the story is about; empty for anything. */
   theme: string
   words: PromptWords
+  /** The language of the story, and of its translation. German and English when left out. */
+  language?: { code: string; name: string; native: string }
 }
 
 /**
  * The prompt for Claude, in plain sections. It ends by asking Claude to save
  * the story with the create_story tool, so it shows up in Lernzeit by itself.
  */
-export function buildStoryPrompt({ level, length, theme, words }: StoryPromptInput): string {
+export function buildStoryPrompt({ level, length, theme, words, language = { code: 'de', name: 'German', native: 'English' } }: StoryPromptInput): string {
   const guide = LEVEL_GUIDE[level]
+  const { name, native } = language
+  const rules = (language.code === 'de' && guide.germanRules) || guide.rules
   const lines = [
-    `I am learning German at level ${level} (${guide.name}). Please write a story for me to read.`,
+    `I am learning ${name} at level ${level} (${guide.name}). Please write a story for me to read.`,
     '',
     'THE STORY',
     `- Topic: ${theme.trim() || 'something from everyday life'}.`,
     `- About ${guide.words[length]} words, in ${guide.paragraphs}.`,
     `- ${guide.plot}`,
-    '- A short German title.',
+    `- A short ${name} title.`,
     '',
     `LANGUAGE FOR LEVEL ${level}`,
-    ...guide.rules.map((rule) => `- ${rule}`),
+    ...rules.map((rule) => `- ${rule}`),
     '',
     'MY WORDS',
   ]
@@ -188,15 +222,15 @@ export function buildStoryPrompt({ level, length, theme, words }: StoryPromptInp
     `- ${guide.otherWords} Names are fine.`,
     '',
     'BEFORE YOU SAVE',
-    '- Check that every sentence is correct, natural German.',
-    '- Write an English translation that matches the German paragraph by paragraph.',
+    `- Check that every sentence is correct, natural ${name}.`,
+    `- Write a translation into ${native} that matches the ${name} paragraph by paragraph.`,
     '',
     'SAVE IT IN LERNZEIT',
     'Save the story with the Lernzeit create_story tool:',
-    '- title: the German title',
+    `- title: the ${name} title`,
     `- level: ${level}`,
-    '- text: the German story, with an empty line between paragraphs',
-    '- translation: the English translation, with the same paragraphs',
+    `- text: the ${name} story, with an empty line between paragraphs`,
+    `- translation: the ${native} translation, with the same paragraphs`,
     'Then show me the story and tell me it is saved. If the tool is not available, tell me to turn on Settings → AI connection in Lernzeit.',
   )
   return lines.join('\n')

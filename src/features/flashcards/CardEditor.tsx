@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Field, Input, Segmented, Select, Textarea } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
 import { createDeck, deleteCard, INCOMPLETE_TAG, saveCard, type ImageChange } from '@/data/cards'
-import { useCard, useDecks, useSettings, useTopics } from '@/data/hooks'
+import { useCard, useDecks, useLanguage, useLearningText, useSettings, useTopics } from '@/data/hooks'
 import type { Card, CardType, Gender, Tense } from '@/db/types'
 import type { CardEditorRequest } from '@/app/ui'
 import { tenseProblem, TENSES } from '@/lib/conjugation'
@@ -82,6 +82,10 @@ function initialState(card: Card | undefined, request: CardEditorRequest, fallba
 }
 
 function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorRequest; onDone: () => void }) {
+  const learning = useLearningText()
+  const language = useLanguage()
+  // Gender, conjugation and the examples are German; other languages write the article with the word.
+  const german = language.code === 'de'
   const decks = useDecks()
   const topics = useTopics()
   const settings = useSettings()
@@ -104,8 +108,8 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
 
   const validate = (): boolean => {
     const next: typeof errors = {}
-    if (!state.english.trim()) next.english = state.type === 'word' ? 'Add the English word' : 'Add the English sentence'
-    if (!state.german.trim()) next.german = state.type === 'word' ? 'Add the German word' : 'Add the German sentence'
+    if (!state.english.trim()) next.english = state.type === 'word' ? `Add the ${language.native.name} word` : `Add the ${language.native.name} sentence`
+    if (!state.german.trim()) next.german = state.type === 'word' ? `Add the ${language.name} word` : `Add the ${language.name} sentence`
     if (state.type === 'cloze' && state.german.trim() && !parseCloze(state.german)) next.german = 'Mark the hidden word like {{this}}'
     if (!deckId && newDeckName === null) next.deckId = 'Create a deck first'
     if (state.type === 'word') for (const tense of TENSES) if (tenseProblem(state[tense])) next[tense] = tenseProblem(state[tense])
@@ -173,7 +177,7 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
 
   // Typing "der Hund" fills in the gender and keeps just the word.
   const onGermanBlur = () => {
-    if (state.type !== 'word') return
+    if (state.type !== 'word' || !german) return
     const split = splitArticle(state.german)
     if (split.gender) setState((s) => ({ ...s, german: split.word, gender: split.gender! }))
   }
@@ -252,27 +256,32 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
 
       <div className="grid gap-5 md:grid-cols-[1fr_240px]">
         <div className="flex flex-col gap-4">
-          <Field label={word ? 'English' : 'English sentence'} htmlFor="card-english" error={errors.english}>
+          <Field label={word ? language.native.name : `${language.native.name} sentence`} htmlFor="card-english" error={errors.english}>
             <Input
               id="card-english"
               autoFocus={!card}
               value={state.english}
               onChange={(e) => set('english', e.target.value)}
-              placeholder={word ? 'dog' : 'The dog is playing in the garden.'}
+              placeholder={language.native.code === 'en' ? (word ? 'dog' : 'The dog is playing in the garden.') : undefined}
+              dir="auto"
             />
           </Field>
 
           <Field
-            label={state.type === 'cloze' ? 'German sentence, hidden word in {{ }}' : word ? 'German' : 'German sentence'}
+            label={state.type === 'cloze' ? `${language.name} sentence, hidden word in {{ }}` : word ? language.name : `${language.name} sentence`}
             htmlFor="card-german"
             error={errors.german}
             hint={
               state.type === 'cloze'
                 ? cloze
                   ? `Shown as: ${cloze.masked} → ${cloze.answer}`
-                  : 'Example: Der Hund {{spielt}} im Garten.'
+                  : german
+                    ? 'Example: Der Hund {{spielt}} im Garten.'
+                    : 'Put the hidden word in {{ }}.'
                 : word
-                  ? 'Typing “der Hund” sets the gender for you.'
+                  ? german
+                    ? 'Typing “der Hund” sets the gender for you.'
+                    : 'Write a noun with its article, the way you want to learn it.'
                   : undefined
             }
           >
@@ -283,10 +292,10 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
                   value={state.german}
                   onChange={(e) => set('german', e.target.value)}
                   onBlur={onGermanBlur}
-                  placeholder="Hund"
+                  placeholder={german ? 'Hund' : undefined}
                   className={clsx('flex-1', state.gender !== 'none' && GENDER_TEXT[state.gender])}
                   autoComplete="off"
-                  lang="de"
+                  {...learning}
                 />
               ) : (
                 <Textarea
@@ -295,9 +304,9 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
                   rows={2}
                   value={state.german}
                   onChange={(e) => set('german', e.target.value)}
-                  placeholder={state.type === 'cloze' ? 'Der Hund {{spielt}} im Garten.' : 'Der Hund spielt im Garten.'}
+                  placeholder={german ? (state.type === 'cloze' ? 'Der Hund {{spielt}} im Garten.' : 'Der Hund spielt im Garten.') : undefined}
                   className="flex-1"
-                  lang="de"
+                  {...learning}
                 />
               )}
               <Button
@@ -322,18 +331,20 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
 
           {word && (
             <>
-              <Field label="Gender (nouns)">
-                <Segmented label="Gender" options={GENDER_OPTIONS} value={state.gender} onChange={(v) => set('gender', v)} size="sm" className="self-start" />
-              </Field>
+              {german && (
+                <Field label="Gender (nouns)">
+                  <Segmented label="Gender" options={GENDER_OPTIONS} value={state.gender} onChange={(v) => set('gender', v)} size="sm" className="self-start" />
+                </Field>
+              )}
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Plural" htmlFor="card-plural">
-                  <Input id="card-plural" value={state.plural} onChange={(e) => set('plural', e.target.value)} placeholder="die Hunde" lang="de" />
+                  <Input id="card-plural" value={state.plural} onChange={(e) => set('plural', e.target.value)} placeholder={german ? 'die Hunde' : undefined} {...learning} />
                 </Field>
                 <Field label="Verb forms" htmlFor="card-verb">
-                  <Input id="card-verb" value={state.verbForms} onChange={(e) => set('verbForms', e.target.value)} placeholder="gehen – ging – gegangen" lang="de" />
+                  <Input id="card-verb" value={state.verbForms} onChange={(e) => set('verbForms', e.target.value)} placeholder={german ? 'gehen – ging – gegangen' : undefined} {...learning} />
                 </Field>
               </div>
-              {(state.verbForms.trim() || TENSES.some((t) => state[t].trim())) && (
+              {german && (state.verbForms.trim() || TENSES.some((t) => state[t].trim())) && (
                 <fieldset className="flex flex-col gap-3">
                   <legend className="mb-1.5 text-small font-medium text-ink-2">Conjugation</legend>
                   <p className="text-chip text-pretty text-muted">
@@ -347,17 +358,23 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
                         onChange={(e) => set(tense, e.target.value)}
                         placeholder={TENSE_FIELDS[tense].example}
                         aria-invalid={!!errors[tense]}
-                        lang="de"
+                        {...learning}
                       />
                     </Field>
                   ))}
                 </fieldset>
               )}
-              <Field label="Example sentence (German)" htmlFor="card-ex-de">
-                <Input id="card-ex-de" value={state.exampleDe} onChange={(e) => set('exampleDe', e.target.value)} placeholder="Der Hund spielt im Garten." lang="de" />
+              <Field label={`Example sentence (${language.name})`} htmlFor="card-ex-de">
+                <Input id="card-ex-de" value={state.exampleDe} onChange={(e) => set('exampleDe', e.target.value)} placeholder={german ? 'Der Hund spielt im Garten.' : undefined} {...learning} />
               </Field>
-              <Field label="Example sentence (English)" htmlFor="card-ex-en">
-                <Input id="card-ex-en" value={state.exampleEn} onChange={(e) => set('exampleEn', e.target.value)} placeholder="The dog is playing in the garden." />
+              <Field label={`Example sentence (${language.native.name})`} htmlFor="card-ex-en">
+                <Input
+                  id="card-ex-en"
+                  value={state.exampleEn}
+                  onChange={(e) => set('exampleEn', e.target.value)}
+                  placeholder={language.native.code === 'en' ? 'The dog is playing in the garden.' : undefined}
+                  dir="auto"
+                />
               </Field>
             </>
           )}

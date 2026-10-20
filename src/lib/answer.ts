@@ -1,6 +1,7 @@
 /**
  * Typed-answer checking. Accepts small slips (case, ue for ü, a missing
- * umlaut, ss for ß, punctuation) but always reports the exact spelling.
+ * umlaut or accent, ss for ß, punctuation) but always reports the exact
+ * spelling.
  */
 
 export type Verdict = 'exact' | 'close' | 'wrong'
@@ -15,7 +16,8 @@ export interface CheckResult {
 
 export type DiffPart = { text: string; kind: 'ok' | 'wrong' | 'missing' | 'extra' }
 
-const ARTICLES = new Set(['der', 'die', 'das'])
+/** Articles a wrong one of is a mistake and a missing one a slip: German, French and Spanish. */
+const ARTICLES = new Set(['der', 'die', 'das', 'le', 'la', 'les', 'el', 'los', 'las'])
 
 function tidy(s: string): string {
   return s
@@ -27,7 +29,7 @@ function tidy(s: string): string {
 
 /** Drops punctuation that never changes meaning for this purpose. */
 function stripPunct(s: string): string {
-  return s.replace(/[.,!?;:"„“”«»()]/g, '').replace(/\s+/g, ' ').trim()
+  return s.replace(/[.,!?;:"„“”«»()¿¡،؟؛]/g, '').replace(/\s+/g, ' ').trim()
 }
 
 function transliterate(s: string): string {
@@ -36,6 +38,11 @@ function transliterate(s: string): string {
 
 function dropUmlauts(s: string): string {
   return s.replace(/ä/g, 'a').replace(/ö/g, 'o').replace(/ü/g, 'u').replace(/ß/g, 'ss')
+}
+
+/** Letters without their accents and marks: é -> e, ñ -> n. */
+function dropMarks(s: string): string {
+  return s.normalize('NFD').replace(/\p{M}/gu, '').normalize('NFC')
 }
 
 /** ae/oe/ue typed for an umlaut, folded down to plain vowels. */
@@ -51,8 +58,9 @@ function splitLeadingArticle(s: string): { article?: string; rest: string } {
 
 export interface CheckOptions {
   /**
-   * Accept a missing umlaut (Apfel for Äpfel) as a slip. On by default;
-   * drills turn it off, because the umlaut is what they test.
+   * Accept a missing umlaut or accent (Apfel for Äpfel, ecole for école) as
+   * a slip. On by default; drills turn it off, because the umlaut is what
+   * they test.
    */
   missingUmlaut?: boolean
 }
@@ -92,6 +100,9 @@ export function checkAnswer(typed: string, expected: string, { missingUmlaut = t
   }
   if (foldTyped(al) === foldTyped(bl)) {
     return { verdict: missingUmlaut ? 'close' : 'wrong', notes: [...notes, 'Watch the umlauts'], diff }
+  }
+  if (dropMarks(al) === dropMarks(bl)) {
+    return { verdict: missingUmlaut ? 'close' : 'wrong', notes: [...notes, 'Watch the accents'], diff }
   }
 
   return { verdict: 'wrong', notes: [], diff }

@@ -5,7 +5,8 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { UIProvider } from './ui'
 import { AppShell } from './layout/AppShell'
 import { BridgeEngine, ReminderEngine, SessionNoteDialog, ThemeSync, TimerEngine } from './engines'
-import { useSeed } from './useSeed'
+import { useStarterUpdates } from './useStarterUpdates'
+import { Welcome } from '@/features/languages/Welcome'
 import { TodayPage } from '@/features/today/TodayPage'
 import { TimerPage } from '@/features/timer/TimerPage'
 import { LibraryPage } from '@/features/flashcards/LibraryPage'
@@ -56,22 +57,19 @@ function Pages() {
 }
 
 export function App() {
-  const ready = useSeed()
+  useStarterUpdates()
   return (
     <BrowserRouter>
       <FeedbackProvider>
         <UIProvider>
           <ThemeSync />
-          {ready && (
-            <>
-              <TimerEngine />
-              <ReminderEngine />
-              <BridgeEngine />
-              <SessionNoteDialog />
-            </>
-          )}
+          <TimerEngine />
+          <ReminderEngine />
+          <BridgeEngine />
+          <SessionNoteDialog />
+          <Welcome />
           <AppShell>
-            {ready ? <Pages /> : <PageFallback />}
+            <Pages />
           </AppShell>
         </UIProvider>
       </FeedbackProvider>

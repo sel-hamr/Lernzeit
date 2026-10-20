@@ -5,7 +5,7 @@ import clsx from 'clsx'
 import { Button } from '@/components/ui/Button'
 import { Chip, EmptyState, ProgressBar, Section } from '@/components/ui/primitives'
 import { GermanWord } from '@/components/GermanWord'
-import { useCards, useExerciseStats, useGrammarTopic, useSettings } from '@/data/hooks'
+import { useCards, useExerciseStats, useGrammarTopic, useLearningText, useSettings } from '@/data/hooks'
 import type { Card, GrammarTopic, TopicDrill } from '@/db/types'
 import { drillQuestions, TENSE_LABEL } from '@/lib/drills'
 import { EXERCISE_KIND, parseExercise, topicProgress, type ExerciseForm } from '@/lib/grammar'
@@ -46,6 +46,7 @@ export default function TopicPage() {
 }
 
 function Topic({ topic }: { topic: GrammarTopic }) {
+  const learning = useLearningText()
   const navigate = useNavigate()
   const settings = useSettings()
   const cards = useCards()
@@ -70,7 +71,7 @@ function Topic({ topic }: { topic: GrammarTopic }) {
 
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1.5">
-          <h1 lang="de" className="text-title font-semibold">
+          <h1 {...learning} className="text-title font-semibold">
             {topic.title}
           </h1>
           <div className="flex flex-wrap items-center gap-2 text-body text-muted">
@@ -125,7 +126,7 @@ function Topic({ topic }: { topic: GrammarTopic }) {
                   <Volume2 size={14} strokeWidth={1.8} />
                 </button>
                 <div className="flex flex-col gap-0.5">
-                  <span lang="de" className="text-body font-medium">
+                  <span {...learning} className="text-body font-medium">
                     {ex.de}
                   </span>
                   {ex.en && <span className="text-small text-muted">{ex.en}</span>}
@@ -164,7 +165,7 @@ function Topic({ topic }: { topic: GrammarTopic }) {
               const form = parseExercise(e.text)
               return (
                 <li key={e.id} className="text-body">
-                  {form ? <Solved form={form} /> : <span lang="de">{e.text}</span>}
+                  {form ? <Solved form={form} /> : <span {...learning}>{e.text}</span>}
                   {e.en && <span className="block text-small text-muted">{e.en}</span>}
                   {e.why && <span className="block text-small text-ink-2">{e.why}</span>}
                 </li>
@@ -181,11 +182,12 @@ function Topic({ topic }: { topic: GrammarTopic }) {
 
 /** An exercise with its answer, for reading: the gap filled, the mistake fixed, the sentence in order. */
 function Solved({ form }: { form: ExerciseForm }) {
+  const learning = useLearningText()
   const answer = <strong className="font-semibold text-sage-ink">{form.answers.join(' / ')}</strong>
   return (
     <span className="flex flex-col">
       <span className="text-chip text-muted">{EXERCISE_KIND[form.type]}</span>
-      <span lang="de">
+      <span {...learning}>
         {form.type === 'gap' ? (
           <>
             {form.before}
@@ -224,6 +226,7 @@ function Panel({ title, aside, children }: { title: string; aside?: ReactNode; c
 
 /** Your own words that this topic practises too. */
 function FromYourCards({ drill, cards }: { drill: TopicDrill; cards: Card[] }) {
+  const learning = useLearningText()
   const shown = cards.slice(0, CARDS_SHOWN)
   const about = DRILL_ABOUT[drill.kind]
   return (
@@ -234,13 +237,13 @@ function FromYourCards({ drill, cards }: { drill: TopicDrill; cards: Card[] }) {
         <ul className="flex flex-col gap-2.5">
           {shown.slice(0, 5).map((card) => (
             <li key={card.id} className="flex flex-col gap-0.5">
-              <span lang="de" className="text-body font-medium">
+              <span {...learning} className="text-body font-medium">
                 {card.german}
               </span>
               {(drill.tense ? [drill.tense] : (['present', 'past', 'perfect'] as const)).map((tense) =>
                 card.conjugation?.[tense] ? (
                   <span key={tense} className="text-small text-muted">
-                    <span className="text-ink-2">{TENSE_LABEL[tense]}:</span> <span lang="de">{card.conjugation[tense]}</span>
+                    <span className="text-ink-2">{TENSE_LABEL[tense]}:</span> <span {...learning}>{card.conjugation[tense]}</span>
                   </span>
                 ) : null,
               )}
@@ -248,7 +251,7 @@ function FromYourCards({ drill, cards }: { drill: TopicDrill; cards: Card[] }) {
           ))}
         </ul>
       ) : (
-        <ul className="flex flex-wrap gap-x-4 gap-y-1.5" lang="de">
+        <ul className="flex flex-wrap gap-x-4 gap-y-1.5" {...learning}>
           {shown.map((card) => (
             <li key={card.id} className="text-body">
               <GermanWord word={card.german} gender={card.gender} />

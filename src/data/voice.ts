@@ -1,4 +1,5 @@
 import type { Settings, VoiceEngine } from '@/db/types'
+import { speechLang } from '@/languages'
 import { browserSpeak, browserStop } from '@/lib/speech'
 import { isThorstenDownloaded, THORSTEN_VOICE, thorstenWav, warmUpThorsten } from '@/lib/thorsten'
 import { clipKey, readClip, saveClip } from './clips'
@@ -8,11 +9,14 @@ export interface VoiceOptions {
   /** Browser voice; also used when Thorsten is not available. */
   voiceURI?: string
   rate?: number
+  /** The language spoken, such as "fr-FR". German when left out. */
+  lang?: string
 }
 
-/** The voice settings every speaker button uses. */
-export function voiceOptions(settings: Pick<Settings, 'voiceEngine' | 'voiceURI' | 'speechRate'>): VoiceOptions {
-  return { engine: settings.voiceEngine, voiceURI: settings.voiceURI, rate: settings.speechRate }
+/** The voice settings every speaker button uses: the language you learn, and Thorsten only for German. */
+export function voiceOptions(settings: Pick<Settings, 'voiceEngine' | 'voiceURI' | 'speechRate' | 'learning'>): VoiceOptions {
+  const engine = settings.learning === 'de' ? settings.voiceEngine : 'browser'
+  return { engine, voiceURI: settings.voiceURI, rate: settings.speechRate, lang: speechLang(settings.learning) }
 }
 
 let playing: HTMLAudioElement | null = null
@@ -30,7 +34,7 @@ export function stopSpeaking() {
 }
 
 /**
- * Speaks German text. With the Thorsten voice it plays a saved clip or makes
+ * Speaks text in the language you learn. With the Thorsten voice (German) it plays a saved clip or makes
  * one; until the voice is downloaded, or if it fails, the browser voice speaks.
  */
 export function speak(text: string, opts: VoiceOptions = {}) {

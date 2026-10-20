@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Field, Select } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
 import { CardGerman } from '@/components/GermanWord'
-import { useDecks } from '@/data/hooks'
+import { useDecks, useLanguage } from '@/data/hooks'
 import {
   CSV_TEMPLATE,
   downloadFile,
@@ -43,6 +43,7 @@ export function ImportCsvDialog({ open, onClose, defaultDeckId }: { open: boolea
 }
 
 function ImportForm({ onDone, defaultDeckId }: { onDone: () => void; defaultDeckId?: string }) {
+  const language = useLanguage()
   const decks = useDecks()
   const { toast } = useFeedback()
   const [loaded, setLoaded] = useState<Loaded | null>(null)
@@ -169,8 +170,8 @@ function ImportForm({ onDone, defaultDeckId }: { onDone: () => void; defaultDeck
                 <thead className="sticky top-0 bg-soft text-chip text-muted">
                   <tr>
                     <th className="w-10 px-3 py-2 font-medium" aria-label="Picture" />
-                    <th className="px-3 py-2 font-medium">German</th>
-                    <th className="px-3 py-2 font-medium">English</th>
+                    <th className="px-3 py-2 font-medium">{language.name}</th>
+                    <th className="px-3 py-2 font-medium">{language.native.name}</th>
                     <th className="hidden px-3 py-2 font-medium sm:table-cell">Deck</th>
                   </tr>
                 </thead>

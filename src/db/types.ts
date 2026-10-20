@@ -60,6 +60,10 @@ export interface ActiveTimer {
   note: string
 }
 
+/**
+ * The names are from before language packs: "De" is the language you learn
+ * and "En" your own, whatever they are.
+ */
 export type Direction = 'imageToDe' | 'enToDe' | 'deToEn' | 'cloze'
 export type DeckDirections = { imageToDe: boolean; enToDe: boolean; deToEn: boolean }
 
@@ -91,8 +95,13 @@ export interface Card {
   id: string
   deckId: string
   type: CardType
+  /** The meaning in your own language. Named from before language packs, like `german`. */
   english: string
-  /** Word without its article. Cloze cards use {{word}} markers. */
+  /**
+   * The word or sentence in the language you learn. A German noun leaves its
+   * article to `gender`; other languages write it here. Cloze cards use
+   * {{word}} markers.
+   */
   german: string
   gender?: Gender
   plural?: string
@@ -158,9 +167,9 @@ export type StoryLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'
 export interface Story {
   id: string
   title: string
-  /** German text. A blank line starts a new paragraph. */
+  /** In the language you learn. A blank line starts a new paragraph. */
   text: string
-  /** English translation. Shown paragraph by paragraph when it has as many paragraphs as the text. */
+  /** Translation into your own language. Shown paragraph by paragraph when it has as many paragraphs as the text. */
   translation?: string
   level?: StoryLevel
   /** Reading time counts toward this topic. */
@@ -178,7 +187,7 @@ export interface Question {
   id: string
   /** Group name, e.g. "Sich vorstellen". Practice takes one set or all of them. */
   set: string
-  /** German question. */
+  /** In the language you learn. */
   question: string
   english?: string
   /** The user's own answer, about their life. The one they practise. */
@@ -217,7 +226,7 @@ export interface DrillStat {
   lastAt: number
 }
 
-/** A German sentence and its English. */
+/** A sentence in the language you learn (`de`) and its meaning in your own (`en`). */
 export interface GrammarExample {
   de: string
   en?: string
@@ -251,7 +260,7 @@ export interface TopicDrill {
 /** A grammar topic: the rule, examples and exercises. Stands on its own; `drill` adds questions from your cards. */
 export interface GrammarTopic {
   id: string
-  /** German name, e.g. "Der Dativ". */
+  /** Name in the language you learn, e.g. "Der Dativ". */
   title: string
   english?: string
   /** Section on the Grammar page, e.g. "Cases". */
@@ -326,7 +335,7 @@ export interface Task {
 }
 
 export type EndSound = 'bell' | 'chime' | 'none'
-/** Where German audio comes from: the browser's voices or the offline Thorsten voice. */
+/** Where audio comes from: the browser's voices or the offline Thorsten voice (German only). */
 export type VoiceEngine = 'browser' | 'thorsten'
 export type ThemePref = 'light' | 'dark' | 'system'
 
@@ -349,6 +358,12 @@ export interface Settings {
   theme: ThemePref
   remindersEnabled: boolean
   reminderTimes: string[]
+  /** The language you learn: a pack code such as "fr". */
+  learning: string
+  /** Your own language, which meanings and explanations are written in. */
+  native: string
+  /** Levels installed from the pack, easiest first. */
+  levels: StoryLevel[]
 }
 
 export interface KV {

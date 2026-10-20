@@ -1,7 +1,6 @@
-import type { GrammarTopic, StoryLevel, TopicDrill } from '@/db/types'
+import type { StarterTopic } from '@/data/grammar'
+import type { StoryLevel, TopicDrill } from '@/db/types'
 import { parseLine } from '@/lib/grammar'
-
-export type StarterTopic = Omit<GrammarTopic, 'createdAt' | 'updatedAt'>
 
 interface Meta {
   title: string

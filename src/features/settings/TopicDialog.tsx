@@ -7,7 +7,7 @@ import { DurationInput, Field, Input, Switch } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
 import type { Topic, TopicColor, WeekGoals } from '@/db/types'
 import { createTopic, deleteTopic, updateTopic } from '@/data/topics'
-import { useTopics } from '@/data/hooks'
+import { useLanguage, useTopics } from '@/data/hooks'
 import { nextTopicColor, TOPIC_COLOR_NAME, TOPIC_COLORS, topicVars } from '@/lib/colors'
 import { uniformGoals } from '@/lib/goals'
 import { WEEKDAY_LONG, WEEKDAYS } from '@/lib/time'
@@ -23,6 +23,7 @@ export function TopicDialog({ topicId, open, onClose }: { topicId: string | null
 }
 
 function TopicForm({ topic, usedColors, onDone }: { topic?: Topic; usedColors: TopicColor[]; onDone: () => void }) {
+  const language = useLanguage()
   const { toast, confirm } = useFeedback()
   const [name, setName] = useState(topic?.name ?? '')
   const [color, setColor] = useState<TopicColor>(topic?.color ?? nextTopicColor(usedColors))
@@ -75,7 +76,7 @@ function TopicForm({ topic, usedColors, onDone }: { topic?: Topic; usedColors: T
             setName(e.target.value)
             setError('')
           }}
-          placeholder="German"
+          placeholder={language.name}
           maxLength={40}
         />
       </Field>
@@ -102,7 +103,7 @@ function TopicForm({ topic, usedColors, onDone }: { topic?: Topic; usedColors: T
         </div>
       </Field>
       <div className="flex flex-col gap-3 rounded-row bg-field px-4 py-3.5">
-        <Switch label="Different goal per weekday" description="For example more German on Saturdays." checked={perDay} onChange={setPerDay} />
+        <Switch label="Different goal per weekday" description={`For example more ${language.name} on Saturdays.`} checked={perDay} onChange={setPerDay} />
         {perDay ? (
           <div className="flex flex-col gap-2 pt-1">
             {WEEKDAYS.map((d) => (

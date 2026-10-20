@@ -4,7 +4,7 @@
 
 # Lernzeit
 
-**A quiet study companion for daily German and AI learning.**
+**A quiet study companion for learning a language: German, French, Spanish, Arabic or English.**
 
 Flashcards with spaced repetition, daily goals per topic, a focus timer, streaks and charts, and a to-do board.<br />
 Everything lives in your browser, works offline, and installs on your phone.
@@ -15,7 +15,7 @@ Everything lives in your browser, works offline, and installs on your phone.
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-22302A?style=flat-square&logo=tailwindcss&logoColor=white)
 ![PWA](https://img.shields.io/badge/PWA-offline_ready-22302A?style=flat-square&logo=pwa&logoColor=white)
 
-[Features](#features) · [Quick start](#quick-start) · [Install on your phone](#install-on-your-phone) · [AI connection](#ai-connection) · [Shortcuts](#keyboard-shortcuts) · [Project structure](#project-structure)
+[Features](#features) · [Languages](#languages) · [Quick start](#quick-start) · [Install on your phone](#install-on-your-phone) · [AI connection](#ai-connection) · [Shortcuts](#keyboard-shortcuts) · [Project structure](#project-structure)
 
 <br />
 
@@ -27,6 +27,7 @@ Everything lives in your browser, works offline, and installs on your phone.
 
 ## At a glance
 
+- **Your language, your level.** Lernzeit starts empty and asks what you want to learn, in which language you want it explained, and your level. Then it adds words, stories, questions and grammar for it.
 - **Local-first.** No account and no server. Your cards, sessions and tasks are stored in IndexedDB.
 - **Works offline.** A service worker caches the app, and the Geist font is bundled.
 - **Remembers for you.** Cards are scheduled with FSRS, so you review each word right before you'd forget it.
@@ -76,7 +77,7 @@ Shows progress per topic with the time left, start buttons, today's sessions, ca
 - **No word twice in a row.** After a card, the next one is always a different word, even after **Again** or when another direction of the same word is waiting. A word repeats only when it is the last one left in the session.
 - **Typing mode** accepts small slips (`ue` for `ü`, a missing umlaut, lowercase, a missing article), then shows the exact spelling and highlights the wrong letters.
 - **Listening mode** plays the German and you type what you hear. Speed buttons (0.6×, 0.8×, 1×, 1.2×) sit next to the speaker.
-- **Thorsten voice (offline).** A natural German voice that runs on your device, for every speaker button: cards, stories and questions. Pick it under Settings → German voice; it downloads once (63 MB) and then needs no internet, key or account. Each clip is made once and saved, and Review makes the next card's audio while you think. The browser voice speaks until the download is done. Voice by Thorsten Müller ([Thorsten-Voice](https://github.com/thorstenMueller/Thorsten-Voice), public domain).
+- **Thorsten voice (offline).** A natural German voice that runs on your device, for every speaker button when you learn German: cards, stories and questions. Pick it under Settings → German voice; it downloads once (63 MB) and then needs no internet, key or account. Each clip is made once and saved, and Review makes the next card's audio while you think. The browser voice speaks until the download is done. Voice by Thorsten Müller ([Thorsten-Voice](https://github.com/thorstenMueller/Thorsten-Voice), public domain).
 - **Mute** stops the German from playing by itself when the answer is shown. The speaker button still plays it when you tap it. It is the same switch as *Play audio when the answer is shown* in Settings.
 - Add images by uploading, pasting with <kbd>Ctrl</kbd>+<kbd>V</kbd> or dropping a file. They are resized to 600 px wide WebP before saving. A card can use an emoji instead, and the editor links to an image search for the word.
 - The **+** button quick-adds an English and German pair, tagged `incomplete`.
@@ -149,9 +150,25 @@ Four columns: Backlog, To do, Doing and Done. Drag cards between columns and reo
 <summary><b>Settings</b></summary>
 <br />
 
-Topics and per-weekday goals, decks, Pomodoro lengths, end sound, German voice (browser or the offline Thorsten voice) and speed, typing and listening modes, which study time counts automatically (reviews, reading, question practice, grammar practice), light/dark/system theme, goal reminders, JSON backup and restore, "protect storage" and reset.
+The language you learn and its levels, topics and per-weekday goals, decks, Pomodoro lengths, end sound, the voice (browser, or the offline Thorsten voice for German) and speed, typing and listening modes, which study time counts automatically (reviews, reading, question practice, grammar practice), light/dark/system theme, goal reminders, JSON backup and restore, "protect storage" and reset.
 
 </details>
+
+## Languages
+
+On the first visit **Welcome** asks for the language you want to learn, your own language and your level, then installs that level of the language's pack: word and sentence decks, short stories, speaking questions and grammar topics, with a topic for your study time. **Settings → Language** adds more levels.
+
+| Learn | Explained in | Levels |
+|---|---|---|
+| German | English | A1, A2, B1 |
+| French | English | A1, A2 |
+| Spanish | English | A1, A2 |
+| Arabic | English | A1, A2 |
+| English | Arabic, French, Spanish, German | A1, A2 |
+
+Labels, the voice, typing mode and story highlights follow the language, and Arabic runs right to left. The app's own words stay in English, and German keeps its extras: gender colours, conjugation drills and the Thorsten voice. One language at a time: to switch, back up and delete all data, and Welcome asks again.
+
+Add a language with `npm run lang:add -- <code>`. It starts a pack in `src/languages/<code>`, the app finds it by itself, and `npm test` says what the pack still needs. [docs/languages.md](docs/languages.md) explains packs and the script.
 
 ## Quick start
 
@@ -171,9 +188,30 @@ Then open [http://localhost:5173](http://localhost:5173).
 | `npm run dev` | Starts the dev server |
 | `npm run build` | Type-checks and builds to `dist/`, including the service worker |
 | `npm run preview` | Serves the production build on http://localhost:4173 |
+| `npm start` | Builds if the code changed, then serves and opens the production build (the same as `lz`) |
 | `npm test` | Runs the unit tests (Vitest) |
 | `npm run lint` | Runs ESLint |
 | `npm run typecheck` | Runs the TypeScript compiler only |
+| `npm run lang:add -- <code>` | Starts a language pack in `src/languages/<code>` (see [Languages](#languages)) |
+
+### The `lz` command
+
+To start Lernzeit from any folder, link it once in the project folder:
+
+```bash
+npm link
+```
+
+| Command | What it does |
+|---|---|
+| `lz` | Builds when the code changed since the last build, then serves the production build on http://localhost:5173 and opens it. Stop it with <kbd>Ctrl</kbd>+<kbd>C</kbd> |
+| `lz --build` | Builds again even when nothing changed |
+| `lz <script>` | Runs any npm script of the project, such as `lz dev` or `lz test`. Extra words go to the script |
+
+If Lernzeit is already running, `lz` only opens it. `lz` runs the TypeScript file directly, so it needs Node 22.18 or newer, like the [MCP server](#ai-connection). `npm unlink -g lernzeit` removes it.
+
+> [!NOTE]
+> `lz` uses the dev server's port on purpose: the browser keeps data per address, so the build and `npm run dev` see the same cards and history. Only one of them can run at a time, and `lz` says so when the dev server is running. The build installs a service worker for offline use; the next time the dev server runs, it replaces that worker with one that removes itself, and the page reloads once.
 
 ## Install on your phone
 
@@ -192,22 +230,19 @@ Set it up in two steps: add the server to your AI app with a token, then turn on
 
 ## Starter content
 
-On first launch Lernzeit creates two topics, **German** (150 min a day) and **AI** (120 min a day), plus these decks:
+The packs are the starter content: nothing is added until you pick a language. [docs/languages.md](docs/languages.md) lists what each level holds.
+
+The German pack is the data Lernzeit always had:
 
 | Deck | Cards | Source |
 |---|---:|---|
-| My Words | 53 | Your personal word list, kept in its order. Words that were also in the starter pack were moved here, so nothing is learned twice |
-| German Top Words | 562 | `src/db/starter/german-starter.json` |
-| German Everyday Sentences | 54 | `src/db/starter/german-starter.json` |
-| AI terms | 0 | Empty, ready for your own cards |
+| My Words | 53 | Your personal word list, kept in its order. Words that were also in the top words were moved here, so nothing is learned twice |
+| German Top Words | 562 | `src/languages/de/words.json` |
+| German Everyday Sentences | 54 | `src/languages/de/words.json` |
 
-Each card uses its emoji as its picture. Nine words use the illustrations from the design mockups instead, and cards without a picture show their first letter. Image → German is only asked for nouns, because an emoji for a verb or adjective could mean several words. A **Show a hint** link helps when a picture is ambiguous.
+Each card uses its emoji as its picture. Nine German words use the illustrations from the design mockups instead, and cards without a picture show their first letter. Image → word is only asked for nouns, because an emoji for a verb or adjective could mean several words. A **Show a hint** link helps when a picture is ambiguous.
 
-Deleted some starter cards? **Settings → Decks → Starter decks** adds them back without creating duplicates.
-
-There are also 103 short stories written with these words: three longer ones to start with, then 100 easy A1 stories about home and family, food, town and travel, and work, school and free time. **Stories → Starter stories** adds back any that are missing.
-
-And 45 questions in six sets, each with its English, a suggested answer and useful words: *Sich vorstellen*, *Familie und Freunde*, *Freizeit*, *Arbeit und Schule*, *Wohnen und Alltag* and *Beim Arzt und auf dem Amt*. **Questions → Starter questions** adds back any that are missing.
+German also has 103 short stories written with these words, 45 questions in six sets (*Sich vorstellen*, *Familie und Freunde*, *Freizeit*, *Arbeit und Schule*, *Wohnen und Alltag*, *Beim Arzt und auf dem Amt*) and the 27 grammar topics. Deleted some? **Stories → Starter stories**, **Questions → Starter questions** and **Grammar → Starter topics** add back the missing ones of the levels you have; installing a level again adds back its cards.
 
 ### Bring your own cards
 
@@ -240,16 +275,20 @@ src/
 ├── bridge/       The AI connection: messages shared with mcp/, actions, WebSocket client
 ├── components/   Shared UI: buttons, dialogs, form controls, chips, station clock, card image
 ├── data/         Database actions (timer, cards, topics, tasks, import/export), speaking with saved clips, and React hooks
-├── db/           Dexie schema, types, first-run seed
-├── features/     One folder per page: today, timer, flashcards, grammar, stories, questions, history, board, settings
+├── db/           Dexie schema and types
+├── features/     One folder per page: today, timer, flashcards, grammar, stories, questions, history, board, settings,
+│                 and the Welcome dialog that picks a language
+├── languages/    The language packs, one folder per language, found by their files
 ├── lib/          Pure logic: time maths, goals and streaks, FSRS wrapper, review queue,
 │                 answer checking, German helpers, grammar topics and practice rounds, story word matching,
 │                 question practice order, image resizing, browser speech, the Thorsten voice worker, sounds
 └── index.css     Design tokens (colours, type scale, radii) for light and dark themes
+bin/              The `lz` command: builds when needed and serves the production build
+scripts/          `lang:add`: starts a language pack
 mcp/              MCP server for AI apps (an npm workspace)
 ```
 
-The logic that decides correctness lives in `src/lib` and `src/data` as plain functions, covered by `src/lib/core.test.ts`, `src/lib/grammar.test.ts`, `src/lib/drills.test.ts`, `src/lib/conjugation.test.ts`, `src/lib/reader.test.ts`, `src/lib/questions.test.ts` and `src/data/data.test.ts`. The data tests run against an in-memory IndexedDB.
+The logic that decides correctness lives in `src/lib` and `src/data` as plain functions, covered by `src/lib/core.test.ts`, `src/lib/grammar.test.ts`, `src/lib/drills.test.ts`, `src/lib/conjugation.test.ts`, `src/lib/reader.test.ts`, `src/lib/questions.test.ts`, `src/data/data.test.ts` and `src/data/languages.test.ts`. The data tests run against an in-memory IndexedDB. `src/languages/languages.test.ts` checks every language pack.
 
 ## Tech stack
 

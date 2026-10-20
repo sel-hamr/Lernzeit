@@ -5,3 +5,4 @@ dev-dist
 .DS_Store
 *.tsbuildinfo
 .playwright-mcp
+.superpowers

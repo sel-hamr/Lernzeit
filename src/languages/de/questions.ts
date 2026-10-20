@@ -1,6 +1,5 @@
-import type { Question, StoryLevel } from '@/db/types'
-
-export type StarterQuestion = Pick<Question, 'id' | 'set' | 'question' | 'english' | 'suggested' | 'words' | 'level' | 'tags'>
+import type { StarterQuestion } from '@/data/questions'
+import type { StoryLevel } from '@/db/types'
 
 type Entry = [n: number, question: string, english: string, suggested: string, words: string[]]
 

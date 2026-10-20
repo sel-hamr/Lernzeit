@@ -3,6 +3,35 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import type { Plugin } from 'vite'
+
+/**
+ * `lz` serves the build on the dev server's port, so the build's service worker stays registered
+ * there and would keep showing that build instead of the dev server. The browser checks /sw.js for
+ * an update on every visit; the dev server answers with this one, which drops the build's cached
+ * files (not the voice runtime), removes itself and reloads the open tabs.
+ */
+const REMOVE_SERVICE_WORKER = `
+self.addEventListener('install', () => self.skipWaiting())
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    for (const key of await caches.keys()) if (key.startsWith('workbox-precache')) await caches.delete(key)
+    await self.registration.unregister()
+    for (const client of await self.clients.matchAll({ type: 'window' })) client.navigate(client.url)
+  })())
+})
+`
+
+const removeBuildServiceWorker: Plugin = {
+  name: 'lernzeit:remove-build-service-worker',
+  configureServer(server) {
+    server.middlewares.use('/sw.js', (_request, response) => {
+      response.setHeader('Content-Type', 'text/javascript')
+      response.setHeader('Cache-Control', 'no-store')
+      response.end(REMOVE_SERVICE_WORKER)
+    })
+  },
+}
 
 export default defineConfig(({ command }) => ({
   define: {
@@ -16,6 +45,7 @@ export default defineConfig(({ command }) => ({
   plugins: [
     react(),
     tailwindcss(),
+    removeBuildServiceWorker,
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon-180x180.png'],
@@ -66,6 +96,9 @@ export default defineConfig(({ command }) => ({
   },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'bin/**/*.test.ts', 'scripts/**/*.test.ts'],
+    // A cached module keeps the files its import.meta.glob found, so a language pack added
+    // since (src/languages) would be left out of the tests that check every pack.
+    fsModuleCache: false,
   },
 }))

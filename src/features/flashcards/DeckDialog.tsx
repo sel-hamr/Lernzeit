@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Field, Input, Select, Switch } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
 import { createDeck, deleteDeck, updateDeck } from '@/data/cards'
-import { useCards, useDecks, useTopics } from '@/data/hooks'
+import { useCards, useDecks, useLanguage, useTopics } from '@/data/hooks'
 import type { Deck, DeckDirections } from '@/db/types'
 
 /** Create a deck (deckId = null) or edit one: name, topic, daily limits and practice directions. */
@@ -22,6 +22,7 @@ export function DeckDialog({ deckId, open, onClose, onCreated }: { deckId: strin
 function DeckForm({ deck, onDone, onCreated }: { deck?: Deck; onDone: () => void; onCreated?: (deck: Deck) => void }) {
   const topics = useTopics()
   const cards = useCards()
+  const language = useLanguage()
   const { toast, confirm } = useFeedback()
   const [name, setName] = useState(deck?.name ?? '')
   const [topicId, setTopicId] = useState(deck?.topicId ?? topics[0]?.id ?? '')
@@ -71,7 +72,7 @@ function DeckForm({ deck, onDone, onCreated }: { deck?: Deck; onDone: () => void
     <form onSubmit={submit} className="flex flex-col gap-5">
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Name" htmlFor="deck-name">
-          <Input id="deck-name" autoFocus={!deck} value={name} onChange={(e) => setName(e.target.value)} placeholder="German A1" />
+          <Input id="deck-name" autoFocus={!deck} value={name} onChange={(e) => setName(e.target.value)} placeholder={`${language.name} A1`} />
         </Field>
         <Field label="Review time counts toward" htmlFor="deck-topic">
           <Select id="deck-topic" value={topicId} onChange={(e) => setTopicId(e.target.value)}>
@@ -92,9 +93,9 @@ function DeckForm({ deck, onDone, onCreated }: { deck?: Deck; onDone: () => void
       </div>
       <div className="flex flex-col gap-1 rounded-row bg-field px-4 py-3">
         <div className="pb-1 text-small font-medium text-ink-2">Practice directions</div>
-        <Switch label="Image → German" description="Only the image is shown; answer in German. Needs an image." checked={directions.imageToDe} onChange={toggle('imageToDe')} />
-        <Switch label="English → German" description="Sentence cards always use this direction." checked={directions.enToDe} onChange={toggle('enToDe')} />
-        <Switch label="German → English" checked={directions.deToEn} onChange={toggle('deToEn')} />
+        <Switch label={`Image → ${language.name}`} description={`Only the image is shown; answer in ${language.name}. Needs an image.`} checked={directions.imageToDe} onChange={toggle('imageToDe')} />
+        <Switch label={`${language.native.name} → ${language.name}`} description="Sentence cards always use this direction." checked={directions.enToDe} onChange={toggle('enToDe')} />
+        <Switch label={`${language.name} → ${language.native.name}`} checked={directions.deToEn} onChange={toggle('deToEn')} />
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {deck && (

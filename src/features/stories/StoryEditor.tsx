@@ -4,7 +4,7 @@ import { Dialog } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select, Textarea } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
-import { useDecks, useTopics } from '@/data/hooks'
+import { useDecks, useLanguage, useLearningText, useTopics } from '@/data/hooks'
 import { deleteStory, parseLevel, pickStoryTopic, saveStory, STORY_LEVELS } from '@/data/stories'
 import type { Story } from '@/db/types'
 import { countWords, splitParagraphs } from '@/lib/reader'
@@ -32,6 +32,8 @@ export function StoryEditorDialog({
 }
 
 function StoryForm({ story, onClose, onSaved, onDeleted }: { story?: Story; onClose: () => void; onSaved?: (story: Story) => void; onDeleted?: () => void }) {
+  const learning = useLearningText()
+  const language = useLanguage()
   const decks = useDecks()
   const topics = useTopics()
   const { toast, confirm } = useFeedback()
@@ -82,7 +84,7 @@ function StoryForm({ story, onClose, onSaved, onDeleted }: { story?: Story; onCl
       className="flex flex-col gap-5"
     >
       <Field label="Title" htmlFor="story-title">
-        <Input id="story-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ein Tag in Berlin" autoComplete="off" lang="de" autoFocus={!story} />
+        <Input id="story-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={language.code === 'de' ? 'Ein Tag in Berlin' : undefined} autoComplete="off" {...learning} autoFocus={!story} />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Level" htmlFor="story-level">
@@ -107,22 +109,29 @@ function StoryForm({ story, onClose, onSaved, onDeleted }: { story?: Story; onCl
         </Field>
       </div>
       <Field
-        label="German text"
+        label={`${language.name} text`}
         htmlFor="story-text"
         hint={text.trim() ? `${count(paragraphs, 'paragraph')} · ${count(countWords(text), 'word')}. Leave an empty line between paragraphs.` : 'Leave an empty line between paragraphs.'}
       >
-        <Textarea id="story-text" rows={10} value={text} onChange={(e) => setText(e.target.value)} lang="de" placeholder="Anna wohnt in Berlin. Sie hat einen Hund." />
+        <Textarea id="story-text" rows={10} value={text} onChange={(e) => setText(e.target.value)} {...learning} placeholder={language.code === 'de' ? 'Anna wohnt in Berlin. Sie hat einen Hund.' : undefined} />
       </Field>
       <Field
-        label="English translation (optional)"
+        label={`${language.native.name} translation (optional)`}
         htmlFor="story-translation"
         hint={
           translation.trim() && translated !== paragraphs
             ? `It has ${count(translated, 'paragraph')} and the text has ${paragraphs}, so it shows after the story instead of under each paragraph.`
-            : 'Give it the same paragraphs, and each one shows under its German paragraph.'
+            : `Give it the same paragraphs, and each one shows under its ${language.name} paragraph.`
         }
       >
-        <Textarea id="story-translation" rows={6} value={translation} onChange={(e) => setTranslation(e.target.value)} placeholder="Anna lives in Berlin. She has a dog." />
+        <Textarea
+          id="story-translation"
+          rows={6}
+          value={translation}
+          onChange={(e) => setTranslation(e.target.value)}
+          placeholder={language.native.code === 'en' ? 'Anna lives in Berlin. She has a dog.' : undefined}
+          dir="auto"
+        />
       </Field>
 
       <div className="sticky bottom-0 z-10 -mx-6 -mb-5 flex flex-wrap items-center gap-2 border-t border-line bg-soft px-6 py-3.5 pb-[max(14px,env(safe-area-inset-bottom))]">

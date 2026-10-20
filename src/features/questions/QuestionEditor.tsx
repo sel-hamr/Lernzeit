@@ -4,7 +4,7 @@ import { Dialog } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select, Textarea } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
-import { useQuestions } from '@/data/hooks'
+import { useLanguage, useLearningText, useQuestions } from '@/data/hooks'
 import { DEFAULT_SET, deleteQuestion, parseWords, saveQuestion } from '@/data/questions'
 import { parseLevel, STORY_LEVELS } from '@/data/stories'
 import type { Question } from '@/db/types'
@@ -26,6 +26,9 @@ export function QuestionEditorDialog(props: EditorProps) {
 }
 
 function QuestionEditor({ open, question, set: startSet, onClose, onDeleted }: EditorProps) {
+  const learning = useLearningText()
+  const language = useLanguage()
+  const de = language.code === 'de'
   const questions = useQuestions()
   const { toast, confirm } = useFeedback()
   const formId = useId()
@@ -100,19 +103,26 @@ function QuestionEditor({ open, question, set: startSet, onClose, onDeleted }: E
         className="flex flex-col gap-5"
       >
         <Field label="Question" htmlFor="question-text">
-          <Input id="question-text" value={text} onChange={(e) => setText(e.target.value)} placeholder="Was ist dein Beruf?" autoComplete="off" lang="de" autoFocus={!question} />
+          <Input id="question-text" value={text} onChange={(e) => setText(e.target.value)} placeholder={de ? 'Was ist dein Beruf?' : undefined} autoComplete="off" {...learning} autoFocus={!question} />
         </Field>
-        <Field label="English (optional)" htmlFor="question-english">
-          <Input id="question-english" value={english} onChange={(e) => setEnglish(e.target.value)} placeholder="What is your job?" autoComplete="off" />
+        <Field label={`${language.native.name} (optional)`} htmlFor="question-english">
+          <Input
+            id="question-english"
+            value={english}
+            onChange={(e) => setEnglish(e.target.value)}
+            placeholder={language.native.code === 'en' ? 'What is your job?' : undefined}
+            autoComplete="off"
+            dir="auto"
+          />
         </Field>
         <Field label="Your answer" htmlFor="question-mine" hint="Your real answer, about your life. This is the one you practise.">
-          <Textarea id="question-mine" rows={2} value={myAnswer} onChange={(e) => setMyAnswer(e.target.value)} placeholder="Ich bin Softwareentwickler." lang="de" />
+          <Textarea id="question-mine" rows={2} value={myAnswer} onChange={(e) => setMyAnswer(e.target.value)} placeholder={de ? 'Ich bin Softwareentwickler.' : undefined} {...learning} />
         </Field>
         <Field label="Suggested answer (optional)" htmlFor="question-suggested" hint="An example answer that shows the sentence pattern.">
-          <Textarea id="question-suggested" rows={2} value={suggested} onChange={(e) => setSuggested(e.target.value)} placeholder="Ich arbeite als Lehrerin." lang="de" />
+          <Textarea id="question-suggested" rows={2} value={suggested} onChange={(e) => setSuggested(e.target.value)} placeholder={de ? 'Ich arbeite als Lehrerin.' : undefined} {...learning} />
         </Field>
         <Field label="Useful words (optional)" htmlFor="question-words" hint="Separate them with commas. Practice offers them as hints, with the words of your answer.">
-          <Input id="question-words" value={words} onChange={(e) => setWords(e.target.value)} placeholder="Lehrer, die Ärztin, arbeiten als" autoComplete="off" lang="de" />
+          <Input id="question-words" value={words} onChange={(e) => setWords(e.target.value)} placeholder={de ? 'Lehrer, die Ärztin, arbeiten als' : undefined} autoComplete="off" {...learning} />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Set" htmlFor="question-set">

@@ -9,7 +9,7 @@ import { CardImage } from '@/components/CardImage'
 import { CardGerman } from '@/components/GermanWord'
 import { useUI } from '@/app/ui'
 import { createDeck, INCOMPLETE_TAG, saveCard } from '@/data/cards'
-import { useDecks, useSettings, useTopics } from '@/data/hooks'
+import { useDecks, useLanguage, useLearningText, useSettings, useTopics } from '@/data/hooks'
 import { STORY_TAG } from '@/data/stories'
 import type { Card, TopicColor } from '@/db/types'
 import { LAST_DECK_KEY } from '@/features/flashcards/QuickAdd'
@@ -28,6 +28,7 @@ const KNOWLEDGE_CHIP: Record<Knowledge, { label: string; color?: TopicColor }> =
 
 /** What a tapped word is: its card (or cards), or a form to add it to a deck. */
 export function WordPanel({ word, sentence, cardIds, vocabulary }: { word: string; sentence: string; cardIds: string[]; vocabulary: Vocabulary }) {
+  const learning = useLearningText()
   const settings = useSettings()
   // A word added here has no form that matches the text when it was saved in its base form.
   const [addedId, setAddedId] = useState<string>()
@@ -45,7 +46,7 @@ export function WordPanel({ word, sentence, cardIds, vocabulary }: { word: strin
     <div className="flex flex-col gap-5">
       {isForm && (
         <p className="px-2 text-small text-muted">
-          <span lang="de" className="font-medium text-ink">
+          <span {...learning} className="font-medium text-ink">
             {word}
           </span>{' '}
           in the story is a form of:
@@ -59,6 +60,8 @@ export function WordPanel({ word, sentence, cardIds, vocabulary }: { word: strin
 }
 
 function CardBlock({ card, knowledge, compact, onSpeak }: { card: Card; knowledge: Knowledge; compact: boolean; onSpeak: (text: string) => void }) {
+  const learning = useLearningText()
+  const language = useLanguage()
   const navigate = useNavigate()
   const chip = KNOWLEDGE_CHIP[knowledge]
   const kind = [wordKind(card), card.gender && GENDER_LABEL[card.gender]].filter(Boolean).join(', ')
@@ -72,14 +75,14 @@ function CardBlock({ card, knowledge, compact, onSpeak }: { card: Card; knowledg
       <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt={card.english} className={compact ? 'h-24' : 'h-40'} />
       <div className="flex items-start justify-between gap-3 px-2">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <h3 lang="de" className="text-[20px] leading-tight font-semibold tracking-[-0.01em]">
+          <h3 {...learning} className="text-[20px] leading-tight font-semibold tracking-[-0.01em]">
             <CardGerman card={card} />
           </h3>
           <div className="text-small text-muted">
             {card.english} · {kind}
           </div>
         </div>
-        <Button variant="outline" iconOnly aria-label="Play German audio" onClick={() => onSpeak(germanText(card))}>
+        <Button variant="outline" iconOnly aria-label={`Play ${language.name} audio`} onClick={() => onSpeak(germanText(card))}>
           <Volume2 size={18} strokeWidth={1.8} />
         </Button>
       </div>
@@ -98,7 +101,7 @@ function CardBlock({ card, knowledge, compact, onSpeak }: { card: Card; knowledg
           {rows.map(([label, value]) => (
             <div key={label} className="contents">
               <dt className="text-muted">{label}</dt>
-              <dd lang="de" className="text-right">
+              <dd {...learning} className="text-right">
                 {value}
               </dd>
             </div>
@@ -113,16 +116,18 @@ function CardBlock({ card, knowledge, compact, onSpeak }: { card: Card; knowledg
 }
 
 function UnknownWord({ word, sentence, onSpeak, onAdded }: { word: string; sentence: string; onSpeak: (text: string) => void; onAdded: (cardId: string) => void }) {
+  const learning = useLearningText()
+  const language = useLanguage()
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3 px-1">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <h3 lang="de" className="text-[22px] leading-tight font-semibold tracking-[-0.01em] break-words">
+          <h3 {...learning} className="text-[22px] leading-tight font-semibold tracking-[-0.01em] break-words">
             {word}
           </h3>
           <p className="text-small text-muted">Not in your decks yet.</p>
         </div>
-        <Button variant="outline" iconOnly aria-label="Play German audio" onClick={() => onSpeak(word)}>
+        <Button variant="outline" iconOnly aria-label={`Play ${language.name} audio`} onClick={() => onSpeak(word)}>
           <Volume2 size={18} strokeWidth={1.8} />
         </Button>
       </div>
@@ -141,6 +146,8 @@ function UnknownWord({ word, sentence, onSpeak, onAdded }: { word: string; sente
 
 /** Adds the word as a card, with the story's sentence as its example. */
 function AddWordForm({ word, sentence, onAdded }: { word: string; sentence: string; onAdded: (cardId: string) => void }) {
+  const learning = useLearningText()
+  const language = useLanguage()
   const decks = useDecks()
   const topics = useTopics()
   const { toast } = useFeedback()
@@ -158,7 +165,7 @@ function AddWordForm({ word, sentence, onAdded }: { word: string; sentence: stri
     if (!ready) return
     setSaving(true)
     try {
-      const target = effectiveDeck || (await createDeck({ name: 'German A1', topicId: topics[0]?.id })).id
+      const target = effectiveDeck || (await createDeck({ name: `${language.name} words`, topicId: topics[0]?.id })).id
       const card = await saveCard(
         { deckId: target, type: 'word', english, german, exampleDe: sentence, tags: [INCOMPLETE_TAG, STORY_TAG] },
         { kind: 'keep' },
@@ -176,11 +183,11 @@ function AddWordForm({ word, sentence, onAdded }: { word: string; sentence: stri
   return (
     <form onSubmit={submit} className="flex flex-col gap-3.5 rounded-row border border-line bg-soft p-4">
       <div className="text-small font-medium">Add it to a deck</div>
-      <Field label="German" htmlFor={`${id}-de`} hint="The base form, with the article for a noun: der Hund, gehen">
-        <Input id={`${id}-de`} value={german} onChange={(e) => setGerman(e.target.value)} autoComplete="off" lang="de" />
+      <Field label={language.name} htmlFor={`${id}-de`} hint={language.code === 'de' ? 'The base form, with the article for a noun: der Hund, gehen' : 'The base form, with the article for a noun'}>
+        <Input id={`${id}-de`} value={german} onChange={(e) => setGerman(e.target.value)} autoComplete="off" {...learning} />
       </Field>
-      <Field label="English" htmlFor={`${id}-en`}>
-        <Input id={`${id}-en`} value={english} onChange={(e) => setEnglish(e.target.value)} placeholder="Meaning" autoComplete="off" />
+      <Field label={language.native.name} htmlFor={`${id}-en`}>
+        <Input id={`${id}-en`} value={english} onChange={(e) => setEnglish(e.target.value)} placeholder="Meaning" autoComplete="off" dir="auto" />
       </Field>
       {decks.length > 1 && (
         <Field label="Deck" htmlFor={`${id}-deck`}>
@@ -195,7 +202,7 @@ function AddWordForm({ word, sentence, onAdded }: { word: string; sentence: stri
       )}
       <p className="text-chip text-muted">
         Example from the story:{' '}
-        <span lang="de" className="text-ink-2">
+        <span {...learning} className="text-ink-2">
           {sentence}
         </span>
       </p>

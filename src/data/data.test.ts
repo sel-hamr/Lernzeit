@@ -1,17 +1,19 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getActiveTimer, KV_KEYS, LernzeitDB } from '@/db/db'
-import { addStarterConjugations, ensureSeeded, installStarterPack } from '@/db/seed'
+import { seedGerman } from '@/test/fixtures'
+import { localizePack, loadPack, packInfo } from '@/languages'
+import { addStarterContent, addStarterConjugations, installLanguage, syncStarterTopics } from './languages'
 import { MINUTE } from '@/lib/time'
 import { completePhase, pauseTimer, resumeTimer, startTimer, stopTimer, getPendingNote, resolvePendingNote, recordReviewTime } from './timer'
 import { deleteCard, deleteDeck, gradeReview, quickAddCard, saveCard, undoGrade } from './cards'
 import { saveDrillAnswer } from './drills'
-import { DEFAULT_GROUP, deleteTopic, installStarterTopics, loadStarterTopics, saveExerciseAnswer, saveTopic, STARTER_GRAMMAR_VERSION, syncStarterTopics } from './grammar'
+import { DEFAULT_GROUP, deleteTopic, saveExerciseAnswer, saveTopic, STARTER_GRAMMAR_VERSION } from './grammar'
 import { createTask, setColumnOrder, toggleTaskDone } from './tasks'
 import { exportBackup, importCsvRows, parseCardPack, parseCardsCsv, prepareCardPack, restoreBackup, writeCardPack } from './io'
-import { deleteStory, installStarterStories, markStoryOpened, markStoryRead, parseLevel, saveStory } from './stories'
+import { deleteStory, markStoryOpened, markStoryRead, parseLevel, saveStory } from './stories'
 import { recordGrammarTime, recordQuestionTime, recordReadingTime } from './timer'
-import { DEFAULT_SET, deleteQuestion, installStarterQuestions, parseWords, saveQuestion, saveResponse } from './questions'
+import { DEFAULT_SET, deleteQuestion, parseWords, saveQuestion, saveResponse } from './questions'
 import { formsOf, TENSES } from '@/lib/conjugation'
 import { drillQuestions, pickRound } from '@/lib/drills'
 import { buildTopicRound, exerciseProblem, parseExercise, parseInline, parseRule, wordsOf } from '@/lib/grammar'
@@ -28,7 +30,7 @@ beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(at(2026, 10, 14, 14, 2))
   database = new LernzeitDB(`test-${counter++}`)
-  await ensureSeeded(database)
+  await seedGerman(database)
 })
 
 afterEach(async () => {
@@ -40,12 +42,16 @@ async function germanId() {
   return (await database.topics.orderBy('order').first())!.id
 }
 
-describe('seed', () => {
-  it('creates German (150 min) and AI (120 min) once', async () => {
-    await ensureSeeded(database)
+/** The German pack's grammar topics at every level, as they are installed. */
+async function germanTopics() {
+  return localizePack(packInfo('de')!, await loadPack('de'), 'en', ['A1', 'A2', 'B1']).topics
+}
+
+describe('German pack', () => {
+  it('creates one German topic, with half an hour a day, however many levels are installed', async () => {
     const topics = await database.topics.orderBy('order').toArray()
     expect(topics.map((t) => [t.name, t.goalMinutes.mon])).toEqual([
-      ['German', 150],
+      ['German', 30],
       ['AI', 120],
     ])
   })
@@ -79,18 +85,18 @@ describe('seed', () => {
     expect((await database.images.get(apple.imageId!))?.blob.type).toBe('image/svg+xml')
   })
 
-  it('can add the starter decks again without duplicating anything', async () => {
+  it('can install a level again without duplicating anything', async () => {
     const before = await database.cards.count()
-    const result = await installStarterPack(database)
-    expect(result.cards).toBe(0)
+    const result = await installLanguage({ learning: 'de', native: 'en', levels: ['A1'] }, database)
+    expect(result).toEqual({ cards: 0, stories: 0, questions: 0, topics: 0 })
     expect(await database.cards.count()).toBe(before)
     expect(await database.images.count()).toBe(9)
   })
 
-  it('restores deleted starter cards when the pack is installed again', async () => {
+  it('restores deleted starter cards when the level is installed again', async () => {
     await database.cards.delete('de-0046')
     await database.reviews.where('cardId').equals('de-0046').delete()
-    const result = await installStarterPack(database)
+    const result = await installLanguage({ learning: 'de', native: 'en', levels: ['A1'] }, database)
     expect(result.cards).toBe(1)
     expect((await database.cards.get('de-0046'))?.imageId).toBeDefined()
   })
@@ -314,9 +320,9 @@ describe('stories', () => {
     expect(stories.at(-1)?.id).toBe('story-0103')
     expect(stories.every((s) => s.topicId === stories[0].topicId && s.readCount === 0)).toBe(true)
     expect(stories[0].topicId).toBe(await germanId())
-    expect(await installStarterStories(database)).toBe(0)
+    expect(await addStarterContent('stories', database)).toBe(0)
     await deleteStory('story-0002', database)
-    expect(await installStarterStories(database)).toBe(1)
+    expect(await addStarterContent('stories', database)).toBe(1)
     expect(await database.stories.count()).toBe(103)
   })
 
@@ -348,7 +354,7 @@ describe('stories', () => {
     expect(edited.updatedAt).toBeGreaterThan(story.updatedAt)
     expect(edited.openedAt).toBe(at(2026, 10, 14, 14, 2).getTime())
     await expect(saveStory({ title: ' ', text: 'x', tags: [] }, undefined, database)).rejects.toThrow('title')
-    await expect(saveStory({ title: 'x', text: ' ', tags: [] }, undefined, database)).rejects.toThrow('German text')
+    await expect(saveStory({ title: 'x', text: ' ', tags: [] }, undefined, database)).rejects.toThrow('needs some text')
   })
 
   it('records reading time as one session that grows', async () => {
@@ -402,9 +408,9 @@ describe('questions', () => {
       expect(q.words?.length, q.id).toBeGreaterThanOrEqual(4)
       expect(q.myAnswer).toBeUndefined()
     }
-    expect(await installStarterQuestions(database)).toBe(0)
+    expect(await addStarterContent('questions', database)).toBe(0)
     await deleteQuestion('question-0004', database)
-    expect(await installStarterQuestions(database)).toBe(1)
+    expect(await addStarterContent('questions', database)).toBe(1)
     expect(await database.questions.count()).toBe(45)
   })
 
@@ -422,7 +428,7 @@ describe('questions', () => {
     const edited = await saveQuestion({ ...question, set: ' Arbeit  und Schule ', myAnswer: 'Ich bin Softwareentwickler.' }, question.id, database)
     expect(edited).toMatchObject({ id: question.id, set: 'Arbeit und Schule', createdAt: question.createdAt, myAnswer: 'Ich bin Softwareentwickler.' })
     expect(edited.updatedAt).toBeGreaterThan(question.updatedAt)
-    await expect(saveQuestion({ set: 'x', question: '  ', tags: [] }, undefined, database)).rejects.toThrow('German text')
+    await expect(saveQuestion({ set: 'x', question: '  ', tags: [] }, undefined, database)).rejects.toThrow('needs some text')
   })
 
   it('keeps every typed answer, and deletes them with their question', async () => {
@@ -555,7 +561,7 @@ describe('drills', () => {
 
 describe('grammar', () => {
   it('has well-formed starter topics: unique ids, a rule, examples and exercises that parse', async () => {
-    const topics = await loadStarterTopics()
+    const topics = await germanTopics()
     expect(topics.length).toBeGreaterThanOrEqual(25)
     const ids = topics.flatMap((t) => [t.id, ...t.exercises.map((e) => e.id)])
     expect(new Set(ids).size).toBe(ids.length)
@@ -592,18 +598,31 @@ describe('grammar', () => {
     }
   })
 
-  it('installs the starter topics once, and adds back deleted ones on request', async () => {
-    const all = (await loadStarterTopics()).length
+  it('installs the topics once in a German install from before packs, and adds back deleted ones on request', async () => {
+    const all = (await germanTopics()).length
+    // As seeded before the grammar course: no topics, and the grammar never synced.
+    await database.grammarTopics.clear()
+    await database.kv.delete(KV_KEYS.starterGrammar)
+    await database.kv.put({ key: KV_KEYS.seeded, value: Date.now() })
     expect(await syncStarterTopics(database)).toEqual({ added: all, updated: 0 })
     await deleteTopic('grammar-005', database)
     // Once means once: a deleted topic stays deleted until you ask for it.
     expect(await syncStarterTopics(database)).toEqual({ added: 0, updated: 0 })
-    expect(await installStarterTopics(database)).toBe(1)
+    expect(await addStarterContent('topics', database)).toBe(1)
     expect(await database.grammarTopics.count()).toBe(all)
   })
 
+  it('leaves a new install without topics: the packs bring their own', async () => {
+    const fresh = new LernzeitDB(`test-${counter++}`)
+    try {
+      expect(await syncStarterTopics(fresh)).toEqual({ added: 0, updated: 0 })
+      expect(await fresh.grammarTopics.count()).toBe(0)
+    } finally {
+      await fresh.delete()
+    }
+  })
+
   it('updates starter topics you did not edit to a newer version, keeping scores', async () => {
-    await syncStarterTopics(database)
     const plain = (await database.grammarTopics.get('grammar-001'))!
     const edited = (await database.grammarTopics.get('grammar-002'))!
     // As installed by an older version: fewer exercises, no explanations, one exercise since removed.
@@ -650,7 +669,6 @@ describe('grammar', () => {
   })
 
   it('mixes questions about your cards into a linked topic', async () => {
-    await installStarterTopics(database)
     const gender = (await database.grammarTopics.get('grammar-001'))!
     const round = buildTopicRound({ topic: gender, exerciseStats: new Map(), cards: await database.cards.toArray(), drillStats: [] })
     expect(round.filter((i) => i.question.kind === 'exercise')).toHaveLength(12)
@@ -673,7 +691,6 @@ describe('grammar', () => {
 
   it('backs up topics with their scores, and restores backups made before grammar', async () => {
     await database.images.clear()
-    await installStarterTopics(database)
     await saveExerciseAnswer('grammar-001', 'grammar-001-01', false, database)
     const backup = await exportBackup(database)
     expect(backup.grammarTopics?.length).toBeGreaterThanOrEqual(25)

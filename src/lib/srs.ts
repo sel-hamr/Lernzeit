@@ -97,11 +97,17 @@ export function directionsFor(card: Pick<Card, 'type' | 'imageId' | 'emoji' | 'g
   return dirs
 }
 
-export const DIRECTION_LABEL: Record<Direction, string> = {
-  imageToDe: 'Image → German',
-  enToDe: 'English → German',
-  deToEn: 'German → English',
-  cloze: 'Cloze',
+/**
+ * "English → French". The ids say German and English from before language
+ * packs; they stand for the language you learn and your own.
+ */
+export function directionLabel(direction: Direction, names: { learning: string; native: string }): string {
+  return {
+    imageToDe: `Image → ${names.learning}`,
+    enToDe: `${names.native} → ${names.learning}`,
+    deToEn: `${names.learning} → ${names.native}`,
+    cloze: 'Cloze',
+  }[direction]
 }
 
 export function reviewId(cardId: string, direction: Direction): string {

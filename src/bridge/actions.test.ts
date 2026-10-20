@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LernzeitDB } from '@/db/db'
-import { ensureSeeded } from '@/db/seed'
+import { seedGerman } from '@/test/fixtures'
 import { AI_TAG, handleRequest, runAction } from './actions'
 import { BridgeError, type BridgeErrorCode } from './protocol'
 
@@ -12,7 +12,7 @@ beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date(2026, 9, 15, 10, 0))
   database = new LernzeitDB(`bridge-test-${counter++}`)
-  await ensureSeeded(database)
+  await seedGerman(database)
 })
 
 afterEach(async () => {
@@ -159,6 +159,9 @@ describe('create_story', () => {
 })
 
 describe('grammar', () => {
+  // Only the topics the AI adds.
+  beforeEach(() => database.grammarTopics.clear())
+
   const exercise = { text: 'Ich helfe {{dem|den}} Mann.', en: 'I help the man.', why: 'helfen takes the dative.' }
 
   it('starts a new topic with its rule, examples and exercises', async () => {

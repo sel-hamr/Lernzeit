@@ -1,11 +1,16 @@
 import { db, newId, type LernzeitDB } from '@/db/db'
-import type { StarterStory } from '@/db/starter/stories'
 import type { Deck, Story, StoryLevel, Topic } from '@/db/types'
 
 /** Cards added from the reader get this tag, so they are easy to find in the Library. */
 export const STORY_TAG = 'story'
 
 export const STORY_LEVELS: StoryLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+
+/** A story from a language pack, as it is installed. */
+export interface StarterStory extends Pick<Story, 'id' | 'title' | 'text' | 'translation' | 'level' | 'tags'> {
+  /** Topic name; reading time counts toward it. */
+  topic: string
+}
 
 export type StoryInput = Pick<Story, 'title' | 'text' | 'translation' | 'level' | 'topicId' | 'tags'>
 
@@ -15,7 +20,7 @@ export function parseLevel(value: string | undefined): StoryLevel | undefined {
   return STORY_LEVELS.find((l) => l === level)
 }
 
-/** Reading time goes to the topic of the first deck that has one (German, out of the box), else the first topic. */
+/** Reading time goes to the topic of the first deck that has one (the language's, out of the box), else the first topic. */
 export function pickStoryTopic(decks: Pick<Deck, 'topicId'>[], topics: Pick<Topic, 'id' | 'archived'>[]): string | undefined {
   const active = topics.filter((t) => !t.archived)
   return decks.map((d) => d.topicId).find((id) => active.some((t) => t.id === id)) ?? active[0]?.id
@@ -40,7 +45,7 @@ function normalizeStory(input: StoryInput): StoryInput {
 export async function saveStory(input: StoryInput, existingId?: string, database: LernzeitDB = db): Promise<Story> {
   const data = normalizeStory(input)
   if (!data.title) throw new Error('A story needs a title')
-  if (!data.text) throw new Error('A story needs some German text')
+  if (!data.text) throw new Error('A story needs some text')
   return database.transaction('rw', database.stories, async () => {
     const now = Date.now()
     const previous = existingId ? await database.stories.get(existingId) : undefined
@@ -72,19 +77,8 @@ export async function markStoryRead(id: string, database: LernzeitDB = db) {
   })
 }
 
-/** The bundled starter stories, loaded on demand so they stay out of the main bundle. */
-export async function loadStarterStories(): Promise<StarterStory[]> {
-  const { STARTER_STORIES } = await import('@/db/starter/stories')
-  return STARTER_STORIES
-}
-
-/**
- * Adds the starter stories that are missing. Returns how many were added.
- * Inside another transaction, pass `stories` loaded beforehand: a transaction
- * cannot wait for a module to load.
- */
-export async function installStarterStories(database: LernzeitDB = db, stories?: StarterStory[]): Promise<number> {
-  const starter = stories ?? (await loadStarterStories())
+/** Adds the starter stories that are missing. Returns how many were added. */
+export async function installStarterStories(starter: StarterStory[], database: LernzeitDB = db): Promise<number> {
   return database.transaction('rw', [database.stories, database.topics], async () => {
     const present = new Set((await database.stories.bulkGet(starter.map((s) => s.id))).filter((s) => !!s).map((s) => s.id))
     const topics = await database.topics.toArray()

@@ -85,7 +85,7 @@ function seededShuffle<T>(items: T[], seed: string): T[] {
 export function hintWords(question: Pick<Question, 'id' | 'words' | 'myAnswer' | 'suggested'>): string[] {
   const answer = (question.myAnswer ?? question.suggested ?? '')
     .split(/\s+/)
-    .map((w) => w.replace(/^[.,!?;:"„“”«»()]+|[.,!?;:"„“”«»()]+$/g, ''))
+    .map((w) => w.replace(/^[.,!?;:"„“”«»()¿¡،؟؛]+|[.,!?;:"„“”«»()¿¡،؟؛]+$/g, ''))
     .filter(Boolean)
   const seen = new Set<string>()
   return [...(question.words ?? []), ...seededShuffle(answer, question.id)].filter((w) => !seen.has(w.toLowerCase()) && seen.add(w.toLowerCase()))

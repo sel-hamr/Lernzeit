@@ -6,9 +6,9 @@ import { Field, Select } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
 import { updateSettings } from '@/db/db'
 import { clearClips } from '@/data/clips'
-import { useSettings } from '@/data/hooks'
+import { useLanguage, useSettings } from '@/data/hooks'
 import { speak, voiceOptions } from '@/data/voice'
-import { germanVoices, onVoicesChanged, speechSupported } from '@/lib/speech'
+import { onVoicesChanged, speechSupported, voicesFor } from '@/lib/speech'
 import { downloadThorsten, isThorstenDownloaded, removeThorsten, THORSTEN_SIZE_MB, thorstenSupported } from '@/lib/thorsten'
 
 type Status = 'checking' | 'missing' | 'downloading' | 'ready' | 'unsupported'
@@ -16,21 +16,27 @@ type Status = 'checking' | 'missing' | 'downloading' | 'ready' | 'unsupported'
 /** Select value for the Thorsten voice; browser voices use their voiceURI, "" is automatic. */
 const THORSTEN = 'thorsten'
 
-function useVoices() {
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>(() => germanVoices())
-  useEffect(() => onVoicesChanged(() => setVoices(germanVoices())), [])
-  return voices
+/** The browser's voices for a language. They load asynchronously, so a change renders again. */
+function useVoices(lang: string) {
+  const [, setLoads] = useState(0)
+  useEffect(() => onVoicesChanged(() => setLoads((n) => n + 1)), [])
+  return voicesFor(lang)
 }
 
 /**
- * One choice for the German voice: the offline Thorsten voice (downloaded the
- * first time it is picked) or one of the browser's voices.
+ * One choice for the voice of the language you learn: one of the browser's
+ * voices, or for German the offline Thorsten voice (downloaded the first time
+ * it is picked).
  */
 export function VoiceField() {
   const settings = useSettings()
-  const voices = useVoices()
+  const language = useLanguage()
+  const voices = useVoices(language.speech)
+  const german = language.code === 'de'
   const { toast, confirm } = useFeedback()
   const [status, setStatus] = useState<Status>(() => (thorstenSupported() ? 'checking' : 'unsupported'))
+  // Thorsten speaks German only.
+  const offerThorsten = german && status !== 'unsupported'
   const [progress, setProgress] = useState(0)
 
   useEffect(() => {
@@ -84,7 +90,7 @@ export function VoiceField() {
     else if (status === 'missing') void download()
   }
 
-  const thorstenOn = settings.voiceEngine === 'thorsten' && status === 'ready'
+  const thorstenOn = german && settings.voiceEngine === 'thorsten' && status === 'ready'
   const hint =
     status === 'downloading'
       ? `Downloading the Thorsten voice (${THORSTEN_SIZE_MB} MB). The browser voice speaks until it is ready.`
@@ -92,16 +98,18 @@ export function VoiceField() {
         ? 'Thorsten runs on this device and works without internet.'
         : !speechSupported()
           ? 'Speech is not supported in this browser.'
-          : !voices.length && status !== 'unsupported'
+          : !voices.length && offerThorsten
             ? `This browser has no German voice. Pick Thorsten for a natural one (${THORSTEN_SIZE_MB} MB download).`
-            : 'Voices come from your browser and system.'
+            : !voices.length
+              ? `This browser has no ${language.name} voice. Your system's language settings can add one.`
+              : 'Voices come from your browser and system.'
 
   return (
     <div className="flex flex-col gap-2">
-      <Field label="German voice" htmlFor="voice" hint={hint}>
+      <Field label={`${language.name} voice`} htmlFor="voice" hint={hint}>
         <div className="flex gap-2">
           <Select id="voice" className="flex-1" value={thorstenOn ? THORSTEN : (settings.voiceURI ?? '')} disabled={status === 'downloading'} onChange={(e) => choose(e.target.value)}>
-            {status !== 'unsupported' && (
+            {offerThorsten && (
               <option value={THORSTEN}>Thorsten · natural, offline{status === 'ready' ? '' : ` (download ${THORSTEN_SIZE_MB} MB)`}</option>
             )}
             <option value="">Browser · automatic</option>
@@ -111,7 +119,7 @@ export function VoiceField() {
               </option>
             ))}
           </Select>
-          <Button variant="outline" iconOnly aria-label="Test voice" onClick={() => speak('Der Hund spielt im Garten.', voiceOptions(settings))}>
+          <Button variant="outline" iconOnly aria-label="Test voice" onClick={() => speak(language.sample, voiceOptions(settings))}>
             <Volume2 size={17} strokeWidth={1.8} />
           </Button>
         </div>

@@ -1,9 +1,6 @@
-import type { Story } from '@/db/types'
+import type { StarterStory } from '@/data/stories'
 
-export interface StarterStory extends Pick<Story, 'id' | 'title' | 'text' | 'translation' | 'level' | 'tags'> {
-  /** Topic name; reading time counts toward it. */
-  topic: string
-}
+export type { StarterStory }
 
 /**
  * An easy A1 story, read toward German. `n` becomes its id (4 → story-0004),

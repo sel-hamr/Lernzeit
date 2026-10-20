@@ -11,7 +11,7 @@ There is no grading. You see the answers side by side and judge for yourself.
 | Practice logic | [src/lib/questions.ts](../src/lib/questions.ts) | Groups questions by set, picks the practice order, compares your answer with the one you wrote |
 | Data | [src/data/questions.ts](../src/data/questions.ts) | Save and delete questions, save responses, starter questions |
 | Active time | [src/data/studyTime.ts](../src/data/studyTime.ts) | Counts practice time while the page is in use, shared with story reading |
-| Starter questions | [src/db/starter/questions.ts](../src/db/starter/questions.ts) | 45 questions in six sets, with useful words, loaded on demand |
+| Starter questions | [src/languages/de/questions.ts](../src/languages/de/questions.ts) | The German pack's 45 questions in six sets, with useful words. Other packs have theirs in `src/languages/<code>/texts.ts` |
 | Pages | [src/features/questions/](../src/features/questions) | Questions list, editor, practice |
 | AI | [src/bridge/actions.ts](../src/bridge/actions.ts), [mcp/src/tools.ts](../mcp/src/tools.ts) | The `create_questions` tool and the `make_questions` prompt |
 
@@ -90,7 +90,7 @@ Questions are not flashcards: they have no FSRS reviews and no grades. So they h
 
 ## Starter questions
 
-Added on first launch. **Questions → Starter questions** adds back any that are missing, matched by id.
+Added with their level of the German pack ([languages.md](languages.md)). **Questions → Starter questions** adds back any that are missing from the levels you have, matched by id.
 
 | Set | Level | Questions |
 |---|---|---:|

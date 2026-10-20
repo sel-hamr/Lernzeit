@@ -86,13 +86,13 @@ export interface CreateCardsParams {
 export interface CreateCardsResult {
   deck: string
   added: number
-  /** German text of the cards that were already in the deck. */
+  /** Text of the cards that were already in the deck. */
   skipped: string[]
 }
 
 export interface CreateStoryParams {
   title: string
-  /** German text; an empty line starts a new paragraph. */
+  /** In the language you learn; an empty line starts a new paragraph. */
   text: string
   /** English translation with the same paragraphs. */
   translation?: string
