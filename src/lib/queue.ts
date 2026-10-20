@@ -149,6 +149,36 @@ export function buildPracticeQueue(opts: {
   return [...spreadSiblings(studied.slice(0, size)), ...spreadSiblings(fresh), ...spreadSiblings(recent)].slice(0, size)
 }
 
+/**
+ * The cards you picked in Flashcards, as one round: each card's practised
+ * directions (`directions`), in the order you picked them, one direction of
+ * every card before the second direction of any. Deleted cards are skipped.
+ */
+export function buildPickedQueue(opts: { reviews: CardReview[]; cardIds: string[]; directions: (cardId: string) => Direction[] }): CardReview[] {
+  const { reviews, cardIds, directions } = opts
+  const byCard = new Map<string, CardReview[]>()
+  for (const r of reviews) {
+    const list = byCard.get(r.cardId)
+    if (list) list.push(r)
+    else byCard.set(r.cardId, [r])
+  }
+  const picked: CardReview[] = []
+  for (const id of new Set(cardIds)) {
+    const dirs = directions(id)
+    const own = (byCard.get(id) ?? []).filter((r) => dirs.includes(r.direction))
+    picked.push(...own.sort((a, b) => DIRECTION_RANK[a.direction] - DIRECTION_RANK[b.direction]))
+  }
+  return spreadSiblings(picked)
+}
+
+/**
+ * Whether rating this review now studies it ahead of schedule: a known card
+ * that is not due yet. Such a rating is capped like a practice round's.
+ */
+export function studiesAhead(review: Pick<CardReview, 'state' | 'due'>, now: number): boolean {
+  return review.state === State.Review && review.due > now
+}
+
 /** What is left of a review session, as review ids. */
 export interface SessionQueue {
   main: string[]
