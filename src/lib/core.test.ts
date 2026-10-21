@@ -7,6 +7,7 @@ import { heatLevel, topicWeek, weekSummary } from './history'
 import { buildPickedQueue, buildPracticeQueue, buildQueue, pickNextReview, studiesAhead, usageToday } from './queue'
 import { pickedState, readPicked } from './picked'
 import { splitAtMidnight } from './sessions'
+import { shortVoiceName } from './speech'
 import { applyGrade, newFsrs, previewGrades, State } from './srs'
 import { addDays, dateKey, formatHM, formatTimer, startOfWeek, weekdayOf, DAY, MINUTE } from './time'
 import { elapsedMs, isPhaseComplete, pause, remainingMs, resume, studiedMinutes } from './timer'
@@ -27,6 +28,15 @@ describe('time', () => {
     expect(startOfWeek('2026-10-14')).toBe('2026-10-12')
     expect(startOfWeek('2026-10-18')).toBe('2026-10-12')
     expect(addDays('2026-10-31', 1)).toBe('2026-11-01')
+  })
+})
+
+describe('shortVoiceName', () => {
+  it('keeps the name of the voice, without the maker and the language', () => {
+    expect(shortVoiceName('Microsoft Katja Online (Natural) - German (Germany)')).toBe('Katja')
+    expect(shortVoiceName('Google Deutsch')).toBe('Deutsch')
+    expect(shortVoiceName('Anna')).toBe('Anna')
+    expect(shortVoiceName('Microsoft Hedda - German (Germany)')).toBe('Hedda')
   })
 })
 

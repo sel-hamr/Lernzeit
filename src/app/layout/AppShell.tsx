@@ -15,6 +15,7 @@ import { useUI } from '@/app/ui'
 import { AI_CONNECTION_ID } from '@/features/settings/AiConnectionGroup'
 import { NAV } from './nav'
 import { SearchBox } from './Search'
+import { HeaderVoiceSelect, SidebarVoiceSelect } from './VoiceSelect'
 
 function NavBadge({ count }: { count: number }) {
   if (!count) return null
@@ -168,6 +169,7 @@ function Sidebar() {
       </nav>
       {onFlashcards ? <DecksList /> : <GoalsToday />}
       <div className="mt-auto flex flex-col gap-2">
+        <SidebarVoiceSelect />
         <AiStatus />
         <DailyPlan />
       </div>
@@ -185,6 +187,7 @@ function MobileHeader() {
         <span className="text-[18px] font-semibold tracking-[-0.01em]">Lernzeit</span>
       </Link>
       <div className="flex items-center gap-1">
+        <HeaderVoiceSelect />
         <button
           type="button"
           aria-label="Search cards and tasks"

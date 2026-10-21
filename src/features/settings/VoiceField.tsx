@@ -6,22 +6,18 @@ import { Field, Select } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
 import { updateSettings } from '@/db/db'
 import { clearClips } from '@/data/clips'
-import { useLanguage, useSettings } from '@/data/hooks'
+import { useLanguage, useSettings, useVoices } from '@/data/hooks'
 import { speak, voiceOptions } from '@/data/voice'
-import { onVoicesChanged, speechSupported, voicesFor } from '@/lib/speech'
+import { speechSupported } from '@/lib/speech'
 import { downloadThorsten, isThorstenDownloaded, removeThorsten, THORSTEN_SIZE_MB, thorstenSupported } from '@/lib/thorsten'
 
 type Status = 'checking' | 'missing' | 'downloading' | 'ready' | 'unsupported'
 
-/** Select value for the Thorsten voice; browser voices use their voiceURI, "" is automatic. */
-const THORSTEN = 'thorsten'
+/** The voice card's id, so links such as /settings#voice open on it. */
+export const VOICE_ID = 'voice'
 
-/** The browser's voices for a language. They load asynchronously, so a change renders again. */
-function useVoices(lang: string) {
-  const [, setLoads] = useState(0)
-  useEffect(() => onVoicesChanged(() => setLoads((n) => n + 1)), [])
-  return voicesFor(lang)
-}
+/** Select value for the Thorsten voice; browser voices use their voiceURI, "" is automatic. */
+export const THORSTEN = 'thorsten'
 
 /**
  * One choice for the voice of the language you learn: one of the browser's
@@ -105,10 +101,10 @@ export function VoiceField() {
               : 'Voices come from your browser and system.'
 
   return (
-    <div className="flex flex-col gap-2">
-      <Field label={`${language.name} voice`} htmlFor="voice" hint={hint}>
+    <div id={VOICE_ID} className="flex scroll-mt-20 flex-col gap-2">
+      <Field label={`${language.name} voice`} htmlFor="voice-select" hint={hint}>
         <div className="flex gap-2">
-          <Select id="voice" className="flex-1" value={thorstenOn ? THORSTEN : (settings.voiceURI ?? '')} disabled={status === 'downloading'} onChange={(e) => choose(e.target.value)}>
+          <Select id="voice-select" className="flex-1" value={thorstenOn ? THORSTEN : (settings.voiceURI ?? '')} disabled={status === 'downloading'} onChange={(e) => choose(e.target.value)}>
             {offerThorsten && (
               <option value={THORSTEN}>Thorsten · natural, offline{status === 'ready' ? '' : ` (download ${THORSTEN_SIZE_MB} MB)`}</option>
             )}
