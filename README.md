@@ -227,7 +227,12 @@ If Lernzeit is already running, `lz` only opens it. `lz` runs the TypeScript fil
 
 An AI app such as Claude Code can add decks, cards, stories, practice questions, grammar topics and exercises, tasks and study time to Lernzeit through the MCP server in [`mcp/`](mcp). It never reads your cards or history, and it cannot edit or delete anything. Your data stays in the browser: the server passes each request to the open Lernzeit tab, which saves it.
 
-Set it up in two steps: add the server to your AI app with a token, then turn on **Settings → AI connection** in the browser you want. [docs/mcp-bridge.md](docs/mcp-bridge.md) has the details.
+Set it up in two steps:
+
+1. Run `npm run mcp:setup`. It adds the server to Claude Code and Claude Desktop and prints a token.
+2. In the browser you want, open **Settings → AI connection**, turn it on and paste the token.
+
+[docs/mcp-bridge.md](docs/mcp-bridge.md#setup) has the details.
 
 ## Starter content
 
@@ -285,7 +290,7 @@ src/
 │                 question practice order, image resizing, browser speech, the Thorsten voice worker, sounds
 └── index.css     Design tokens (colours, type scale, radii) for light and dark themes
 bin/              The `lz` command: builds when needed and serves the production build
-scripts/          `lang:add`: starts a language pack
+scripts/          `lang:add`: starts a language pack; `mcp:setup`: adds the MCP server to Claude Code and Claude Desktop
 mcp/              MCP server for AI apps (an npm workspace)
 ```
 

@@ -209,38 +209,64 @@ Error codes: `no_browser`, `pick_browser`, `unknown_browser`, `disconnected`, `t
 
 ## Setup
 
+It needs Node 22.18 or newer, which runs the TypeScript directly.
+
 1. Install, from the repo root (it also installs `mcp/`, an npm workspace):
 
    ```sh
    npm install
    ```
 
-2. In Lernzeit, open **Settings → AI connection**, turn the switch on, type a browser name and click **Generate** for a token. (Or make one in a terminal: `node -e "console.log(crypto.randomUUID())"`.)
-
-3. Add the server to your AI app. **Copy for Claude Desktop** and **Copy for Claude Code** give you the lines below with your token and path filled in. It needs Node 22.18 or newer, which runs the TypeScript directly.
-
-   Claude Code:
+2. Add the server to Claude Code and Claude Desktop:
 
    ```sh
-   claude mcp add lernzeit -e LERNZEIT_TOKEN=<token> -- node <repo>/mcp/src/index.ts
+   npm run mcp:setup
    ```
 
-   Claude Desktop (`claude_desktop_config.json`):
+   It runs `claude mcp add` for Claude Code, adds the `"lernzeit"` entry to Claude Desktop's `claude_desktop_config.json` next to your other servers, and prints the token both of them use. An app that is not installed is skipped.
 
-   ```json
-   {
-     "mcpServers": {
-       "lernzeit": {
-         "command": "node",
-         "args": ["<repo>/mcp/src/index.ts"],
-         "env": { "LERNZEIT_TOKEN": "<token>" }
-       }
-     }
-   }
-   ```
-
-4. Restart the AI app. The status turns to **Connected** once it is running.
+3. In Lernzeit, open **Settings → AI connection**, turn the switch on, type a browser name and paste the token.
+4. Restart Claude Desktop, or start a new Claude Code session. The status turns to **Connected** once the server is running.
 5. Ask the AI: "Which Lernzeit browsers are connected?"
+
+### `npm run mcp:setup`
+
+Running it again is safe: it replaces the old entry, and keeps the token, port and origins from Claude Desktop's config unless you change them.
+
+| Option | What it does |
+|---|---|
+| `--code`, `--desktop` | Set up only that app |
+| `--token <token>` | Use this token, such as the one already in Settings. Default: the one set before, or a new one |
+| `--port <port>` | WebSocket port, see `LERNZEIT_PORT` below |
+| `--origins <urls>` | Extra page addresses, see `LERNZEIT_ORIGINS` below |
+| `--scope <scope>` | Claude Code scope: `user` (the default, so it works from any folder), `local` or `project` |
+| `--print` | Show what it would add, and change nothing |
+
+Options go after `--`, such as `npm run mcp:setup -- --desktop --token <token>`. It finds Claude Desktop's config in `%APPDATA%\Claude` on Windows (and in the Microsoft Store app's folder), `~/Library/Application Support/Claude` on macOS and `~/.config/Claude` on Linux. If that file is not valid JSON, it stops and changes nothing.
+
+### By hand
+
+**Copy for Claude Desktop** and **Copy for Claude Code** in Settings give you the same lines with your token and path filled in.
+
+Claude Code:
+
+```sh
+claude mcp add lernzeit -e LERNZEIT_TOKEN=<token> -- node <repo>/mcp/src/index.ts
+```
+
+Claude Desktop (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "lernzeit": {
+      "command": "node",
+      "args": ["<repo>/mcp/src/index.ts"],
+      "env": { "LERNZEIT_TOKEN": "<token>" }
+    }
+  }
+}
+```
 
 ### Server settings
 

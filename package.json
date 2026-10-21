@@ -15,6 +15,7 @@
     "preview": "vite preview",
     "start": "node bin/lz.ts",
     "lang:add": "node scripts/add-language.ts",
+    "mcp:setup": "node scripts/setup-mcp.ts",
     "typecheck": "tsc -b && npm run typecheck -w mcp",
     "test": "vitest run && npm test -w mcp",
     "lint": "eslint ."
