@@ -43,3 +43,8 @@ export function browserSpeak(text: string, opts: { voiceURI?: string; rate?: num
 export function browserStop() {
   if (supported) speechSynthesis.cancel()
 }
+
+/** "Microsoft Katja Online (Natural) - German (Germany)" → "Katja": a voice's name, short enough for the navbar. */
+export function shortVoiceName(name: string): string {
+  return name.replace(/^(Microsoft|Google|Apple)\s+/, '').split(/\s+[-(]/)[0].replace(/\s+Online$/, '').trim() || name
+}

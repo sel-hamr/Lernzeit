@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db, DEFAULT_SETTINGS, KV_KEYS } from '@/db/db'
 import type { ActiveTimer, Card, CardReview, Deck, DrillStat, ExerciseStat, GrammarTopic, ImageFit, Question, QuestionResponse, ReviewLog, Session, Settings, Story, Task, Topic } from '@/db/types'
 import { buildQueue, usageToday } from '@/lib/queue'
+import { onVoicesChanged, voicesFor } from '@/lib/speech'
 import { dateKey, nextMidnightMs } from '@/lib/time'
 import { hasLearningData, languageOf, type Language } from './languages'
 import type { PendingNote } from './timer'
@@ -218,4 +219,11 @@ export function useStudyQueue(deckId?: string, refreshMs = 60_000): StudyQueue {
     for (const r of queue) byDeck.set(r.deckId, (byDeck.get(r.deckId) ?? 0) + 1)
     return { queue, ...counts, byDeck, loaded: true }
   }, [reviews, cards, decks, logs, today, now, deckId])
+}
+
+/** The browser's voices for a language. They load asynchronously, so a change renders again. */
+export function useVoices(lang: string) {
+  const [, setLoads] = useState(0)
+  useEffect(() => onVoicesChanged(() => setLoads((n) => n + 1)), [])
+  return voicesFor(lang)
 }
