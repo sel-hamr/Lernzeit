@@ -2,6 +2,7 @@ import type { CallToolResult, McpServer, ToolAnnotations } from '@modelcontextpr
 import * as z from 'zod'
 import {
   MAX_CARDS_PER_CALL,
+  MAX_CARDS_PER_LIST,
   MAX_GRAMMAR_EXAMPLES_PER_CALL,
   MAX_GRAMMAR_EXERCISES_PER_CALL,
   MAX_GRAMMAR_TEXT,
@@ -61,7 +62,16 @@ const newCard = z.object({
   imageQuery: z.string().optional().describe('Search words for finding a photo later.'),
 }) satisfies z.ZodType<NewCard>
 
-const storyLevel = z.enum(['A1', 'A2', 'B1', 'B2', 'C1', 'C2']) satisfies z.ZodType<StoryLevel>
+const cardRefs = z
+  .array(z.string().min(1))
+  .min(1)
+  .max(MAX_CARDS_PER_CALL)
+  .describe(
+    'Each card by its id from list_cards (safest), or by its German text as in create_cards, e.g. ["Hund", "Ich {{gehe}} nach Hause."]. ' +
+      'Text ignores case and a leading article, and names every card in the deck with that text.',
+  )
+
+const storyLevel =z.enum(['A1', 'A2', 'B1', 'B2', 'C1', 'C2']) satisfies z.ZodType<StoryLevel>
 
 const newQuestion = z.object({
   question: z.string().min(1).max(MAX_QUESTION_CHARS).describe('German question, e.g. "Was ist dein Beruf?"'),
@@ -148,6 +158,24 @@ export function registerTools(server: McpServer, hub: BrowserHub) {
   )
 
   server.registerTool(
+    'list_cards',
+    {
+      title: 'List flashcards',
+      description: `Reads flashcards with all their fields and an id, in deck order, up to ${MAX_CARDS_PER_LIST} at a time. "total" says how many match; pass offset to read the next page. Review progress is not included.`,
+      inputSchema: z.object({
+        browser: browserField,
+        deck: z.string().min(1).optional().describe('Deck name or id, from list_decks. Leave it out to read every deck.'),
+        search: z.string().optional().describe('Text in the German, with its article, or in the English, ignoring case, e.g. "der hund" or "dog".'),
+        tag: z.string().optional().describe('Only cards with this tag, e.g. "ai" or "A1".'),
+        limit: z.number().int().min(1).max(MAX_CARDS_PER_LIST).optional().describe(`Defaults to ${MAX_CARDS_PER_LIST}.`),
+        offset: z.number().int().min(0).optional().describe('Cards to skip, for the next page. Defaults to 0.'),
+      }),
+      annotations: look,
+    },
+    ({ browser, ...params }) => forward(browser, 'list_cards', params),
+  )
+
+  server.registerTool(
     'create_deck',
     {
       title: 'Create a deck',
@@ -175,6 +203,37 @@ export function registerTools(server: McpServer, hub: BrowserHub) {
       annotations: { ...add, idempotentHint: true },
     },
     ({ browser, ...params }) => forward(browser, 'create_cards', params),
+  )
+
+  server.registerTool(
+    'move_cards',
+    {
+      title: 'Move flashcards',
+      description: `Moves up to ${MAX_CARDS_PER_CALL} flashcards to another deck, keeping their review progress. A card whose German text the target deck already has stays where it is and is listed under "skipped". Cards that match nothing are listed under "notFound".`,
+      inputSchema: z.object({
+        browser: browserField,
+        deck: z.string().min(1).describe('Deck name or id the cards are in, from list_decks.'),
+        to: z.string().min(1).describe('Deck name or id to move them to. Create it first with create_deck if it is new.'),
+        cards: cardRefs,
+      }),
+      annotations: { ...add, idempotentHint: true },
+    },
+    ({ browser, ...params }) => forward(browser, 'move_cards', params),
+  )
+
+  server.registerTool(
+    'delete_cards',
+    {
+      title: 'Delete flashcards',
+      description: `Deletes up to ${MAX_CARDS_PER_CALL} flashcards from a deck with all their review progress. This cannot be undone, so ask the user first. Cards that match nothing are listed under "notFound".`,
+      inputSchema: z.object({
+        browser: browserField,
+        deck: z.string().min(1).describe('Deck name or id, from list_decks.'),
+        cards: cardRefs,
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    },
+    ({ browser, ...params }) => forward(browser, 'delete_cards', params),
   )
 
   server.registerTool(

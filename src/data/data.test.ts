@@ -6,7 +6,7 @@ import { localizePack, loadPack, packInfo } from '@/languages'
 import { addStarterContent, addStarterConjugations, installLanguage, syncStarterTopics } from './languages'
 import { MINUTE } from '@/lib/time'
 import { completePhase, pauseTimer, resumeTimer, startTimer, stopTimer, getPendingNote, resolvePendingNote, recordReviewTime } from './timer'
-import { deleteCard, deleteDeck, gradeReview, quickAddCard, saveCard, undoGrade } from './cards'
+import { createDeck, deleteCard, deleteDeck, gradeReview, moveCard, quickAddCard, saveCard, undoGrade } from './cards'
 import { saveDrillAnswer } from './drills'
 import { DEFAULT_GROUP, deleteTopic, saveExerciseAnswer, saveTopic, STARTER_GRAMMAR_VERSION } from './grammar'
 import { createTask, setColumnOrder, toggleTaskDone } from './tasks'
@@ -278,6 +278,30 @@ describe('flashcards', () => {
     await undoGrade(result.previous, result.logId, database)
     expect((await database.reviews.get(review.id))?.state).toBe(0)
     expect(await database.reviewLogs.count()).toBe(0)
+  })
+
+  it('moves a card with its progress and adds the directions the new deck practises', async () => {
+    const from = await createDeck({ name: 'Words only' }, database)
+    await database.decks.update(from.id, { directions: { imageToDe: false, enToDe: true, deToEn: false } })
+    const to = await createDeck({ name: 'Pictures' }, database)
+    const card = await saveCard(
+      { deckId: from.id, type: 'word', english: 'dog', german: 'Hund', gender: 'der', partOfSpeech: 'noun', emoji: '🐕', tags: [] },
+      { kind: 'keep' },
+      undefined,
+      database,
+    )
+    const [review] = await database.reviews.where('cardId').equals(card.id).toArray()
+    const { next } = (await gradeReview(review.id, 3, 4000, database))!
+
+    await moveCard(card.id, to.id, database)
+    expect((await database.cards.get(card.id))?.deckId).toBe(to.id)
+    const reviews = await database.reviews.where('cardId').equals(card.id).toArray()
+    expect(reviews.map((r) => [r.direction, r.deckId]).sort()).toEqual([['enToDe', to.id], ['imageToDe', to.id]])
+    expect(reviews.find((r) => r.direction === 'enToDe')).toMatchObject({ state: next.state, due: next.due })
+
+    // An unknown deck leaves the card where it is.
+    await moveCard(card.id, 'nowhere', database)
+    expect((await database.cards.get(card.id))?.deckId).toBe(to.id)
   })
 
   it('imports CSV rows, creating unknown decks', async () => {

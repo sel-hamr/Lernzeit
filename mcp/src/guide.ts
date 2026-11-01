@@ -1,4 +1,4 @@
-import { DEFAULT_PORT, MAX_CARDS_PER_CALL, MAX_GRAMMAR_EXERCISES_PER_CALL, MAX_QUESTIONS_PER_CALL, MAX_STORY_CHARS, MAX_STUDY_MINUTES } from '../../src/bridge/protocol.ts'
+import { DEFAULT_PORT, MAX_CARDS_PER_CALL, MAX_CARDS_PER_LIST, MAX_GRAMMAR_EXERCISES_PER_CALL, MAX_QUESTIONS_PER_CALL, MAX_STORY_CHARS, MAX_STUDY_MINUTES } from '../../src/bridge/protocol.ts'
 
 export const GUIDE_URI = 'lernzeit://guide'
 
@@ -13,7 +13,7 @@ The data lives in the user's browser, not on a server. Each tool call goes to a 
 
 - No browser connected: ask the user to open Lernzeit and turn on Connect to AI.
 - Several browsers connected (each browser and profile has its own data): ask which one, then pass its name as \`browser\`. \`list_browsers\` shows the names.
-- The tools only add things. Nothing can be edited or deleted, and cards, stories, questions, answers, history and notes cannot be read.
+- The tools add things. Cards are the exception: \`list_cards\` reads them, and \`move_cards\` and \`delete_cards\` change them. Card fields cannot be edited, and stories, questions, answers, review history and notes cannot be read.
 
 ## Tools
 
@@ -22,8 +22,11 @@ The data lives in the user's browser, not on a server. Each tool call goes to a 
 | \`list_browsers\` | See which browsers are connected |
 | \`list_topics\` | Get the topic names, such as German and AI |
 | \`list_decks\` | Get the decks with their topic and card count |
+| \`list_cards\` | Read cards with all their fields and ids, by deck, text or tag, up to ${MAX_CARDS_PER_LIST} at a time |
 | \`create_deck\` | Make a deck, optionally linked to a topic. Returns the existing deck if the name is taken |
 | \`create_cards\` | Add up to ${MAX_CARDS_PER_CALL} cards to a deck |
+| \`move_cards\` | Move cards to another deck, keeping their progress |
+| \`delete_cards\` | Delete cards from a deck, with their progress |
 | \`create_story\` | Add a German story to read, with its English translation |
 | \`create_questions\` | Add up to ${MAX_QUESTIONS_PER_CALL} German questions to practise answering, in a set |
 | \`list_grammar_topics\` | Get the grammar topics with their level and number of exercises |
@@ -52,6 +55,14 @@ Look before you add: call \`list_decks\` before \`create_cards\`, and \`list_top
 - Only nouns are practised from the picture, so set \`partOfSpeech\` to "noun" for nouns.
 - Every card gets the tag "ai". A card whose German text is already in the deck is skipped and listed under "skipped"; that is not an error.
 - Match the user's level. Tell them how many cards were added and which were skipped.
+
+## Reading, moving and deleting cards
+
+- \`list_cards\` returns each card's fields and its \`id\`, in deck order. Narrow it with \`deck\`, \`search\` (German with its article, or English) and \`tag\`. When \`total\` is more than you got, read on with \`offset\`. Use it to check a deck before adding to it, to find mistakes, or to answer questions about the user's cards.
+- \`move_cards\` and \`delete_cards\` name cards by \`id\` from \`list_cards\`, which is safest, or by German text as in \`create_cards\`. Text ignores case and a leading article, and names every card in the deck with that text.
+- \`move_cards\` keeps the review progress. A card whose German text the target deck already has stays where it is and is listed under "skipped". Create a new target deck with \`create_deck\` first.
+- \`delete_cards\` removes the cards with their review history, and it cannot be undone. Only delete cards the user asked you to remove, and name them back to the user before you call it.
+- Cards that match nothing come back under "notFound". Tell the user; that is not an error.
 
 ## Writing stories
 

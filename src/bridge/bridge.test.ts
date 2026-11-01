@@ -64,7 +64,7 @@ function connectTab(overrides: Partial<BridgeOptions> = {}, until: BridgeStatus 
 }
 
 describe('bridge end to end', () => {
-  it('adds cards from a tool call to the database', async () => {
+  it('adds and deletes cards from tool calls', async () => {
     await connectTab()
     expect(hub.list().map((b) => b.name)).toEqual(['Chrome Personal'])
 
@@ -80,6 +80,21 @@ describe('bridge end to end', () => {
 
     const again = await hub.request('chrome personal', 'create_cards', { deck: 'My Words', cards: [{ english: 'spoon', german: 'der Löffel' }] })
     expect(again).toEqual({ deck: 'My Words', added: 0, skipped: ['Löffel'] })
+
+    const removed = await hub.request(undefined, 'delete_cards', { deck: 'My Words', cards: ['der Löffel', 'Messer'] })
+    expect(removed).toEqual({ deck: 'My Words', deleted: ['Löffel'], notFound: ['Messer'] })
+    expect((await database.cards.filter((c) => c.tags.includes('ai')).toArray()).map((c) => c.german)).toEqual(['Gabel'])
+  })
+
+  it('reads cards and moves them from tool calls', async () => {
+    await connectTab()
+    await hub.request(undefined, 'create_cards', { deck: 'My Words', cards: [{ english: 'fork', german: 'die Gabel' }] })
+    const { cards } = await hub.request(undefined, 'list_cards', { tag: 'ai' })
+    expect(cards).toEqual([expect.objectContaining({ deck: 'My Words', german: 'Gabel', gender: 'die', english: 'fork' })])
+
+    const result = await hub.request(undefined, 'move_cards', { deck: 'My Words', to: 'AI terms', cards: [cards[0].id] })
+    expect(result).toEqual({ from: 'My Words', to: 'AI terms', moved: ['Gabel'], skipped: [], notFound: [] })
+    expect((await hub.request(undefined, 'list_cards', { deck: 'AI terms' })).cards.map((c) => c.german)).toEqual(['Gabel'])
   })
 
   it('brings errors from the app back as BridgeErrors', async () => {
