@@ -4,7 +4,7 @@ import clsx from 'clsx'
 import { Check, Copy, FolderPlus, ListChecks, Plus, Search, Settings2, Upload, Volume2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Chip, EmptyState, PageHeader } from '@/components/ui/primitives'
-import { Segmented, TextSelect } from '@/components/ui/form'
+import { TextSelect } from '@/components/ui/form'
 import { Dialog } from '@/components/ui/Dialog'
 import { CardImage } from '@/components/CardImage'
 import { CardGerman } from '@/components/GermanWord'
@@ -19,6 +19,7 @@ import { directionLabel } from '@/lib/srs'
 import { pickedState } from '@/lib/picked'
 import { formatDueLabel, formatNextReview } from '@/lib/time'
 import { DeckDialog } from './DeckDialog'
+import { DeckTabs } from './DeckTabs'
 import { ImportCsvDialog } from './ImportCsvDialog'
 import { deckChipLabel, groupByCard, reviewScore, summarizeCard, type CardSummary } from './summary'
 
@@ -246,8 +247,20 @@ export function LibraryPage() {
   }
 
   const total = cards?.length ?? 0
+  const countByDeck = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const c of cards ?? []) map.set(c.deckId, (map.get(c.deckId) ?? 0) + 1)
+    return map
+  }, [cards])
+  const deckOptions = useMemo(
+    () => [
+      { value: 'all', label: 'All', count: total, due: queue.total },
+      ...decks.map((d) => ({ value: d.id, label: d.name, count: countByDeck.get(d.id) ?? 0, due: queue.byDeck.get(d.id) ?? 0 })),
+    ],
+    [decks, countByDeck, total, queue],
+  )
   const dueHere = deckFilter === 'all' ? queue.total : (queue.byDeck.get(deckFilter) ?? 0)
-  const cardsHere = deckFilter === 'all' ? total : (cards?.filter((c) => c.deckId === deckFilter).length ?? 0)
+  const cardsHere = deckFilter === 'all' ? total : (countByDeck.get(deckFilter) ?? 0)
   const reviewHref = deckFilter === 'all' ? '/flashcards/review' : `/flashcards/review?deck=${deckFilter}`
   const topicOf = (deck?: Deck) => topics.find((t) => t.id === deck?.topicId)
 
@@ -290,17 +303,10 @@ export function LibraryPage() {
         }
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex max-w-full min-w-0 items-center gap-1.5">
-          <Segmented
-            label="Decks"
-            value={deckFilter}
-            onChange={setDeck}
-            options={[
-              { value: 'all', label: 'All', count: total },
-              ...decks.map((d) => ({ value: d.id, label: d.name, count: cards?.filter((c) => c.deckId === d.id).length ?? 0 })),
-            ]}
-          />
+      {/* The deck tabs fill a line of their own; below them the filter on the left, sort and select on the right. */}
+      <div className="flex flex-col gap-3">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <DeckTabs value={deckFilter} onChange={setDeck} tabs={deckOptions} />
           <Button
             variant="ghost"
             size="sm"
@@ -312,9 +318,9 @@ export function LibraryPage() {
             {deckFilter === 'all' ? <FolderPlus size={17} strokeWidth={1.7} /> : <Settings2 size={17} strokeWidth={1.7} />}
           </Button>
         </div>
-        <div className="flex w-full items-center gap-2 sm:w-auto">
-          {/* Same height and fill as the deck tabs beside it. */}
-          <label className="flex h-10.5 min-w-0 flex-1 items-center gap-2 rounded-row border border-transparent bg-field px-3 text-muted transition-[background-color,border-color,box-shadow] hover:bg-track focus-within:border-sage-dot focus-within:bg-main focus-within:ring-3 focus-within:ring-sage-dot/15 sm:w-52 sm:flex-none">
+        <div className="flex items-center gap-2">
+          {/* Same height and fill as the deck tabs above it. */}
+          <label className="mr-auto flex h-10.5 min-w-0 flex-1 items-center gap-2 rounded-row border border-transparent bg-field px-3 text-muted transition-[background-color,border-color,box-shadow] hover:bg-track focus-within:border-sage-dot focus-within:bg-main focus-within:ring-3 focus-within:ring-sage-dot/15 sm:w-60 sm:flex-none">
             <Search size={15} strokeWidth={1.8} aria-hidden />
             <input
               type="search"
