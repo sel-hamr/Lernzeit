@@ -122,6 +122,112 @@ describe('create_cards', () => {
   })
 })
 
+describe('list_cards, move_cards and delete_cards', () => {
+  beforeEach(async () => {
+    await runAction('create_deck', { name: 'Food' }, database)
+    await runAction(
+      'create_cards',
+      {
+        deck: 'Food',
+        cards: [
+          { english: 'spoon', german: 'der Löffel' },
+          { english: 'fork', german: 'die Gabel' },
+          { english: 'I {{cook}} pasta.', german: 'Ich {{koche}} Nudeln.' },
+          { english: 'Spoon?', german: 'Löffel?', type: 'sentence' },
+        ],
+      },
+      database,
+    )
+    await runAction('create_cards', { deck: 'My Words', cards: [{ english: 'spoon', german: 'Löffel' }] }, database)
+  })
+
+  const foodCards = async () => {
+    const deck = (await database.decks.filter((d) => d.name === 'Food').first())!
+    return database.cards.where('deckId').equals(deck.id).toArray()
+  }
+
+  it('reads a deck in order with every field and an id, and no progress', async () => {
+    const { total, offset, cards } = await runAction('list_cards', { deck: 'food' }, database)
+    expect({ total, offset }).toEqual({ total: 4, offset: 0 })
+    expect(cards.map((c) => c.german)).toEqual(['Löffel', 'Gabel', 'Ich {{koche}} Nudeln.', 'Löffel?'])
+    const spoon = (await foodCards()).find((c) => c.german === 'Löffel')!
+    expect(cards[0]).toEqual({ id: spoon.id, deck: 'Food', type: 'word', german: 'Löffel', english: 'spoon', gender: 'der', tags: [AI_TAG], hasImage: false })
+  })
+
+  it('finds cards in every deck by German with its article, English or tag, and pages through them', async () => {
+    const spoons = await runAction('list_cards', { search: 'Spoon', tag: 'ai' }, database)
+    expect(spoons.cards.map((c) => `${c.deck}: ${c.german}`)).toEqual(['My Words: Löffel', 'Food: Löffel', 'Food: Löffel?'])
+    // The My Words spoon was added without an article.
+    expect((await runAction('list_cards', { search: 'DER LÖF', tag: 'ai' }, database)).cards.map((c) => `${c.deck}: ${c.german}`)).toEqual(['Food: Löffel'])
+    expect((await runAction('list_cards', { search: 'cook', tag: 'AI' }, database)).cards.map((c) => c.german)).toEqual(['Ich {{koche}} Nudeln.'])
+    const page = await runAction('list_cards', { tag: 'ai', limit: 2, offset: 2 }, database)
+    expect(page.total).toBe(5)
+    expect(page.cards.map((c) => c.german)).toEqual(['Gabel', 'Ich {{koche}} Nudeln.'])
+    expect((await runAction('list_cards', { search: 'Messer', tag: 'ai' }, database)).total).toBe(0)
+  })
+
+  it('rejects a bad limit, offset or deck', async () => {
+    await expectCode(runAction('list_cards', { limit: 0 }, database), 'invalid_input')
+    await expectCode(runAction('list_cards', { limit: 201 }, database), 'invalid_input')
+    await expectCode(runAction('list_cards', { offset: -1 }, database), 'invalid_input')
+    await expectCode(runAction('list_cards', { offset: 1.5 }, database), 'invalid_input')
+    await expectCode(runAction('list_cards', { deck: 'Küche' }, database), 'deck_not_found')
+  })
+
+  it('moves cards by id or text with their progress, and skips text the target deck has', async () => {
+    const fork = (await foodCards()).find((c) => c.german === 'Gabel')!
+    const [review] = await database.reviews.where('cardId').equals(fork.id).toArray()
+    await database.reviews.update(review.id, { state: 2 })
+
+    const result = await runAction('move_cards', { deck: 'Food', to: 'my words', cards: [fork.id, 'die Gabel', 'der Löffel', 'Messer'] }, database)
+    expect(result).toEqual({ from: 'Food', to: 'My Words', moved: ['Gabel'], skipped: ['Löffel'], notFound: ['Messer'] })
+    expect((await database.cards.get(fork.id))?.deckId).toBe('my-words')
+    expect(await database.reviews.get(review.id)).toMatchObject({ deckId: 'my-words', state: 2 })
+    expect((await foodCards()).map((c) => c.german).sort()).toEqual(['Ich {{koche}} Nudeln.', 'Löffel', 'Löffel?'])
+  })
+
+  it('refuses to move cards to their own deck or an unknown one', async () => {
+    await expectCode(runAction('move_cards', { deck: 'Food', to: 'food', cards: ['Gabel'] }, database), 'invalid_input')
+    await expectCode(runAction('move_cards', { deck: 'Food', to: 'Küche', cards: ['Gabel'] }, database), 'deck_not_found')
+    await expectCode(runAction('move_cards', { deck: 'Food', to: 'My Words', cards: [] }, database), 'invalid_input')
+    expect(await foodCards()).toHaveLength(4)
+  })
+
+  it('deletes a card by its id', async () => {
+    const fork = (await foodCards()).find((c) => c.german === 'Gabel')!
+    expect(await runAction('delete_cards', { deck: 'Food', cards: [fork.id] }, database)).toEqual({ deck: 'Food', deleted: ['Gabel'], notFound: [] })
+    // An id only counts in its own deck.
+    const spoon = (await foodCards()).find((c) => c.german === 'Löffel')!
+    expect(await runAction('delete_cards', { deck: 'My Words', cards: [spoon.id] }, database)).toEqual({ deck: 'My Words', deleted: [], notFound: [spoon.id] })
+  })
+
+  it('deletes cards by German text in any case or with their article, and their reviews', async () => {
+    const spoon = (await foodCards()).find((c) => c.german === 'Löffel')!
+    const result = await runAction('delete_cards', { deck: 'food', cards: ['DER löffel', ' ich {{koche}} nudeln. '] }, database)
+    expect(result).toEqual({ deck: 'Food', deleted: ['Löffel', 'Ich {{koche}} Nudeln.'], notFound: [] })
+    expect((await foodCards()).map((c) => c.german).sort()).toEqual(['Gabel', 'Löffel?'])
+    expect(await database.reviews.where('cardId').equals(spoon.id).count()).toBe(0)
+    // The same word in another deck stays.
+    expect(await database.cards.where('deckId').equals('my-words').filter((c) => c.german === 'Löffel').count()).toBe(1)
+  })
+
+  it('lists texts that match no card, and deletes a card once when named twice', async () => {
+    const result = await runAction('delete_cards', { deck: 'Food', cards: ['Gabel', 'die Gabel', 'Messer', 'Löffel!'] }, database)
+    expect(result).toEqual({ deck: 'Food', deleted: ['Gabel'], notFound: ['Messer', 'Löffel!'] })
+    expect(await runAction('delete_cards', { deck: 'Food', cards: ['Gabel'] }, database)).toEqual({ deck: 'Food', deleted: [], notFound: ['Gabel'] })
+  })
+
+  it('rejects an unknown deck and bad input without deleting anything', async () => {
+    const before = await database.cards.count()
+    const error = await expectCode(runAction('delete_cards', { deck: 'Küche', cards: ['Löffel'] }, database), 'deck_not_found')
+    expect(error.message).toContain('Food')
+    await expectCode(runAction('delete_cards', { deck: 'Food', cards: [] }, database), 'invalid_input')
+    await expectCode(runAction('delete_cards', { deck: 'Food', cards: ['Löffel', ' '] }, database), 'invalid_input')
+    await expectCode(runAction('delete_cards', { deck: 'Food', cards: Array.from({ length: 101 }, (_, i) => `W${i}`) }, database), 'invalid_input')
+    expect(await database.cards.count()).toBe(before)
+  })
+})
+
 describe('create_story', () => {
   const text = 'Ich koche heute Nudeln.\n\nDas Essen ist lecker.'
 

@@ -1,6 +1,6 @@
 # MCP bridge
 
-Lets an AI app (Claude Code, Claude Desktop, Cursor) add cards, decks, stories, practice questions, tasks and study time to Lernzeit.
+Lets an AI app (Claude Code, Claude Desktop, Cursor) add cards, decks, stories, practice questions, tasks and study time to Lernzeit, and read, move and delete cards.
 
 ## Why a bridge
 
@@ -92,8 +92,11 @@ Every tool except `list_browsers` takes an optional `browser` (its name).
 | `list_browsers` | – | name, kind, connected since | – |
 | `list_topics` | – | id, name | `db.topics` |
 | `list_decks` | – | id, name, topic, card count | `db.decks`, `db.cards` |
+| `list_cards` | `deck`?, `search`?, `tag`?, `limit`?, `offset`? | match count, the cards with their fields and ids | `db.cards` |
 | `create_deck` | `name`, `topic`? | the deck, and whether it was created | `createDeck` |
 | `create_cards` | `deck` (name or id), `cards[]` | added count, skipped words | `writeCardPack` |
+| `move_cards` | `deck`, `to`, `cards[]` (ids or German texts) | moved, skipped and not found words | `moveCard` |
+| `delete_cards` | `deck`, `cards[]` (ids or German texts) | deleted words, words not found | `deleteCard` |
 | `create_story` | `title`, `text`, `translation`?, `level`?, `tags`?, `topic`? | the story, and whether it was created | `saveStory` |
 | `create_questions` | `set`, `questions[]` | the set's name, added count, skipped questions | `saveQuestion` |
 | `list_grammar_topics` | – | id, title, English, level, section, exercise count | `db.grammarTopics` |
@@ -114,6 +117,33 @@ Every tool except `list_browsers` takes an optional `browser` (its name).
 - A card whose German text is already in the deck (ignoring case) is skipped and listed in `skipped`.
 - Up to 100 cards per call.
 - No image uploads. `emoji` and `imageQuery` work, and only nouns are practised from the picture.
+
+### `list_cards`
+
+- Returns each card's `id`, `deck` (its name) and fields: `type`, `german`, `english`, `gender`, `plural`, `verbForms`, `conjugation`, `partOfSpeech`, `exampleDe`, `exampleEn`, `tags`, `emoji`, `imageQuery`, and `hasImage` instead of the picture itself.
+- Review progress, review logs and drill scores are not included.
+- Without `deck` it reads every deck. `search` finds text in the German, with its article ("der hund"), or in the English, ignoring case. `tag` matches one tag, ignoring case.
+- Cards come in deck order, oldest first. `total` counts every match; `limit` (1 to 200, default 200) and `offset` page through them.
+
+### Naming cards in `move_cards` and `delete_cards`
+
+Each entry of `cards` is one of:
+
+- A card id from `list_cards`.
+- A German text, matched ignoring case. When no card has that exact text, a leading article is dropped and word cards are checked ("der Hund" finds `Hund`, but not the sentence "Hund?"). A text names every card in the deck that has it.
+
+Entries that match no card in the deck are listed in `notFound`. A card named twice counts once. Up to 100 entries per call, all in one transaction.
+
+### `move_cards`
+
+- Moves cards from `deck` to `to` with `moveCard`, the same move as picking another deck in the card editor: the reviews follow the card with their progress, and directions the new deck practises are added as new.
+- A card whose German text the target deck already has (ignoring case) stays where it is and is listed in `skipped`.
+- Moving to the deck the cards are in is refused.
+
+### `delete_cards`
+
+- Each card is deleted with its reviews, review log and drill stats, and its picture when no other card uses it. This is the same `deleteCard` as the card editor's Delete button, and it cannot be undone.
+- The tool is marked destructive, so AI apps ask before they run it, and the guide tells the AI to name the cards back to you first.
 
 ### `create_story`
 
@@ -196,7 +226,7 @@ Error codes: `no_browser`, `pick_browser`, `unknown_browser`, `disconnected`, `t
 - Data lands in one browser only. To get it onto your phone, use backup and restore. Real sync needs a cloud database, which is a separate project.
 - Only one AI app can use the bridge at a time. A second server cannot take the port; its tools return `port_in_use`, and it keeps trying in case the port frees up.
 - When Lernzeit runs from a hosted `https` address, Chrome may ask to allow access to local devices. Click Allow.
-- The AI can list decks, topics and grammar topics, but it cannot read your cards, answers, scores, history or notes.
+- The AI can read your cards, decks, topics and grammar topics, but not your answers, scores, review history or notes.
 
 ## Safety
 
@@ -204,7 +234,7 @@ Error codes: `no_browser`, `pick_browser`, `unknown_browser`, `disconnected`, `t
 - The switch is off in every browser until you turn it on.
 - **Token:** a secret you put in the server config and paste in Settings. The server drops any connection with the wrong token, comparing in constant time.
 - **Origin check:** any website can try to open a WebSocket to localhost, so the server only accepts pages from the local dev and preview addresses and from `LERNZEIT_ORIGINS`.
-- There are no delete or edit tools. The AI can only add things and list decks, topics and grammar topics.
+- Only cards can be changed: `move_cards` moves them and `delete_cards` deletes them. Nothing can be edited, and everything else can only be added.
 - The server writes logs to stderr only, because stdout carries the MCP messages.
 
 ## Setup
@@ -282,7 +312,7 @@ Claude Desktop (`claude_desktop_config.json`):
 mcp/
   src/index.ts          starts the hub and serves the MCP server on stdio
   src/hub.ts            WebSocket server: origin and token checks, picking a browser, requests and answers
-  src/tools.ts          the seven tools, their zod inputs and descriptions
+  src/tools.ts          the tools, their zod inputs and descriptions
   src/guide.ts          the guide resource
   src/prompts.ts        the guide resource and the prompts
   src/config.ts         reads the environment variables

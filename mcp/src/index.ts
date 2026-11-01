@@ -9,7 +9,7 @@ import { registerTools } from './tools.ts'
 const INSTRUCTIONS = `Lernzeit is the user's study app: flashcards for German, daily study goals per topic and a task board.
 Its data lives in the user's browser, so these tools work only while Lernzeit is open there with Settings → AI connection → Connect to AI on.
 Look before you add: call list_decks before create_cards, and list_topics before naming a topic.
-These tools only add things. Nothing can be edited or deleted through them.
+These tools add things, and for cards also read (list_cards), move (move_cards) and delete (delete_cards). delete_cards removes cards with their progress: call it only when the user asks, after naming the cards back to them. Card fields cannot be edited.
 The resource lernzeit://guide has the details, including how to write good German cards.`
 
 // stdout carries the MCP messages, so logs go to stderr.

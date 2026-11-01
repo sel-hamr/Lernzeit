@@ -1,6 +1,6 @@
 import { db, newId, type LernzeitDB } from '@/db/db'
-import type { Deck, GrammarTopic, Story, Topic } from '@/db/types'
-import { createDeck } from '@/data/cards'
+import type { Card, Deck, GrammarTopic, Story, Topic } from '@/db/types'
+import { createDeck, deleteCard, moveCard } from '@/data/cards'
 import { writeCardPack, type CardPack, type CardPackCard } from '@/data/io'
 import { DEFAULT_GROUP, saveTopic } from '@/data/grammar'
 import { saveQuestion } from '@/data/questions'
@@ -14,6 +14,7 @@ import { dateKey, MINUTE } from '@/lib/time'
 import {
   BridgeError,
   MAX_CARDS_PER_CALL,
+  MAX_CARDS_PER_LIST,
   MAX_GRAMMAR_EXAMPLES_PER_CALL,
   MAX_GRAMMAR_EXERCISES_PER_CALL,
   MAX_GRAMMAR_TEXT,
@@ -35,6 +36,7 @@ import {
   type CreateDeckResult,
   type AddGrammarParams,
   type AddGrammarResult,
+  type CardDetails,
   type CreateQuestionsParams,
   type CreateQuestionsResult,
   type GrammarTopicSummary,
@@ -42,7 +44,13 @@ import {
   type CreateStoryResult,
   type CreateTaskParams,
   type DeckSummary,
+  type DeleteCardsParams,
+  type DeleteCardsResult,
+  type ListCardsParams,
+  type ListCardsResult,
   type LogStudyTimeParams,
+  type MoveCardsParams,
+  type MoveCardsResult,
   type NewCard,
   type RequestMessage,
   type ResponseMessage,
@@ -169,6 +177,99 @@ async function createCards({ deck: deckRef, cards }: CreateCardsParams, database
     const pack: CardPack = { format: 'lernzeit-cards', version: 1, decks: [{ id: deck.id, name: deck.name }], cards: fresh }
     const { cards: added } = await writeCardPack({ pack, images: new Map() }, {}, database)
     return { deck: deck.name, added, skipped }
+  })
+}
+
+/** What the card shows: "der Hund" for a noun, the German text otherwise. */
+const shownText = (card: Card) => (card.gender ? `${card.gender} ${card.german}` : card.german)
+
+function describeCard(card: Card, deck: string): CardDetails {
+  const { id, type, german, english, gender, plural, verbForms, conjugation, partOfSpeech, exampleDe, exampleEn, tags, emoji, imageQuery } = card
+  return { id, deck, type, german, english, gender, plural, verbForms, conjugation, partOfSpeech, exampleDe, exampleEn, tags, emoji, imageQuery, hasImage: !!card.imageId }
+}
+
+async function listCards({ deck: deckRef, search, tag, limit = MAX_CARDS_PER_LIST, offset = 0 }: ListCardsParams, database: LernzeitDB): Promise<ListCardsResult> {
+  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_CARDS_PER_LIST) throw invalid(`limit must be a whole number from 1 to ${MAX_CARDS_PER_LIST}.`)
+  if (!Number.isInteger(offset) || offset < 0) throw invalid('offset must be a whole number, 0 or more.')
+
+  return database.transaction('r', [database.decks, database.cards], async () => {
+    const decks = deckRef ? [await findDeck(database, deckRef)] : await database.decks.orderBy('order').toArray()
+    const place = new Map(decks.map((d, i) => [d.id, i]))
+    const query = key(search ?? '')
+    const wanted = key(tag ?? '')
+    const cards = (await database.cards.where('deckId').anyOf([...place.keys()]).toArray())
+      .filter((c) => !wanted || c.tags.some((t) => key(t) === wanted))
+      .filter((c) => !query || key(shownText(c)).includes(query) || key(c.english).includes(query))
+      .sort((a, b) => place.get(a.deckId)! - place.get(b.deckId)! || a.createdAt - b.createdAt)
+    const names = new Map(decks.map((d) => [d.id, d.name]))
+    return { total: cards.length, offset, cards: cards.slice(offset, offset + limit).map((c) => describeCard(c, names.get(c.deckId)!)) }
+  })
+}
+
+function checkCardRefs(refs: string[]) {
+  if (!refs.length) throw invalid('Send at least one card: its id from list_cards or its German text.')
+  if (refs.length > MAX_CARDS_PER_CALL) throw invalid(`Send at most ${MAX_CARDS_PER_CALL} cards per call.`)
+  if (refs.some((ref) => !ref.trim())) throw invalid('Each card needs its id from list_cards or its German text.')
+}
+
+/**
+ * The cards a ref names: a card id, or the German text in any case. When no
+ * card has that text, "der Hund" also finds the word card "Hund".
+ */
+function cardsNamed(cards: Card[], ref: string): Card[] {
+  const byId = cards.filter((c) => c.id === ref.trim())
+  if (byId.length) return byId
+  const exact = cards.filter((c) => key(c.german) === key(ref))
+  if (exact.length) return exact
+  const word = key(splitArticle(ref).word)
+  return cards.filter((c) => c.type === 'word' && key(c.german) === word)
+}
+
+/** Looks up every ref in a deck's cards; a card named twice comes back once. */
+function resolveCards(cards: Card[], refs: string[]): { found: Card[]; notFound: string[] } {
+  const found = new Map<string, Card>()
+  const notFound: string[] = []
+  for (const ref of refs) {
+    const matches = cardsNamed(cards, ref)
+    if (!matches.length) notFound.push(ref.trim())
+    for (const card of matches) found.set(card.id, card)
+  }
+  return { found: [...found.values()], notFound }
+}
+
+/** Moves cards with their progress; a card whose text the target deck already has stays put. */
+async function moveCards({ deck: fromRef, to: toRef, cards: refs }: MoveCardsParams, database: LernzeitDB): Promise<MoveCardsResult> {
+  checkCardRefs(refs)
+  return database.transaction('rw', [database.decks, database.cards, database.reviews], async () => {
+    const from = await findDeck(database, fromRef)
+    const to = await findDeck(database, toRef)
+    if (from.id === to.id) throw invalid(`The cards are in "${from.name}" already. Name another deck in to.`)
+    const { found, notFound } = resolveCards(await database.cards.where('deckId').equals(from.id).toArray(), refs)
+    const taken = new Set((await database.cards.where('deckId').equals(to.id).toArray()).map((c) => key(c.german)))
+    const moved: string[] = []
+    const skipped: string[] = []
+    for (const card of found) {
+      if (taken.has(key(card.german))) {
+        skipped.push(card.german)
+        continue
+      }
+      taken.add(key(card.german))
+      await moveCard(card.id, to.id, database)
+      moved.push(card.german)
+    }
+    return { from: from.name, to: to.name, moved, skipped, notFound }
+  })
+}
+
+/** Deletes cards with their progress, the way the card editor does. */
+async function deleteCards({ deck: deckRef, cards: refs }: DeleteCardsParams, database: LernzeitDB): Promise<DeleteCardsResult> {
+  checkCardRefs(refs)
+  const tables = [database.decks, database.cards, database.reviews, database.reviewLogs, database.drillStats, database.images]
+  return database.transaction('rw', tables, async () => {
+    const deck = await findDeck(database, deckRef)
+    const { found, notFound } = resolveCards(await database.cards.where('deckId').equals(deck.id).toArray(), refs)
+    for (const card of found) await deleteCard(card.id, database)
+    return { deck: deck.name, deleted: found.map((c) => c.german), notFound }
   })
 }
 
@@ -341,8 +442,11 @@ type Handler<A extends ActionName> = (params: ActionParams<A>, database: Lernzei
 const handlers: { [A in ActionName]: Handler<A> } = {
   list_topics: listTopics,
   list_decks: listDecks,
+  list_cards: listCards,
   create_deck: createDeckAction,
   create_cards: createCards,
+  move_cards: moveCards,
+  delete_cards: deleteCards,
   create_story: createStory,
   create_questions: createQuestions,
   list_grammar_topics: listGrammarTopics,

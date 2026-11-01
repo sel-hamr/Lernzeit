@@ -42,7 +42,7 @@ describe('MCP server', () => {
     if (child.exitCode === null) await once(child, 'exit')
   })
 
-  it('offers the eleven tools', async () => {
+  it('offers the fourteen tools', async () => {
     const { tools } = await rpc('tools/list')
     assert.deepEqual(
       tools.map((t: Named) => t.name),
@@ -50,8 +50,11 @@ describe('MCP server', () => {
         'list_browsers',
         'list_topics',
         'list_decks',
+        'list_cards',
         'create_deck',
         'create_cards',
+        'move_cards',
+        'delete_cards',
         'create_story',
         'create_questions',
         'list_grammar_topics',
@@ -60,6 +63,12 @@ describe('MCP server', () => {
         'log_study_time',
       ],
     )
+  })
+
+  it('marks only delete_cards as destructive', async () => {
+    const { tools } = await rpc('tools/list')
+    const destructive = tools.filter((t: { annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean } }) => !t.annotations?.readOnlyHint && t.annotations?.destructiveHint !== false)
+    assert.deepEqual(destructive.map((t: Named) => t.name), ['delete_cards'])
   })
 
   it('serves a guide that mentions every tool', async () => {

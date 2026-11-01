@@ -227,7 +227,7 @@ If Lernzeit is already running, `lz` only opens it. `lz` runs the TypeScript fil
 
 ## AI connection
 
-An AI app such as Claude Code can add decks, cards, stories, practice questions, grammar topics and exercises, tasks and study time to Lernzeit through the MCP server in [`mcp/`](mcp). It never reads your cards or history, and it cannot edit or delete anything. Your data stays in the browser: the server passes each request to the open Lernzeit tab, which saves it.
+An AI app such as Claude Code can add decks, cards, stories, practice questions, grammar topics and exercises, tasks and study time to Lernzeit through the MCP server in [`mcp/`](mcp). It can also read your cards, move them to another deck, and delete the ones you name, with their progress. It never sees your review history, answers or notes, and cannot edit or delete anything else. Your data stays in the browser: the server passes each request to the open Lernzeit tab, which saves it.
 
 Set it up in two steps:
 

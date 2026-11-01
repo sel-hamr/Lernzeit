@@ -53,7 +53,7 @@ A new tool on the AI connection:
 |---|---|
 | `save_correction` | Saves the corrected text and the list of changes to an entry |
 
-Like the other tools, it can only add. Claude cannot read your journal: it only sees what you paste.
+It can only add. Claude cannot read your journal: it only sees what you paste.
 
 ## Data
 

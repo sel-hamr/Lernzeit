@@ -10,6 +10,8 @@ import type { CardType, Conjugation, Gender, Priority, StoryLevel, TaskStatus } 
 export const PROTOCOL_VERSION = 1
 export const DEFAULT_PORT = 47821
 export const MAX_CARDS_PER_CALL = 100
+/** Most cards list_cards returns at once; `offset` pages through the rest. */
+export const MAX_CARDS_PER_LIST = 200
 export const MAX_STUDY_MINUTES = 12 * 60
 export const MAX_STORY_TITLE = 120
 /** For the text and for the translation, each. About 3,000 words. */
@@ -88,6 +90,80 @@ export interface CreateCardsResult {
   added: number
   /** Text of the cards that were already in the deck. */
   skipped: string[]
+}
+
+export interface ListCardsParams {
+  /** Deck name or id. Every deck when left out. */
+  deck?: string
+  /** Text to find in the German (with its article) or the English, ignoring case. */
+  search?: string
+  tag?: string
+  /** Defaults to MAX_CARDS_PER_LIST. */
+  limit?: number
+  offset?: number
+}
+
+/** A card as the AI reads it: its contents, not its review history. */
+export interface CardDetails {
+  id: string
+  /** Deck name. */
+  deck: string
+  type: CardType
+  german: string
+  english: string
+  gender?: Gender
+  plural?: string
+  verbForms?: string
+  conjugation?: Conjugation
+  partOfSpeech?: string
+  exampleDe?: string
+  exampleEn?: string
+  tags: string[]
+  emoji?: string
+  imageQuery?: string
+  /** True when the card has an uploaded picture. */
+  hasImage: boolean
+}
+
+export interface ListCardsResult {
+  /** Cards that match, before limit and offset. */
+  total: number
+  offset: number
+  cards: CardDetails[]
+}
+
+/** Each entry is a card id from list_cards, or its German text as in create_cards; a leading article is ignored for words. */
+export interface DeleteCardsParams {
+  /** Deck name or id. */
+  deck: string
+  cards: string[]
+}
+
+export interface DeleteCardsResult {
+  deck: string
+  /** German text of the deleted cards, as saved. */
+  deleted: string[]
+  /** Texts that matched no card in the deck. */
+  notFound: string[]
+}
+
+export interface MoveCardsParams {
+  /** Deck name or id the cards are in. */
+  deck: string
+  /** Deck name or id to move them to. */
+  to: string
+  /** Card ids or German texts, as in delete_cards. */
+  cards: string[]
+}
+
+export interface MoveCardsResult {
+  from: string
+  to: string
+  /** German text of the moved cards. */
+  moved: string[]
+  /** Cards left where they were, because the target deck has a card with the same text. */
+  skipped: string[]
+  notFound: string[]
 }
 
 export interface CreateStoryParams {
@@ -232,8 +308,11 @@ type NoParams = Record<string, never>
 export interface ActionMap {
   list_topics: { params: NoParams; result: TopicSummary[] }
   list_decks: { params: NoParams; result: DeckSummary[] }
+  list_cards: { params: ListCardsParams; result: ListCardsResult }
   create_deck: { params: CreateDeckParams; result: CreateDeckResult }
   create_cards: { params: CreateCardsParams; result: CreateCardsResult }
+  move_cards: { params: MoveCardsParams; result: MoveCardsResult }
+  delete_cards: { params: DeleteCardsParams; result: DeleteCardsResult }
   create_story: { params: CreateStoryParams; result: CreateStoryResult }
   create_questions: { params: CreateQuestionsParams; result: CreateQuestionsResult }
   list_grammar_topics: { params: NoParams; result: GrammarTopicSummary[] }

@@ -119,6 +119,20 @@ export async function deleteCard(id: string, database: LernzeitDB = db) {
   })
 }
 
+/**
+ * Moves a card to another deck with its progress, as picking another deck in
+ * the editor does: its reviews follow it, and the new deck's directions are added.
+ */
+export async function moveCard(id: string, deckId: string, database: LernzeitDB = db) {
+  await database.transaction('rw', [database.cards, database.reviews, database.decks], async () => {
+    const [card, deck] = await Promise.all([database.cards.get(id), database.decks.get(deckId)])
+    if (!card || !deck || card.deckId === deckId) return
+    const moved: Card = { ...card, deckId, updatedAt: Date.now() }
+    await database.cards.put(moved)
+    await syncReviews(database, moved, deck)
+  })
+}
+
 export async function createDeck(input: { name: string; topicId?: string }, database: LernzeitDB = db): Promise<Deck> {
   const order = ((await database.decks.orderBy('order').last())?.order ?? -1) + 1
   const deck: Deck = {
