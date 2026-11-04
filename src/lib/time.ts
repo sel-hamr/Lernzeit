@@ -124,19 +124,6 @@ export function formatMonthYear(key: string): string {
   return `${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`
 }
 
-/** "Due today", "tomorrow", "in 3 days", "in 2 months" */
-export function formatDueLabel(due: number, now: number = Date.now()): { label: string; isDue: boolean } {
-  if (due <= now) return { label: 'Due today', isDue: true }
-  const days = daysBetween(dateKey(now), dateKey(due))
-  if (days <= 0) return { label: 'Due today', isDue: true }
-  if (days === 1) return { label: 'tomorrow', isDue: false }
-  if (days < 31) return { label: `in ${days} days`, isDue: false }
-  const months = Math.round(days / 30)
-  if (months < 12) return { label: `in ${months} month${months === 1 ? '' : 's'}`, isDue: false }
-  const years = Math.round((days / 365) * 10) / 10
-  return { label: `in ${years} year${years === 1 ? '' : 's'}`, isDue: false }
-}
-
 /** "Today", "Tomorrow", "in 4 days", or "12 Oct" */
 export function formatNextReview(due: number, now: number = Date.now()): string {
   const days = daysBetween(dateKey(now), dateKey(due))

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, DEFAULT_SETTINGS, KV_KEYS } from '@/db/db'
-import type { ActiveTimer, Card, CardReview, Deck, DrillStat, ExerciseStat, GrammarTopic, ImageFit, Question, QuestionResponse, ReviewLog, Session, Settings, Story, Task, Topic } from '@/db/types'
+import type { ActiveTimer, Card, CardReview, Deck, DrillStat, ExerciseStat, GrammarTopic, ImageFit, PracticeRun, Question, QuestionResponse, ReviewLog, Session, Settings, Story, Task, Topic } from '@/db/types'
 import { buildQueue, usageToday } from '@/lib/queue'
 import { onVoicesChanged, voicesFor } from '@/lib/speech'
 import { dateKey, nextMidnightMs } from '@/lib/time'
@@ -84,6 +84,11 @@ export function useLogsForCard(cardId: string | undefined): ReviewLog[] {
 
 export function useLogsSince(day: string): ReviewLog[] {
   return useLiveQuery(() => db.reviewLogs.where('day').aboveOrEqual(day).toArray(), [day]) ?? EMPTY
+}
+
+/** Review sessions, newest first. */
+export function usePracticeRuns(): PracticeRun[] | undefined {
+  return useLiveQuery(() => db.practiceRuns.orderBy('start').reverse().toArray(), [])
 }
 
 export function useTasks(): Task[] | undefined {

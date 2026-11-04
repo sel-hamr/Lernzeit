@@ -1,6 +1,6 @@
 import { db, newId, type LernzeitDB } from '@/db/db'
 import type { Card, Deck, GrammarTopic, Story, Topic } from '@/db/types'
-import { createDeck, deleteCard, moveCard } from '@/data/cards'
+import { createDeck, deleteCard, deleteDeck, moveCard } from '@/data/cards'
 import { writeCardPack, type CardPack, type CardPackCard } from '@/data/io'
 import { DEFAULT_GROUP, saveTopic } from '@/data/grammar'
 import { saveQuestion } from '@/data/questions'
@@ -46,6 +46,8 @@ import {
   type DeckSummary,
   type DeleteCardsParams,
   type DeleteCardsResult,
+  type DeleteDeckParams,
+  type DeleteDeckResult,
   type ListCardsParams,
   type ListCardsResult,
   type LogStudyTimeParams,
@@ -273,6 +275,19 @@ async function deleteCards({ deck: deckRef, cards: refs }: DeleteCardsParams, da
   })
 }
 
+/** Deletes a deck with its cards and their progress, the way the deck dialog does. */
+async function deleteDeckAction({ deck: deckRef, cardCount }: DeleteDeckParams, database: LernzeitDB): Promise<DeleteDeckResult> {
+  if (!Number.isInteger(cardCount) || cardCount < 0) throw invalid('cardCount must be the number of cards in the deck, from list_decks.')
+  const tables = [database.decks, database.cards, database.reviews, database.reviewLogs, database.drillStats, database.images]
+  return database.transaction('rw', tables, async () => {
+    const deck = await findDeck(database, deckRef)
+    const cards = await database.cards.where('deckId').equals(deck.id).count()
+    if (cards !== cardCount) throw invalid(`"${deck.name}" has ${cards} ${cards === 1 ? 'card' : 'cards'}, not ${cardCount}. Nothing was deleted; tell the user the real number and ask again.`)
+    await deleteDeck(deck.id, database)
+    return { deck: deck.name, deletedCards: cards }
+  })
+}
+
 async function createStory({ title, text, translation, level, tags, topic }: CreateStoryParams, database: LernzeitDB): Promise<CreateStoryResult> {
   if (!title.trim()) throw invalid('A story needs a title.')
   if (title.length > MAX_STORY_TITLE) throw invalid(`Keep the title under ${MAX_STORY_TITLE} characters.`)
@@ -447,6 +462,7 @@ const handlers: { [A in ActionName]: Handler<A> } = {
   create_cards: createCards,
   move_cards: moveCards,
   delete_cards: deleteCards,
+  delete_deck: deleteDeckAction,
   create_story: createStory,
   create_questions: createQuestions,
   list_grammar_topics: listGrammarTopics,

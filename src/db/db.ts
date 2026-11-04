@@ -8,6 +8,7 @@ import type {
   ExerciseStat,
   GrammarTopic,
   KV,
+  PracticeRun,
   Question,
   QuestionResponse,
   ReviewLog,
@@ -36,6 +37,7 @@ export class LernzeitDB extends Dexie {
   drillStats!: EntityTable<DrillStat, 'id'>
   grammarTopics!: EntityTable<GrammarTopic, 'id'>
   exerciseStats!: EntityTable<ExerciseStat, 'id'>
+  practiceRuns!: EntityTable<PracticeRun, 'id'>
   kv!: EntityTable<KV, 'key'>
 
   constructor(name = 'lernzeit') {
@@ -68,6 +70,9 @@ export class LernzeitDB extends Dexie {
     this.version(6).stores({
       grammarTopics: 'id, group, createdAt',
       exerciseStats: 'id, topicId',
+    })
+    this.version(7).stores({
+      practiceRuns: 'id, start',
     })
   }
 }

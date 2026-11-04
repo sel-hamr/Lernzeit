@@ -228,6 +228,39 @@ describe('list_cards, move_cards and delete_cards', () => {
   })
 })
 
+describe('delete_deck', () => {
+  beforeEach(async () => {
+    await runAction('create_deck', { name: 'Food' }, database)
+    await runAction('create_cards', { deck: 'Food', cards: [{ english: 'spoon', german: 'der Löffel' }, { english: 'fork', german: 'die Gabel' }] }, database)
+    await runAction('create_cards', { deck: 'My Words', cards: [{ english: 'spoon', german: 'Löffel' }] }, database)
+  })
+
+  it('deletes a deck by name with its cards and their progress, and leaves other decks alone', async () => {
+    const deck = (await database.decks.filter((d) => d.name === 'Food').first())!
+    const ids = (await database.cards.where('deckId').equals(deck.id).toArray()).map((c) => c.id)
+    expect(await runAction('delete_deck', { deck: 'FOOD', cardCount: 2 }, database)).toEqual({ deck: 'Food', deletedCards: 2 })
+    expect(await database.decks.get(deck.id)).toBeUndefined()
+    expect(await database.cards.where('deckId').equals(deck.id).count()).toBe(0)
+    expect(await database.reviews.where('cardId').anyOf(ids).count()).toBe(0)
+    expect(await database.cards.where('deckId').equals('my-words').filter((c) => c.german === 'Löffel').count()).toBe(1)
+    await expectCode(runAction('delete_deck', { deck: 'Food', cardCount: 2 }, database), 'deck_not_found')
+  })
+
+  it('deletes an empty deck by id', async () => {
+    const { deck } = await runAction('create_deck', { name: 'Empty' }, database)
+    expect(await runAction('delete_deck', { deck: deck.id, cardCount: 0 }, database)).toEqual({ deck: 'Empty', deletedCards: 0 })
+  })
+
+  it('keeps the deck when cardCount does not match, or is not a count', async () => {
+    const error = await expectCode(runAction('delete_deck', { deck: 'Food', cardCount: 1 }, database), 'invalid_input')
+    expect(error.message).toContain('has 2 cards')
+    await expectCode(runAction('delete_deck', { deck: 'Food', cardCount: -1 }, database), 'invalid_input')
+    await expectCode(runAction('delete_deck', { deck: 'Food', cardCount: 2.5 }, database), 'invalid_input')
+    await expectCode(runAction('delete_deck', { deck: 'Küche', cardCount: 0 }, database), 'deck_not_found')
+    expect((await runAction('list_decks', {}, database)).find((d) => d.name === 'Food')?.cards).toBe(2)
+  })
+})
+
 describe('create_story', () => {
   const text = 'Ich koche heute Nudeln.\n\nDas Essen ist lecker.'
 

@@ -92,9 +92,7 @@ function DecksGroup() {
               <Dot color={topic?.color} />
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="text-body font-medium">{d.name}</span>
-                <span className="text-chip text-muted">
-                  {count(cardCount, 'card')} · {d.newPerDay} new and {d.reviewsPerDay} reviews a day
-                </span>
+                <span className="text-chip text-muted">{count(cardCount, 'card')}</span>
               </span>
               <span className="hidden text-small text-muted sm:block">{topic ? `Counts toward ${topic.name}` : 'No topic'}</span>
               <RowChevron />

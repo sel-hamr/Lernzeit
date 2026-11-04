@@ -1,25 +1,4 @@
-import type { Card, CardReview, Deck, Direction, ReviewLog } from '@/db/types'
-import { directionsFor, State } from '@/lib/srs'
-
-export interface CardSummary {
-  /** Earliest due time among the card's active directions. */
-  due: number
-  isNew: boolean
-  learned: boolean
-  directions: Direction[]
-}
-
-export function summarizeCard(card: Card, deck: Deck | undefined, reviews: CardReview[]): CardSummary {
-  const directions = deck ? directionsFor(card, deck) : []
-  const active = reviews.filter((r) => directions.includes(r.direction))
-  const list = active.length ? active : reviews
-  return {
-    due: list.reduce((min, r) => Math.min(min, r.due), Number.POSITIVE_INFINITY),
-    isNew: list.every((r) => r.state === State.New),
-    learned: list.some((r) => r.state === State.Review),
-    directions,
-  }
-}
+import type { Card, CardReview, Deck, ReviewLog } from '@/db/types'
 
 export function groupByCard(reviews: CardReview[]): Map<string, CardReview[]> {
   const map = new Map<string, CardReview[]>()

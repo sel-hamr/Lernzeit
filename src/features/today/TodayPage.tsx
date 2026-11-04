@@ -6,13 +6,14 @@ import { Chip, Dot, EmptyState, PageHeader, PriorityChip, ProgressBar, Section, 
 import { CardImage } from '@/components/CardImage'
 import { CardGerman } from '@/components/GermanWord'
 import { useUI } from '@/app/ui'
-import { useCards, useLanguage, useSettings, useStudyQueue, useTasks, useTopics } from '@/data/hooks'
+import { useLanguage, usePracticeRuns, useSettings, useTasks, useTopics } from '@/data/hooks'
 import { useTodayProgress, type TopicProgress } from '@/data/progress'
 import { useStreaks, useWordOfTheDay } from '@/data/stats'
 import { isDueToday, isOverdue, toggleTaskDone } from '@/data/tasks'
 import { useStartTimer } from '@/features/timer/useStartTimer'
 import { PRIORITY_ORDER } from '@/lib/colors'
 import { germanText } from '@/lib/german'
+import { formatPracticeTime, practiceTotals } from '@/lib/practice'
 import { speak, voiceOptions } from '@/data/voice'
 import { dateKey, formatClock, formatDayMonthShort, formatHM, formatLongDate } from '@/lib/time'
 import { isPaused } from '@/lib/timer'
@@ -253,8 +254,8 @@ function TodoToday() {
 
 export function TodayPage() {
   const progress = useTodayProgress()
-  const queue = useStudyQueue()
-  const hasCards = (useCards()?.length ?? 0) > 0
+  const runs = usePracticeRuns()
+  const practisedToday = practiceTotals((runs ?? []).filter((r) => r.day === progress.today))
   const streaks = useStreaks()
   const { openCardEditor } = useUI()
   const navigate = useNavigate()
@@ -287,10 +288,10 @@ export function TodayPage() {
         items={[
           { value: `${formatHM(progress.totalDone)} h`, label: `studied of ${formatHM(progress.totalGoal)} h today` },
           {
-            value: queue.total,
-            label: `cards due · ${queue.newCount} new`,
-            to: hasCards ? '/flashcards/review' : '/flashcards',
-            title: queue.total ? 'Start reviewing' : hasCards ? 'Practise cards ahead of schedule' : 'Open flashcards',
+            value: formatPracticeTime(practisedToday.ms),
+            label: `flashcards practised · ${practisedToday.reviewed} ${practisedToday.reviewed === 1 ? 'card' : 'cards'}`,
+            to: '/flashcards',
+            title: 'Open your decks',
           },
           {
             value: `${streak} ${streak === 1 ? 'day' : 'days'}`,

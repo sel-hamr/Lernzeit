@@ -166,6 +166,19 @@ export interface MoveCardsResult {
   notFound: string[]
 }
 
+export interface DeleteDeckParams {
+  /** Deck name or id. */
+  deck: string
+  /** How many cards the deck has, from list_decks. The deck is kept when it has a different number. */
+  cardCount: number
+}
+
+export interface DeleteDeckResult {
+  deck: string
+  /** Cards deleted with the deck. */
+  deletedCards: number
+}
+
 export interface CreateStoryParams {
   title: string
   /** In the language you learn; an empty line starts a new paragraph. */
@@ -313,6 +326,7 @@ export interface ActionMap {
   create_cards: { params: CreateCardsParams; result: CreateCardsResult }
   move_cards: { params: MoveCardsParams; result: MoveCardsResult }
   delete_cards: { params: DeleteCardsParams; result: DeleteCardsResult }
+  delete_deck: { params: DeleteDeckParams; result: DeleteDeckResult }
   create_story: { params: CreateStoryParams; result: CreateStoryResult }
   create_questions: { params: CreateQuestionsParams; result: CreateQuestionsResult }
   list_grammar_topics: { params: NoParams; result: GrammarTopicSummary[] }

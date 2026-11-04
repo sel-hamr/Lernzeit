@@ -8,6 +8,8 @@ import { MINUTE } from '@/lib/time'
 import { completePhase, pauseTimer, resumeTimer, startTimer, stopTimer, getPendingNote, resolvePendingNote, recordReviewTime } from './timer'
 import { createDeck, deleteCard, deleteDeck, gradeReview, moveCard, quickAddCard, saveCard, undoGrade } from './cards'
 import { saveDrillAnswer } from './drills'
+import { savePracticeRun } from './practice'
+import type { PracticeRun } from '@/db/types'
 import { DEFAULT_GROUP, deleteTopic, saveExerciseAnswer, saveTopic, STARTER_GRAMMAR_VERSION } from './grammar'
 import { createTask, setColumnOrder, toggleTaskDone } from './tasks'
 import { exportBackup, importCsvRows, parseCardPack, parseCardsCsv, prepareCardPack, restoreBackup, writeCardPack } from './io'
@@ -577,6 +579,48 @@ describe('drills', () => {
       await restoreBackup(JSON.parse(JSON.stringify({ ...backup, drillStats: undefined })), other)
       expect(await other.drillStats.count()).toBe(0)
       await expect(restoreBackup({ ...backup, drillStats: {} }, other)).rejects.toThrow('broken "drillStats"')
+    } finally {
+      await other.delete()
+    }
+  })
+})
+
+describe('practice history', () => {
+  const run = (patch: Partial<PracticeRun> = {}): PracticeRun => ({
+    id: 'run-1',
+    kind: 'all',
+    start: Date.now(),
+    end: Date.now() + 60_000,
+    activeMs: 50_000,
+    reviewed: 2,
+    correct: 1,
+    directions: ['enToDe'],
+    decks: { d1: { ms: 50_000, reviewed: 2, correct: 1 } },
+    day: '2026-10-14',
+    ...patch,
+  })
+
+  it('saves a session after each rating and drops it once every rating is undone', async () => {
+    await savePracticeRun(run({ reviewed: 1, correct: 1 }), database)
+    await savePracticeRun(run(), database)
+    expect(await database.practiceRuns.toArray()).toEqual([run()])
+    await savePracticeRun(run({ reviewed: 0, correct: 0, activeMs: 0, decks: {} }), database)
+    expect(await database.practiceRuns.count()).toBe(0)
+  })
+
+  it('backs up sessions and restores backups made before practice history', async () => {
+    await database.images.clear()
+    await savePracticeRun(run(), database)
+    const backup = await exportBackup(database)
+    expect(backup.practiceRuns).toEqual([run()])
+
+    const other = new LernzeitDB(`test-${counter++}`)
+    try {
+      await restoreBackup(JSON.parse(JSON.stringify(backup)), other)
+      expect(await other.practiceRuns.get('run-1')).toEqual(run())
+      await restoreBackup(JSON.parse(JSON.stringify({ ...backup, practiceRuns: undefined })), other)
+      expect(await other.practiceRuns.count()).toBe(0)
+      await expect(restoreBackup({ ...backup, practiceRuns: {} }, other)).rejects.toThrow('broken "practiceRuns"')
     } finally {
       await other.delete()
     }

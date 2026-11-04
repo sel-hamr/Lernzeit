@@ -1,4 +1,4 @@
-import type { CardReview, Deck, Direction, ReviewLog } from '@/db/types'
+import type { CardReview, Deck, Direction, Grade, ReviewLog } from '@/db/types'
 import { State } from './srs'
 
 const DIRECTION_RANK: Record<Direction, number> = { imageToDe: 0, cloze: 0, enToDe: 1, deToEn: 2 }
@@ -209,6 +209,21 @@ export function pickNextReview<T extends SessionQueue>(
   return next.fromMain
     ? { ...session, learning, main: session.main.filter((id) => id !== next.id), current: next.id }
     : { ...session, learning: learning.filter((l) => l.id !== next.id), current: next.id }
+}
+
+/**
+ * How many cards later a rated card comes back when practising a deck:
+ * Again soon, Hard later, Good later still. Only Easy finishes a card, so the
+ * session ends when every card is rated Easy.
+ */
+export const PRACTICE_RETURN: Record<Grade, number | null> = { 1: 3, 2: 8, 3: 15, 4: null }
+
+/** The rest of a deck practice after rating `id`: Again, Hard and Good put it back that many cards ahead, or last when fewer are left. */
+export function requeueAfterRating(main: string[], id: string, grade: Grade): string[] {
+  const gap = PRACTICE_RETURN[grade]
+  if (gap === null) return main
+  const rest = main.filter((m) => m !== id)
+  return [...rest.slice(0, gap - 1), id, ...rest.slice(gap - 1)]
 }
 
 /** Keeps two directions of the same card from appearing back to back. */

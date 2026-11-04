@@ -237,6 +237,23 @@ export function registerTools(server: McpServer, hub: BrowserHub) {
   )
 
   server.registerTool(
+    'delete_deck',
+    {
+      title: 'Delete a deck',
+      description:
+        'Deletes a deck with all its cards and their review progress. This cannot be undone, so tell the user the deck and how many cards it has, and ask first. ' +
+        'cardCount must match the deck, or nothing is deleted.',
+      inputSchema: z.object({
+        browser: browserField,
+        deck: z.string().min(1).describe('Deck name or id, from list_decks.'),
+        cardCount: z.number().int().min(0).describe('The number of cards in the deck, from list_decks, as you told the user.'),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    },
+    ({ browser, ...params }) => forward(browser, 'delete_deck', params),
+  )
+
+  server.registerTool(
     'create_story',
     {
       title: 'Add a story',

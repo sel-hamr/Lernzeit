@@ -4,7 +4,7 @@ import { checkAnswer, diffChars } from './answer'
 import { germanText, parseCloze, splitArticle, wordKind } from './german'
 import { computeStreak, goalFor, indexMinutes, isGoalHit, topicStreak, uniformGoals, withGoalChange } from './goals'
 import { heatLevel, topicWeek, weekSummary } from './history'
-import { buildPickedQueue, buildPracticeQueue, buildQueue, pickNextReview, studiesAhead, usageToday } from './queue'
+import { buildPickedQueue, buildPracticeQueue, buildQueue, pickNextReview, requeueAfterRating, studiesAhead, usageToday } from './queue'
 import { pickedState, readPicked } from './picked'
 import { splitAtMidnight } from './sessions'
 import { shortVoiceName } from './speech'
@@ -353,6 +353,23 @@ describe('practice queue', () => {
     expect(applyGrade(known, 3, now, true).due).toBe(practice[3].due)
     // Never later than FSRS: a new card's Again stays at a minute.
     expect(previewGrades(newFsrs(now), now, true)[1].due).toBe(previewGrades(newFsrs(now), now)[1].due)
+  })
+})
+
+describe('practising a deck', () => {
+  it('brings a card back by its rating: Again soon, Hard later, Good later still, Easy not again', () => {
+    const main = ['b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k']
+    expect(requeueAfterRating(main, 'a', 1)).toEqual(['b', 'c', 'a', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k'])
+    expect(requeueAfterRating(main, 'a', 2)).toEqual(['b', 'c', 'd', 'e', 'f', 'g', 'h', 'a', 'i', 'j', 'k'])
+    expect(requeueAfterRating(main, 'a', 3)).toEqual([...main, 'a'])
+    expect(requeueAfterRating([...main, 'l', 'm', 'n', 'o', 'p', 'q'], 'a', 3).indexOf('a')).toBe(14)
+    expect(requeueAfterRating(main, 'a', 4)).toBe(main)
+  })
+
+  it('puts a card last when fewer cards are left, and never twice', () => {
+    expect(requeueAfterRating(['b'], 'a', 2)).toEqual(['b', 'a'])
+    expect(requeueAfterRating([], 'a', 1)).toEqual(['a'])
+    expect(requeueAfterRating(['b', 'a', 'c'], 'a', 1)).toEqual(['b', 'c', 'a'])
   })
 })
 
