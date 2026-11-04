@@ -30,7 +30,7 @@ Everything lives in your browser, works offline, and installs on your phone.
 - **Your language, your level.** Lernzeit starts empty and asks what you want to learn, in which language you want it explained, and your level. Then it adds words, stories, questions and grammar for it.
 - **Local-first.** No account and no server. Your cards, sessions and tasks are stored in IndexedDB.
 - **Works offline.** A service worker caches the app, and the Geist font is bundled.
-- **Remembers for you.** Cards are scheduled with FSRS, so you review each word right before you'd forget it.
+- **Practise a whole deck.** Open a deck's tab, pick the practice directions and go through every card. Each session's time is saved, and Practice history shows them all.
 - **Always in sync.** Every view reads live queries, so a change shows up instantly, even in other tabs.
 - **Light and dark.** Follows your system theme, or pick one.
 
@@ -38,9 +38,9 @@ Everything lives in your browser, works offline, and installs on your phone.
 
 | Page | What it does |
 |---|---|
-| **Today** | Progress per topic with time left, today's sessions, cards due, word of the day, tasks due today |
+| **Today** | Progress per topic with time left, today's sessions, flashcard practice time, word of the day, tasks due today |
 | **Focus timer** | Countdown, Pomodoro and free mode. Keeps running through a refresh, a closed tab or a sleeping phone |
-| **Flashcards** | Word, sentence and cloze cards, three practice directions, typing and listening modes |
+| **Flashcards** | Your decks, each practised whole in the directions you pick, practice history, word, sentence and cloze cards, typing and listening modes |
 | **Grammar** | A course from A1 to B1: 27 topics with the rule, examples and 384 explained exercises of four kinds, a path with progress, and spaced review. Your own topics and words too |
 | **Stories** | Short German stories read with your decks: words light up by how well you know them, and any word can become a card |
 | **Questions** | German questions like in the speaking part of an exam: write your own answer once, then answer from memory and compare |
@@ -72,10 +72,10 @@ Shows progress per topic with the time left, start buttons, today's sessions, ca
 <br />
 
 - Word, sentence and cloze cards (`Der Hund {{spielt}} im Garten.`), coloured by gender: <b>der</b> blue, <b>die</b> red, <b>das</b> green.
-- Three practice directions per deck: Image → German, English → German and German → English. Scheduling uses FSRS ([ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs)). Daily limits are set per deck and count new words, not directions.
-- **Always a word to practise.** When nothing is due, **Practise** starts a round of 20 cards ahead of schedule: studied cards that are due soonest first, then new cards past the daily limit. A practised card comes back soon: at most 10 minutes after Again, 1 hour after Hard, 1 day after Good and 2 days after Easy. **Practise more** at the end starts another round, with other words: a card rated in the last hour comes last.
-- **Deck tabs on one line.** The decks that fit show as tabs; the rest go in a **More** menu at the end of the row, with their due counts and, for long lists, a filter. The open deck always shows as a tab.
-- **Practise the cards you pick.** **Select** in Flashcards turns on select mode: tap cards to tick them, or **Select all** the cards shown. Picks stay when you change the deck or filter, so one round can mix decks. **Practise** asks only those cards, in the order you picked them, in each direction their deck practises. A due card is reviewed as usual, and a card that is not due yet comes back soon, like in a practice round. **Practise again** at the end repeats the same cards.
+- **Deck tabs on one line.** The decks that fit show as tabs, each with its number of cards; the rest go in a **More** menu at the end of the row, with a filter for long lists. The open deck always shows as a tab. There are no due counts.
+- **Practise a deck.** On a deck's tab, **Practise deck** asks which practice directions to take: Image → German, English → German, German → English or Cloze, each with its number of cards. On **All**, **Practise** does the same for every deck. The session asks every card in those directions, and your rating says when a card comes back: **Again** 3 cards later, **Hard** 8 cards later, **Good** 15 cards later, and **Easy** not again. Each button shows it. The top of the session counts how often you pressed each button and how many cards are left. The session ends once every card is rated **Easy**, and shows the same counts. Ratings are still kept with FSRS ([ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs)).
+- **Practice history.** Every session is saved after each rating, so one you leave half-way counts too: when it started and ended, the time spent on the cards (at most two minutes a card), the reviews and how many were right, the directions, and the time per deck. The clock button in Flashcards shows them day by day, with totals, the time per deck, and a filter for one deck. Today shows today's practice time, and History the last 30 days'. Sessions are part of backups.
+- **Practise the cards you pick.** **Select** in Flashcards turns on select mode: tap cards to tick them, or **Select all** the cards shown. Picks stay when you change the deck or filter, so one round can mix decks. **Practise** asks only those cards, in the order you picked them, in each direction their deck practises, and brings them back by your rating like a deck. **Practise again** at the end repeats the same cards.
 - **No word twice in a row.** After a card, the next one is always a different word, even after **Again** or when another direction of the same word is waiting. A word repeats only when it is the last one left in the session.
 - **Typing mode** accepts small slips (`ue` for `ü`, a missing umlaut, lowercase, a missing article), then shows the exact spelling and highlights the wrong letters.
 - **Listening mode** plays the German and you type what you hear. Speed buttons (0.6×, 0.8×, 1×, 1.2×) sit next to the speaker.
@@ -135,7 +135,7 @@ Shows progress per topic with the time left, start buttons, today's sessions, ca
 <summary><b>History</b></summary>
 <br />
 
-A week calendar with every session, a day view (goal hit or missed, notes), a 16-week heatmap you can filter by topic, streaks, hours per topic per week or month, and flashcard stats: total, learned, due, retention and reviews per day.
+A week calendar with every session, a day view (goal hit or missed, notes), a 16-week heatmap you can filter by topic, streaks, hours per topic per week or month, and flashcard stats: total, learned, practice time over 30 days, retention and reviews per day.
 
 When you change a goal, the new value applies from that day on, so past days keep the goal they had.
 

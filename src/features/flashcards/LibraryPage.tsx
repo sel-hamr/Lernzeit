@@ -1,7 +1,7 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import clsx from 'clsx'
-import { Check, Copy, FolderPlus, ListChecks, Plus, Search, Settings2, Upload, Volume2 } from 'lucide-react'
+import { Check, Copy, FolderPlus, History, ListChecks, Plus, Search, Settings2, Upload, Volume2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Chip, EmptyState, PageHeader } from '@/components/ui/primitives'
 import { TextSelect } from '@/components/ui/form'
@@ -10,47 +10,33 @@ import { CardImage } from '@/components/CardImage'
 import { CardGerman } from '@/components/GermanWord'
 import { useUI } from '@/app/ui'
 import { INCOMPLETE_TAG } from '@/data/cards'
-import { useAllReviews, useCards, useDecks, useLanguage, useLogsForCard, useNow, useSettings, useStudyQueue, useTopics } from '@/data/hooks'
-import type { Card, CardReview, Deck, Topic } from '@/db/types'
+import { useCards, useDecks, useLanguage, useLogsForCard, usePracticeRuns, useSettings, useTopics } from '@/data/hooks'
+import type { Card, Deck, Topic } from '@/db/types'
 import { useMediaQuery } from '@/lib/browser'
 import { GENDER_LABEL, germanText, stripCloze, wordKind } from '@/lib/german'
 import { speak, voiceOptions } from '@/data/voice'
-import { directionLabel } from '@/lib/srs'
+import { directionLabel, directionsFor } from '@/lib/srs'
 import { pickedState } from '@/lib/picked'
-import { formatDueLabel, formatNextReview } from '@/lib/time'
+import { formatLastPractised, formatPracticeTime, practiceTotals, type PracticeTotals } from '@/lib/practice'
 import { DeckDialog } from './DeckDialog'
 import { DeckTabs } from './DeckTabs'
 import { ImportCsvDialog } from './ImportCsvDialog'
-import { deckChipLabel, groupByCard, reviewScore, summarizeCard, type CardSummary } from './summary'
+import { PracticeHistoryDialog } from './PracticeHistoryDialog'
+import { PractiseDialog } from './PractiseDialog'
+import { deckChipLabel, reviewScore } from './summary'
 
-type SortKey = 'due' | 'newest' | 'az' | 'incomplete'
+type SortKey = 'newest' | 'az' | 'incomplete'
 const PAGE = 120
 
-function CardTitle({ card, className }: { card: Card; className?: string }) {
-  return <CardGerman card={card} className={className} />
+/** "52 cards · 12 min practised · Today" */
+function deckLine(cards: number, totals: PracticeTotals): string {
+  const parts = [`${cards} ${cards === 1 ? 'card' : 'cards'}`]
+  parts.push(totals.sessions ? `${formatPracticeTime(totals.ms)} practised · ${formatLastPractised(totals.last)}` : 'Not practised yet')
+  return parts.join(' · ')
 }
 
 /** A card in the grid. In select mode (`picking`) a tap ticks it for practice instead of opening it. */
-function CardTile({
-  card,
-  deck,
-  topic,
-  summary,
-  selected,
-  picking,
-  now,
-  onSelect,
-}: {
-  card: Card
-  deck?: Deck
-  topic?: Topic
-  summary: CardSummary
-  selected: boolean
-  picking: boolean
-  now: number
-  onSelect: () => void
-}) {
-  const due = summary.isNew ? { label: 'New', isDue: false } : formatDueLabel(summary.due, now)
+function CardTile({ card, deck, topic, selected, picking, onSelect }: { card: Card; deck?: Deck; topic?: Topic; selected: boolean; picking: boolean; onSelect: () => void }) {
   const incomplete = card.tags.includes(INCOMPLETE_TAG)
   return (
     <button
@@ -75,14 +61,13 @@ function CardTile({
       )}
       <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt={card.english} className="h-29.5" />
       <div className="flex min-w-0 flex-col gap-0.5 px-1.5">
-        <CardTitle card={card} className={clsx('font-semibold', card.type === 'word' ? 'text-[15px]' : 'line-clamp-2 text-small')} />
+        <CardGerman card={card} className={clsx('font-semibold', card.type === 'word' ? 'text-[15px]' : 'line-clamp-2 text-small')} />
         <div className="truncate text-small text-muted">
           {card.type === 'word' ? card.english : wordKind(card)}
           {card.type === 'word' && ` · ${wordKind(card)}`}
         </div>
       </div>
-      <div className="mt-auto flex items-center justify-between gap-2 px-1.5 text-chip">
-        <span className={clsx(due.isDue ? 'font-medium text-red-ink' : summary.isNew ? 'text-sage-ink' : 'text-muted')}>{due.label}</span>
+      <div className="mt-auto flex px-1.5 text-chip">
         {incomplete ? (
           <Chip tone="neutral" className="px-2 py-0.5">
             Incomplete
@@ -97,13 +82,13 @@ function CardTile({
   )
 }
 
-function CardDetail({ card, deck, reviews, now }: { card: Card; deck?: Deck; reviews: CardReview[]; now: number }) {
+function CardDetail({ card, deck }: { card: Card; deck?: Deck }) {
   const settings = useSettings()
   const language = useLanguage()
   const logs = useLogsForCard(card.id)
   const navigate = useNavigate()
   const { openCardEditor } = useUI()
-  const summary = summarizeCard(card, deck, reviews)
+  const directions = deck ? directionsFor(card, deck) : []
   const allDirections = card.type === 'cloze' ? (['cloze'] as const) : (['imageToDe', 'enToDe', 'deToEn'] as const)
   const say = () => speak(germanText(card), voiceOptions(settings))
 
@@ -118,7 +103,6 @@ function CardDetail({ card, deck, reviews, now }: { card: Card; deck?: Deck; rev
     rows.push([language.native.name, card.english])
   }
   if (card.tags.length) rows.push(['Tags', card.tags.join(', ')])
-  rows.push(['Next review', summary.isNew ? 'New card' : formatNextReview(summary.due, now)])
   rows.push(['Reviews', reviewScore(logs)])
 
   const kind = card.type === 'word' ? [card.english, wordKind(card) + (card.gender ? `, ${GENDER_LABEL[card.gender]}` : '')].join(' · ') : wordKind(card)
@@ -129,7 +113,7 @@ function CardDetail({ card, deck, reviews, now }: { card: Card; deck?: Deck; rev
       <div className="flex items-start justify-between gap-3 px-2">
         <div className="flex min-w-0 flex-col gap-0.5">
           <h2 className="text-[22px] leading-tight font-semibold tracking-[-0.01em]">
-            <CardTitle card={card} />
+            <CardGerman card={card} />
           </h2>
           <div className="text-small text-muted">{kind}</div>
         </div>
@@ -151,7 +135,7 @@ function CardDetail({ card, deck, reviews, now }: { card: Card; deck?: Deck; rev
         <div className="text-small font-medium">Practice directions</div>
         <div className="flex flex-wrap gap-1.5">
           {allDirections.map((d) => {
-            const on = summary.directions.includes(d)
+            const on = directions.includes(d)
             return (
               <Chip key={d} tone={on ? 'sage' : 'soft'} className={clsx('py-1', !on && 'font-normal')}>
                 {directionLabel(d, { learning: language.name, native: language.native.name })}
@@ -165,13 +149,14 @@ function CardDetail({ card, deck, reviews, now }: { card: Card; deck?: Deck; rev
           Edit card
         </Button>
         <Button variant="primary" className="flex-1" onClick={() => navigate(`/flashcards/review?card=${card.id}`)}>
-          Review now
+          Practise card
         </Button>
       </div>
     </div>
   )
 }
 
+/** Flashcards: the deck tabs, the open deck's cards, and Practise for that deck or every deck. */
 export function LibraryPage() {
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
@@ -179,15 +164,15 @@ export function LibraryPage() {
   const cards = useCards()
   const decks = useDecks()
   const topics = useTopics(true)
-  const reviews = useAllReviews()
-  const queue = useStudyQueue()
-  const now = useNow(60_000)
+  const runs = usePracticeRuns()
   const wide = useMediaQuery('(min-width: 1100px)')
-  const [sort, setSort] = useState<SortKey>('due')
+  const [sort, setSort] = useState<SortKey>('newest')
   const [filter, setFilter] = useState('')
   const [shown, setShown] = useState(PAGE)
   const [deckDialog, setDeckDialog] = useState<{ id: string | null } | null>(null)
   const [importOpen, setImportOpen] = useState(false)
+  const [practiseOpen, setPractiseOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   // Select mode: the cards ticked for a round of their own, in the order they were ticked.
   const [picking, setPicking] = useState(false)
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set())
@@ -196,13 +181,7 @@ export function LibraryPage() {
   const deckParam = params.get('deck')
   const deckFilter = decks.some((d) => d.id === deckParam) ? deckParam! : 'all'
   const deckById = useMemo(() => new Map(decks.map((d) => [d.id, d])), [decks])
-  const reviewsByCard = useMemo(() => groupByCard(reviews ?? []), [reviews])
-
-  const summaries = useMemo(() => {
-    const map = new Map<string, CardSummary>()
-    for (const c of cards ?? []) map.set(c.id, summarizeCard(c, deckById.get(c.deckId), reviewsByCard.get(c.id) ?? []))
-    return map
-  }, [cards, deckById, reviewsByCard])
+  const deck = deckById.get(deckFilter)
 
   const visible = useMemo(() => {
     const q = deferredFilter.trim().toLowerCase()
@@ -211,22 +190,15 @@ export function LibraryPage() {
         (deckFilter === 'all' || c.deckId === deckFilter) &&
         (!q || `${c.german} ${c.english} ${c.tags.join(' ')} ${c.plural ?? ''}`.toLowerCase().includes(q)),
     )
-    const due = (c: Card) => {
-      const s = summaries.get(c.id)!
-      // Due cards first, then new ones, then the rest by date.
-      return s.isNew ? (s.due <= now ? now + 1 : s.due) : s.due
-    }
     switch (sort) {
-      case 'newest':
-        return list.sort((a, b) => b.createdAt - a.createdAt)
       case 'az':
         return list.sort((a, b) => stripCloze(a.german).localeCompare(stripCloze(b.german), 'de'))
       case 'incomplete':
         return list.sort((a, b) => Number(b.tags.includes(INCOMPLETE_TAG)) - Number(a.tags.includes(INCOMPLETE_TAG)) || b.createdAt - a.createdAt)
       default:
-        return list.sort((a, b) => due(a) - due(b) || a.createdAt - b.createdAt)
+        return list.sort((a, b) => b.createdAt - a.createdAt)
     }
-  }, [cards, deckFilter, deferredFilter, sort, summaries, now])
+  }, [cards, deckFilter, deferredFilter, sort])
 
   const selectedId = params.get('card')
   const selected = (cards ?? []).find((c) => c.id === selectedId) ?? (wide ? visible[0] : undefined)
@@ -253,16 +225,15 @@ export function LibraryPage() {
     return map
   }, [cards])
   const deckOptions = useMemo(
-    () => [
-      { value: 'all', label: 'All', count: total, due: queue.total },
-      ...decks.map((d) => ({ value: d.id, label: d.name, count: countByDeck.get(d.id) ?? 0, due: queue.byDeck.get(d.id) ?? 0 })),
-    ],
-    [decks, countByDeck, total, queue],
+    () => [{ value: 'all', label: 'All', count: total }, ...decks.map((d) => ({ value: d.id, label: d.name, count: countByDeck.get(d.id) ?? 0 }))],
+    [decks, countByDeck, total],
   )
-  const dueHere = deckFilter === 'all' ? queue.total : (queue.byDeck.get(deckFilter) ?? 0)
-  const cardsHere = deckFilter === 'all' ? total : (countByDeck.get(deckFilter) ?? 0)
-  const reviewHref = deckFilter === 'all' ? '/flashcards/review' : `/flashcards/review?deck=${deckFilter}`
-  const topicOf = (deck?: Deck) => topics.find((t) => t.id === deck?.topicId)
+  const cardsHere = deck ? (countByDeck.get(deck.id) ?? 0) : total
+  const practised = practiceTotals(runs ?? [], deck?.id)
+  const subtitle = deck
+    ? deckLine(cardsHere, practised)
+    : `${total} ${total === 1 ? 'card' : 'cards'} in ${decks.length} ${decks.length === 1 ? 'deck' : 'decks'}${practised.sessions ? ` · ${formatPracticeTime(practised.ms)} practised` : ''}`
+  const topicOf = (d?: Deck) => topics.find((t) => t.id === d?.topicId)
 
   // Picks are kept across decks and filters, so one round can mix them. Deleted cards drop out.
   const pickedHere = useMemo(() => {
@@ -286,18 +257,21 @@ export function LibraryPage() {
     <>
       <PageHeader
         title="Flashcards"
-        subtitle={`${total} ${total === 1 ? 'card' : 'cards'} in ${decks.length} ${decks.length === 1 ? 'deck' : 'decks'} · ${queue.total} due today`}
+        subtitle={cards && subtitle}
         actions={
           <>
             <Button variant="ghost" iconOnly aria-label="Import cards" title="Import cards (CSV or card pack)" onClick={() => setImportOpen(true)}>
               <Upload size={18} strokeWidth={1.7} />
             </Button>
-            <Button variant="soft" icon={<Plus size={16} strokeWidth={1.8} />} onClick={() => openCardEditor({ deckId: deckFilter === 'all' ? undefined : deckFilter })}>
+            <Button variant="ghost" iconOnly aria-label="Practice history" title="Practice history" onClick={() => setHistoryOpen(true)}>
+              <History size={18} strokeWidth={1.7} />
+            </Button>
+            <Button variant="soft" icon={<Plus size={16} strokeWidth={1.8} />} onClick={() => openCardEditor({ deckId: deck?.id })}>
               Add card
             </Button>
-            {/* With nothing due, the review page practises cards ahead of schedule. */}
-            <Button variant="primary" disabled={!cardsHere} onClick={() => navigate(reviewHref)} title={dueHere ? undefined : 'Nothing is due. Practise cards ahead of schedule.'}>
-              {dueHere ? `Review ${dueHere} ${dueHere === 1 ? 'card' : 'cards'}` : 'Practise'}
+            {/* Opens the directions popup for the open deck, or every deck on All. */}
+            <Button variant="primary" disabled={!cardsHere} onClick={() => setPractiseOpen(true)}>
+              {deck ? 'Practise deck' : 'Practise'}
             </Button>
           </>
         }
@@ -311,11 +285,11 @@ export function LibraryPage() {
             variant="ghost"
             size="sm"
             iconOnly
-            aria-label={deckFilter === 'all' ? 'New deck' : 'Deck settings'}
-            title={deckFilter === 'all' ? 'New deck' : 'Deck settings'}
-            onClick={() => setDeckDialog({ id: deckFilter === 'all' ? null : deckFilter })}
+            aria-label={deck ? 'Deck settings' : 'New deck'}
+            title={deck ? 'Deck settings' : 'New deck'}
+            onClick={() => setDeckDialog({ id: deck?.id ?? null })}
           >
-            {deckFilter === 'all' ? <FolderPlus size={17} strokeWidth={1.7} /> : <Settings2 size={17} strokeWidth={1.7} />}
+            {deck ? <Settings2 size={17} strokeWidth={1.7} /> : <FolderPlus size={17} strokeWidth={1.7} />}
           </Button>
         </div>
         <div className="flex items-center gap-2">
@@ -332,7 +306,6 @@ export function LibraryPage() {
             />
           </label>
           <TextSelect label="Sort cards" value={sort} onChange={(v) => setSort(v as SortKey)}>
-            <option value="due">Due first</option>
             <option value="newest">Newest</option>
             <option value="az">A to Z</option>
             <option value="incomplete">Incomplete first</option>
@@ -362,7 +335,7 @@ export function LibraryPage() {
                   <Button variant="outline" icon={<Upload size={15} strokeWidth={1.8} />} onClick={() => setImportOpen(true)}>
                     Import cards
                   </Button>
-                  <Button variant="soft" icon={<Plus size={16} strokeWidth={1.8} />} onClick={() => openCardEditor({ deckId: deckFilter === 'all' ? undefined : deckFilter })}>
+                  <Button variant="soft" icon={<Plus size={16} strokeWidth={1.8} />} onClick={() => openCardEditor({ deckId: deck?.id })}>
                     Add card
                   </Button>
                 </div>
@@ -382,10 +355,8 @@ export function LibraryPage() {
                   card={card}
                   deck={deckById.get(card.deckId)}
                   topic={topicOf(deckById.get(card.deckId))}
-                  summary={summaries.get(card.id)!}
                   selected={picking ? picked.has(card.id) : selected?.id === card.id}
                   picking={picking}
-                  now={now}
                   onSelect={() => (picking ? togglePick(card.id) : select(card.id))}
                 />
               ))}
@@ -398,7 +369,7 @@ export function LibraryPage() {
           </div>
           {wide && selected && !picking && (
             <section className="sticky top-8 flex min-w-0 flex-[1_1_280px] flex-col rounded-section border border-line bg-main p-2.5 pb-4 shadow-panel">
-              <CardDetail card={selected} deck={deckById.get(selected.deckId)} reviews={reviewsByCard.get(selected.id) ?? []} now={now} />
+              <CardDetail card={selected} deck={deckById.get(selected.deckId)} />
             </section>
           )}
         </div>
@@ -443,16 +414,13 @@ export function LibraryPage() {
 
       {!wide && (
         <Dialog open={!picking && !!selectedId && !!selected} onClose={() => select(null)} title="Card">
-          {selected && <CardDetail card={selected} deck={deckById.get(selected.deckId)} reviews={reviewsByCard.get(selected.id) ?? []} now={now} />}
+          {selected && <CardDetail card={selected} deck={deckById.get(selected.deckId)} />}
         </Dialog>
       )}
-      <DeckDialog
-        open={!!deckDialog}
-        deckId={deckDialog?.id ?? null}
-        onClose={() => setDeckDialog(null)}
-        onCreated={(deck) => setDeck(deck.id)}
-      />
-      <ImportCsvDialog open={importOpen} onClose={() => setImportOpen(false)} defaultDeckId={deckFilter === 'all' ? undefined : deckFilter} />
+      <DeckDialog open={!!deckDialog} deckId={deckDialog?.id ?? null} onClose={() => setDeckDialog(null)} onCreated={(created) => setDeck(created.id)} />
+      <ImportCsvDialog open={importOpen} onClose={() => setImportOpen(false)} defaultDeckId={deck?.id} />
+      <PractiseDialog deck={deck} open={practiseOpen} onClose={() => setPractiseOpen(false)} />
+      <PracticeHistoryDialog open={historyOpen} onClose={() => setHistoryOpen(false)} />
     </>
   )
 }

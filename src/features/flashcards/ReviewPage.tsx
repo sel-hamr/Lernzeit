@@ -10,30 +10,46 @@ import { CardGerman } from '@/components/GermanWord'
 import { Diff } from '@/components/Diff'
 import { useUI } from '@/app/ui'
 import { db, newId, updateSettings } from '@/db/db'
-import type { Card, CardReview, Deck, Grade } from '@/db/types'
+import type { Card, CardReview, Deck, Grade, PracticeDeckTime, PracticeKind, PracticeRun } from '@/db/types'
 import { gradeReview, undoGrade } from '@/data/cards'
+import { savePracticeRun } from '@/data/practice'
 import { useActiveTimer, useAllReviews, useCards, useDecks, useLanguage, useNativeText, useSettings, useStudyQueue } from '@/data/hooks'
 import { recordReviewTime } from '@/data/timer'
 import { checkAnswer, type CheckResult } from '@/lib/answer'
 import { isTypingTarget } from '@/lib/browser'
 import { germanText, isPluralOnly, parseCloze, splitArticle, stripCloze, wordKind } from '@/lib/german'
 import { readPicked } from '@/lib/picked'
-import { buildPickedQueue, buildPracticeQueue, LEARN_AHEAD_MS, pickNextReview, studiesAhead } from '@/lib/queue'
+import { addDeckTime, inPlan, readPlan } from '@/lib/practice'
+import { buildPickedQueue, buildPracticeQueue, LEARN_AHEAD_MS, pickNextReview, PRACTICE_RETURN, requeueAfterRating, studiesAhead } from '@/lib/queue'
 import { prepareSpeech, speak, stopSpeaking, voiceOptions } from '@/data/voice'
-import { directionLabel, directionsFor, GRADE_LABEL, GRADES, previewGrades, State } from '@/lib/srs'
-import { formatInterval, MINUTE } from '@/lib/time'
+import { directionLabel, directionsFor, GRADE_LABEL, GRADES, State } from '@/lib/srs'
+import { dateKey, MINUTE } from '@/lib/time'
 
 interface Progress {
+  /** The round's id, which its saved practice session keeps. */
+  roundId: string
+  /**
+   * `practice`: nothing was due, so the round studies cards ahead of schedule.
+   * `picked` and `all`: the cards among them that are not due yet are rated like practice.
+   */
+  kind: PracticeKind
   main: string[]
   learning: { id: string; due: number }[]
   current: string | null
   reviewed: number
   correct: number
   activeMs: number
-  /** Nothing was due, so this round practises cards ahead of schedule. */
-  practice: boolean
-  /** The cards picked in Flashcards. Those not due yet are rated like practice. */
-  picked: boolean
+  startedAt: number
+  /** When the last card was rated; the start until then. */
+  lastAt: number
+  decks: Record<string, PracticeDeckTime>
+  /** How many times each button was pressed this round. */
+  ratings: Record<Grade, number>
+}
+
+/** A new round before its first card is picked. */
+function startRound(kind: PracticeKind, main: string[], now: number): Omit<Progress, 'current'> {
+  return { roundId: newId(), kind, main, learning: [], reviewed: 0, correct: 0, activeMs: 0, startedAt: now, lastAt: now, decks: {}, ratings: { 1: 0, 2: 0, 3: 0, 4: 0 } }
 }
 
 interface HistoryEntry {
@@ -303,10 +319,12 @@ export default function ReviewPage() {
   const { state: locationState } = useLocation()
   const navigate = useNavigate()
   const { openCardEditor } = useUI()
-  const deckParam = params.get('deck') ?? undefined
   const cardParam = params.get('card') ?? undefined
+  // The decks, directions and cards chosen in the Review dialog. Kept by value, so it changes only with the address.
+  const query = params.toString()
+  const plan = useMemo(() => readPlan(new URLSearchParams(query)), [query])
   const picked = useMemo(() => readPicked(locationState), [locationState])
-  const study = useStudyQueue(deckParam, 3_600_000)
+  const study = useStudyQueue(undefined, 3_600_000)
   const cards = useCards()
   const decks = useDecks()
   const allReviews = useAllReviews()
@@ -321,7 +339,6 @@ export default function ReviewPage() {
   const [check, setCheck] = useState<CheckResult | null>(null)
   const [busy, setBusy] = useState(false)
   const shownAt = useRef(0)
-  const [revealedAt, setRevealedAt] = useState(0)
   const runId = useRef(newId())
   const topicTime = useRef(new Map<string, { start: number; ms: number }>())
   const inputRef = useRef<HTMLInputElement>(null)
@@ -338,10 +355,15 @@ export default function ReviewPage() {
   )
 
   // A round of cards to study ahead of schedule, so there is always a word to practise.
-  const practiceIds = useCallback(() => {
-    const selected = deckParam ? decks.filter((d) => d.id === deckParam) : decks
-    return buildPracticeQueue({ reviews: allReviews ?? [], decks: selected, now: Date.now(), createdAt: (id) => cardById.get(id)?.createdAt ?? 0 }).map((r) => r.id)
-  }, [allReviews, decks, deckParam, cardById])
+  // With `every`, the round holds every card of the plan's decks and directions.
+  const practiceIds = useCallback(
+    (every = false) => {
+      const reviews = (allReviews ?? []).filter((r) => inPlan(r, plan))
+      const createdAt = (id: string) => cardById.get(id)?.createdAt ?? 0
+      return buildPracticeQueue({ reviews, decks, now: Date.now(), createdAt, size: every ? Infinity : undefined }).map((r) => r.id)
+    },
+    [allReviews, decks, plan, cardById],
+  )
 
   // The cards picked in Flashcards, in each direction their deck practises.
   const pickedIds = useCallback(() => {
@@ -358,34 +380,64 @@ export default function ReviewPage() {
   useEffect(() => {
     if (progress || !study.loaded || !cards || !allReviews) return
     let ids: string[]
-    let practice = false
+    let kind: PracticeKind
+    const due = study.queue.filter((r) => inPlan(r, plan)).map((r) => r.id)
     if (picked) {
       ids = pickedIds()
+      kind = 'picked'
     } else if (cardParam) {
       const card = cards.find((c) => c.id === cardParam)
       const deck = card ? deckById.get(card.deckId) : undefined
       const dirs = card && deck ? directionsFor(card, deck) : []
       ids = allReviews.filter((r) => r.cardId === cardParam && dirs.includes(r.direction)).map((r) => r.id)
-    } else if (study.queue.length) {
-      ids = study.queue.map((r) => r.id)
+      kind = 'card'
+    } else if (plan.scope === 'all') {
+      ids = practiceIds(true)
+      kind = 'all'
+    } else if (due.length) {
+      ids = due
+      kind = 'due'
     } else {
       ids = practiceIds()
-      practice = true
+      kind = 'practice'
     }
+    const now = Date.now()
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time snapshot once data has loaded
-    setProgress(pickNext({ main: ids, learning: [], reviewed: 0, correct: 0, activeMs: 0, practice, picked: !!picked }, Date.now()))
-    shownAt.current = Date.now()
-  }, [progress, study, cards, allReviews, picked, pickedIds, cardParam, deckById, practiceIds, pickNext])
+    setProgress(pickNext(startRound(kind, ids, now), now))
+    shownAt.current = now
+  }, [progress, study, plan, cards, allReviews, picked, pickedIds, cardParam, deckById, practiceIds, pickNext])
 
-  // Starts another round once a session ends: the picked cards again, or a practice round.
+  // Starts another round once a session ends: the picked cards or every card again, or a practice round.
   // Undo history belongs to the round before. The round opens with a different word from the one that ended the last.
+  const again: PracticeKind = picked ? 'picked' : plan.scope === 'all' ? 'all' : 'practice'
+  const nextRound = useCallback(() => (again === 'picked' ? pickedIds() : practiceIds(again === 'all')), [again, pickedIds, practiceIds])
   const practiseMore = useCallback(() => {
     const lastId = history.at(-1)?.previous.id
     setHistory([])
-    const main = picked ? pickedIds() : practiceIds()
-    setProgress(pickNext({ main, learning: [], reviewed: 0, correct: 0, activeMs: 0, practice: !picked, picked: !!picked }, Date.now(), lastId))
-  }, [picked, pickedIds, practiceIds, pickNext, history])
-  const canPractise = useMemo(() => (picked ? pickedIds().length > 0 : !cardParam && practiceIds().length > 0), [picked, pickedIds, cardParam, practiceIds])
+    const now = Date.now()
+    setProgress(pickNext(startRound(again, nextRound(), now), now, lastId))
+  }, [again, nextRound, pickNext, history])
+  const canPractise = useMemo(() => !cardParam && nextRound().length > 0, [cardParam, nextRound])
+
+  // Saves the round for Practice history. Picked cards and a single card practise each card's own directions.
+  const saveRound = useCallback(
+    (p: Omit<Progress, 'current'>) => {
+      const run: PracticeRun = {
+        id: p.roundId,
+        kind: p.kind,
+        start: p.startedAt,
+        end: p.lastAt,
+        activeMs: p.activeMs,
+        reviewed: p.reviewed,
+        correct: p.correct,
+        directions: p.kind === 'picked' || p.kind === 'card' ? [] : plan.directions,
+        decks: p.decks,
+        day: dateKey(p.startedAt),
+      }
+      return savePracticeRun(run)
+    },
+    [plan],
+  )
 
   const review = progress?.current ? reviewById.get(progress.current) : undefined
   const card = review ? cardById.get(review.cardId) : undefined
@@ -448,14 +500,15 @@ export default function ReviewPage() {
       setCheck(result)
     }
     setRevealed(true)
-    setRevealedAt(Date.now())
     if (settings.autoPlayAudio && !listening) play()
     inputRef.current?.blur()
   }, [card, review, revealed, typing, typed, listening, settings.autoPlayAudio, play])
 
-  // A practice round caps every rating; a picked round caps only the cards it studies ahead of schedule.
-  const capped = useCallback((r: CardReview, now: number) => !!progress && (progress.practice || (progress.picked && studiesAhead(r, now))), [progress])
-  const previews = useMemo(() => (review && revealedAt ? previewGrades(review.fsrs, revealedAt, capped(review, revealedAt)) : null), [review, revealedAt, capped])
+  // A practice round caps every rating; a round of picked or all cards caps only the cards it studies ahead of schedule.
+  const capped = useCallback(
+    (r: CardReview, now: number) => !!progress && (progress.kind === 'practice' || ((progress.kind === 'picked' || progress.kind === 'all') && studiesAhead(r, now))),
+    [progress],
+  )
 
   const grade = useCallback(
     async (g: Grade) => {
@@ -469,24 +522,28 @@ export default function ReviewPage() {
         const topicId = deck?.topicId
         setHistory((h) => [...h.slice(-30), { progress, previous: result.previous, logId: result.logId, topicId, durationMs }])
 
+        // Practising a deck or picked cards brings a card back by its rating (Again soon, Hard later);
+        // other rounds bring back cards still being learned when FSRS has them due within minutes.
         const learning = [...progress.learning]
-        const relearn = result.next.state === State.Learning || result.next.state === State.Relearning
-        if (relearn && result.next.due - now <= LEARN_AHEAD_MS) learning.push({ id: review.id, due: result.next.due })
-        setProgress(
-          pickNext(
-            {
-              main: progress.main,
-              learning,
-              reviewed: progress.reviewed + 1,
-              correct: progress.correct + (g > 1 ? 1 : 0),
-              activeMs: progress.activeMs + durationMs,
-              practice: progress.practice,
-              picked: progress.picked,
-            },
-            now,
-            review.id,
-          ),
-        )
+        let main = progress.main
+        if (practisesDeck(progress.kind)) main = requeueAfterRating(main, review.id, g)
+        else {
+          const relearn = result.next.state === State.Learning || result.next.state === State.Relearning
+          if (relearn && result.next.due - now <= LEARN_AHEAD_MS) learning.push({ id: review.id, due: result.next.due })
+        }
+        const next = {
+          ...progress,
+          main,
+          learning,
+          reviewed: progress.reviewed + 1,
+          correct: progress.correct + (g > 1 ? 1 : 0),
+          ratings: { ...progress.ratings, [g]: progress.ratings[g] + 1 },
+          activeMs: progress.activeMs + durationMs,
+          lastAt: now,
+          decks: addDeckTime(progress.decks, review.deckId, durationMs, g > 1),
+        }
+        setProgress(pickNext(next, now, review.id))
+        void saveRound(next)
 
         // Review time counts toward the deck's topic, unless a timer is already counting it.
         if (settings.countReviewTime && topicId && timer?.topicId !== topicId) {
@@ -501,7 +558,7 @@ export default function ReviewPage() {
         setBusy(false)
       }
     },
-    [progress, review, card, busy, revealed, capped, deck, settings.countReviewTime, timer, pickNext],
+    [progress, review, card, busy, revealed, capped, deck, settings.countReviewTime, timer, pickNext, saveRound],
   )
 
   const undo = useCallback(async () => {
@@ -520,10 +577,11 @@ export default function ReviewPage() {
       }
       setHistory((h) => h.slice(0, -1))
       setProgress(last.progress)
+      await saveRound(last.progress)
     } finally {
       setBusy(false)
     }
-  }, [history, busy])
+  }, [history, busy, saveRound])
 
   // Space shows the answer, 1–4 rate, Z undoes, Escape leaves.
   useEffect(() => {
@@ -566,19 +624,6 @@ export default function ReviewPage() {
   if (!progress) return <div className="h-60" aria-busy="true" />
 
   const remaining = (progress.current ? 1 : 0) + progress.main.length + progress.learning.length
-  const counts = (() => {
-    let n = 0
-    let l = progress.learning.length
-    let r = 0
-    for (const id of [progress.current, ...progress.main]) {
-      const rv = id ? reviewById.get(id) : undefined
-      if (!rv) continue
-      if (rv.state === State.New) n++
-      else if (rv.state === State.Review) r++
-      else l++
-    }
-    return { n, l, r }
-  })()
   const pct = progress.reviewed + remaining ? progress.reviewed / (progress.reviewed + remaining) : 1
   const suggested: Grade | null = check ? (check.verdict === 'wrong' ? 1 : 3) : null
 
@@ -615,16 +660,9 @@ export default function ReviewPage() {
           <X size={16} strokeWidth={1.8} /> End
         </Link>
         {progress.current && (
-          <div className="flex items-center gap-3 text-small font-medium tabular-nums">
-            <span className="text-sage-ink" title="New">
-              {counts.n} new
-            </span>
-            <span className="text-(--t-sand-ink)" title="Learning">
-              {counts.l} learning
-            </span>
-            <span className="text-blue-ink" title="Review">
-              {counts.r} review
-            </span>
+          <div className="flex items-center gap-2.5 text-small font-medium tabular-nums sm:gap-3">
+            <RatingCounts ratings={progress.ratings} />
+            <span className="text-muted">· {remaining} left</span>
           </div>
         )}
         {toggles}
@@ -638,9 +676,9 @@ export default function ReviewPage() {
           reviewed={progress.reviewed}
           correct={progress.correct}
           activeMs={progress.activeMs}
-          single={!!cardParam}
-          practice={progress.practice}
-          picked={progress.picked}
+          ratings={progress.ratings}
+          kind={progress.kind}
+          filtered={plan.deckIds.length > 0 || plan.directions.length > 0}
           onUndo={history.length ? () => void undo() : undefined}
           onPractise={canPractise ? practiseMore : undefined}
         />
@@ -739,7 +777,7 @@ export default function ReviewPage() {
                       {GRADE_LABEL[g]}
                       <span className="hidden text-chip opacity-50 sm:inline">{g}</span>
                     </span>
-                    <span className={clsx('text-chip tabular-nums', g === 3 ? 'opacity-70' : 'text-muted')}>{previews ? formatInterval(previews[g].due - revealedAt) : ''}</span>
+                    {practisesDeck(progress.kind) && <span className={clsx('text-chip', g === 3 ? 'opacity-70' : 'text-muted')}>{returnLabel(g)}</span>}
                   </button>
                 ))}
               </div>
@@ -805,29 +843,59 @@ function Verdict({ check, typed }: { check: CheckResult; typed: string }) {
   )
 }
 
+/** Practising a deck or picked cards: a rating says when the card comes back in the session. */
+const practisesDeck = (kind: PracticeKind) => kind === 'all' || kind === 'picked'
+
+/** "in 3 cards" under Again, "done" under Good. */
+function returnLabel(g: Grade): string {
+  const gap = PRACTICE_RETURN[g]
+  return gap === null ? 'done' : `in ${gap} cards`
+}
+
+const RATING_COLOR: Record<Grade, string> = { 1: 'text-red-ink', 2: 'text-(--t-sand-ink)', 3: 'text-sage-ink', 4: 'text-blue-ink' }
+
+/** "Again 2 · Hard 1 · Good 9 · Easy 3": the buttons pressed so far. Phones show the first letter unless `long`. */
+function RatingCounts({ ratings, long }: { ratings: Record<Grade, number>; long?: boolean }) {
+  return GRADES.map((g) => (
+    <span key={g} className={RATING_COLOR[g]} title={GRADE_LABEL[g]}>
+      <span className={clsx(!long && 'hidden sm:inline')}>{GRADE_LABEL[g]}</span>
+      {!long && <span className="sm:hidden">{GRADE_LABEL[g][0]}</span>} {ratings[g]}
+    </span>
+  ))
+}
+
+const DONE_TITLE: Record<PracticeKind, string> = {
+  due: 'Session complete',
+  practice: 'Practice round done',
+  all: 'Deck done',
+  picked: 'Your cards are done',
+  card: 'Card reviewed',
+}
+
 function SessionDone({
   reviewed,
   correct,
   activeMs,
-  single,
-  practice,
-  picked,
+  ratings,
+  kind,
+  filtered,
   onUndo,
   onPractise,
 }: {
   reviewed: number
   correct: number
   activeMs: number
-  single: boolean
-  practice: boolean
-  picked: boolean
+  ratings: Record<Grade, number>
+  kind: PracticeKind
+  /** The Review dialog chose some of the decks or directions. */
+  filtered: boolean
   onUndo?: () => void
   onPractise?: () => void
 }) {
   const navigate = useNavigate()
   const { openCardEditor } = useUI()
   // Picked cards that were all deleted before the round began.
-  if (reviewed === 0 && picked) {
+  if (reviewed === 0 && kind === 'picked') {
     return (
       <div className="rounded-flash border border-line bg-main">
         <EmptyState
@@ -840,6 +908,24 @@ function SessionDone({
           }
         >
           The cards you picked were deleted.
+        </EmptyState>
+      </div>
+    )
+  }
+  // The decks and directions chosen in the Review dialog have no cards together.
+  if (reviewed === 0 && filtered) {
+    return (
+      <div className="rounded-flash border border-line bg-main">
+        <EmptyState
+          icon={<Check size={20} strokeWidth={1.8} />}
+          title="Nothing to practise"
+          action={
+            <Button variant="outline" onClick={() => navigate('/flashcards')}>
+              Back to flashcards
+            </Button>
+          }
+        >
+          No cards in the decks you chose practise these directions.
         </EmptyState>
       </div>
     )
@@ -874,10 +960,13 @@ function SessionDone({
         <Check size={26} strokeWidth={2} />
       </div>
       <div className="flex flex-col gap-1">
-        <h2 className="text-[22px] font-semibold tracking-[-0.01em]">{single ? 'Card reviewed' : picked ? 'Your cards are done' : practice ? 'Practice round done' : 'Session complete'}</h2>
+        <h2 className="text-[22px] font-semibold tracking-[-0.01em]">{DONE_TITLE[kind]}</h2>
         <p className="text-body text-muted tabular-nums">
           {reviewed} {reviewed === 1 ? 'review' : 'reviews'} in {minutes} min · {Math.round((correct / reviewed) * 100)}% correct
         </p>
+      </div>
+      <div className="flex items-center gap-4 text-body font-medium tabular-nums">
+        <RatingCounts ratings={ratings} long />
       </div>
       <div className="flex flex-wrap justify-center gap-2 pt-2">
         {onUndo && (
@@ -890,7 +979,7 @@ function SessionDone({
         </Button>
         {onPractise ? (
           <Button variant="primary" onClick={onPractise}>
-            {picked ? 'Practise again' : 'Practise more'}
+            {kind === 'picked' || kind === 'all' ? 'Practise again' : 'Practise more'}
           </Button>
         ) : (
           <Button variant="primary" onClick={() => navigate('/')}>

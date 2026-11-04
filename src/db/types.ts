@@ -162,7 +162,42 @@ export interface ReviewLog {
   day: string
 }
 
-export type StoryLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'
+/**
+ * How a review session went: `due` the cards due now, `practice` the round of
+ * cards ahead of schedule when nothing was due, `all` every card the Review
+ * dialog asked for, `picked` the cards picked in Flashcards, `card` one card.
+ */
+export type PracticeKind = 'due' | 'practice' | 'all' | 'picked' | 'card'
+
+/** One deck's share of a practice session. */
+export interface PracticeDeckTime {
+  ms: number
+  reviewed: number
+  correct: number
+}
+
+/** One review session in Flashcards, saved after every rating. Practice history lists them. */
+export interface PracticeRun {
+  id: string
+  kind: PracticeKind
+  /** When the first card was shown. */
+  start: number
+  /** When the last card was rated. */
+  end: number
+  /** Time spent on the cards, at most two minutes each, like a review log's. */
+  activeMs: number
+  reviewed: number
+  /** Hard, Good and Easy count as correct. */
+  correct: number
+  /** The directions the session was asked to practise; empty means every one. */
+  directions: Direction[]
+  /** Time and reviews per deck id. A deck that was deleted later keeps its share here. */
+  decks: Record<string, PracticeDeckTime>
+  /** Local date of `start`, YYYY-MM-DD. */
+  day: string
+}
+
+export type StoryLevel ='A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'
 
 export interface Story {
   id: string

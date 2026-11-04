@@ -8,7 +8,7 @@ import { createDeck, deleteDeck, updateDeck } from '@/data/cards'
 import { useCards, useDecks, useLanguage, useTopics } from '@/data/hooks'
 import type { Deck, DeckDirections } from '@/db/types'
 
-/** Create a deck (deckId = null) or edit one: name, topic, daily limits and practice directions. */
+/** Create a deck (deckId = null) or edit one: name, topic and practice directions. */
 export function DeckDialog({ deckId, open, onClose, onCreated }: { deckId: string | null; open: boolean; onClose: () => void; onCreated?: (deck: Deck) => void }) {
   const decks = useDecks()
   const deck = deckId ? decks.find((d) => d.id === deckId) : undefined
@@ -26,8 +26,6 @@ function DeckForm({ deck, onDone, onCreated }: { deck?: Deck; onDone: () => void
   const { toast, confirm } = useFeedback()
   const [name, setName] = useState(deck?.name ?? '')
   const [topicId, setTopicId] = useState(deck?.topicId ?? topics[0]?.id ?? '')
-  const [newPerDay, setNewPerDay] = useState(deck?.newPerDay ?? 15)
-  const [reviewsPerDay, setReviewsPerDay] = useState(deck?.reviewsPerDay ?? 150)
   const [directions, setDirections] = useState<DeckDirections>(deck?.directions ?? { imageToDe: true, enToDe: true, deToEn: false })
   const cardCount = cards?.filter((c) => c.deckId === deck?.id).length ?? 0
 
@@ -36,8 +34,6 @@ function DeckForm({ deck, onDone, onCreated }: { deck?: Deck; onDone: () => void
     const patch = {
       name: name.trim() || 'New deck',
       topicId: topicId || undefined,
-      newPerDay: Math.max(0, Math.min(999, newPerDay)),
-      reviewsPerDay: Math.max(0, Math.min(9999, reviewsPerDay)),
       directions,
     }
     if (deck) {
@@ -83,12 +79,6 @@ function DeckForm({ deck, onDone, onCreated }: { deck?: Deck; onDone: () => void
               </option>
             ))}
           </Select>
-        </Field>
-        <Field label="New cards per day" htmlFor="deck-new">
-          <Input id="deck-new" type="number" inputMode="numeric" min={0} max={999} value={newPerDay} onChange={(e) => setNewPerDay(Number(e.target.value) || 0)} />
-        </Field>
-        <Field label="Reviews per day" htmlFor="deck-reviews">
-          <Input id="deck-reviews" type="number" inputMode="numeric" min={0} max={9999} value={reviewsPerDay} onChange={(e) => setReviewsPerDay(Number(e.target.value) || 0)} />
         </Field>
       </div>
       <div className="flex flex-col gap-1 rounded-row bg-field px-4 py-3">

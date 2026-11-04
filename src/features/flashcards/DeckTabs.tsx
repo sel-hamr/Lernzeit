@@ -7,7 +7,6 @@ export interface DeckTab {
   value: string
   label: string
   count: number
-  due: number
 }
 
 const TAB_GAP = 2 // gap-0.5
@@ -217,7 +216,6 @@ function DeckMenu({ tabs, anchor, onPick, onClose }: { tabs: DeckTab[]; anchor: 
               className={clsx('flex min-h-9 w-full shrink-0 items-center gap-2.5 rounded-img px-2.5 py-1.5 text-left text-small transition-colors', i === activeIndex && 'bg-field')}
             >
               <span className="min-w-0 flex-1 truncate">{tab.label}</span>
-              {tab.due > 0 && <span className="text-chip text-red-ink tabular-nums">{tab.due} due</span>}
               <span className="w-9 text-right text-chip text-muted tabular-nums">{tab.count}</span>
             </button>
           ))

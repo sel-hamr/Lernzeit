@@ -6,9 +6,10 @@ import { Logo, LogoMark } from '@/components/Logo'
 import { Dot, GroupLabel } from '@/components/ui/primitives'
 import { Dialog } from '@/components/ui/Dialog'
 import { useBridgeIndicator, type StatusLevel } from '@/bridge/status'
-import { useCards, useDecks, useStudyQueue, useTopics } from '@/data/hooks'
+import { useCards, useDecks, usePracticeRuns, useTopics } from '@/data/hooks'
 import { useTodayProgress } from '@/data/progress'
 import { goalFor } from '@/lib/goals'
+import { formatPracticeTime, practiceTotals } from '@/lib/practice'
 import { formatHM, formatTimer } from '@/lib/time'
 import { isPaused, remainingMs, elapsedMs } from '@/lib/timer'
 import { useUI } from '@/app/ui'
@@ -16,11 +17,6 @@ import { AI_CONNECTION_ID } from '@/features/settings/AiConnectionGroup'
 import { NAV } from './nav'
 import { SearchBox } from './Search'
 import { HeaderVoiceSelect, SidebarVoiceSelect } from './VoiceSelect'
-
-function NavBadge({ count }: { count: number }) {
-  if (!count) return null
-  return <span className="rounded-full bg-sage px-2 py-0.5 text-chip font-semibold text-sage-ink tabular-nums">{count}</span>
-}
 
 function TimerBadge() {
   const { timer, now } = useTodayProgress()
@@ -55,11 +51,16 @@ function GoalsToday() {
   )
 }
 
+/** "52 cards · 12 min practised"; the time once the deck has been practised. */
+function deckLine(cards: number, practisedMs: number): string {
+  return practisedMs ? `${cards} cards · ${formatPracticeTime(practisedMs)} practised` : `${cards} cards`
+}
+
 function DecksList() {
   const decks = useDecks()
   const topics = useTopics(true)
   const cards = useCards()
-  const { byDeck } = useStudyQueue()
+  const runs = usePracticeRuns()
   const colorOf = (topicId?: string) => topics.find((t) => t.id === topicId)?.color
   return (
     <div className="flex flex-col gap-3 px-3">
@@ -70,7 +71,7 @@ function DecksList() {
           <div className="flex flex-col gap-px">
             <span className="text-small font-medium group-hover:underline">{deck.name}</span>
             <span className="text-chip text-muted tabular-nums">
-              {cards?.filter((c) => c.deckId === deck.id).length ?? 0} cards · {byDeck.get(deck.id) ?? 0} due
+              {deckLine(cards?.filter((c) => c.deckId === deck.id).length ?? 0, practiceTotals(runs ?? [], deck.id).ms)}
             </span>
           </div>
         </Link>
@@ -125,7 +126,6 @@ function DailyPlan() {
 
 function Sidebar() {
   const { pathname } = useLocation()
-  const { total } = useStudyQueue()
   const { openQuickAdd } = useUI()
   const onFlashcards = pathname.startsWith('/flashcards')
   return (
@@ -162,7 +162,6 @@ function Sidebar() {
           >
             <Icon size={18} strokeWidth={1.7} aria-hidden />
             <span className="flex-1">{label}</span>
-            {to === '/flashcards' && <NavBadge count={total} />}
             {to === '/timer' && <TimerBadge />}
           </NavLink>
         ))}
@@ -213,7 +212,6 @@ function MobileHeader() {
 }
 
 function BottomNav() {
-  const { total } = useStudyQueue()
   return (
     <nav
       aria-label="Main"
@@ -234,11 +232,6 @@ function BottomNav() {
                 <Icon size={19} strokeWidth={isActive ? 1.9 : 1.7} />
               </span>
               {short}
-              {to === '/flashcards' && total > 0 && (
-                <span className="absolute top-1 left-[calc(50%+7px)] min-w-4.5 rounded-full bg-sage-dot px-1 text-center text-[10px] leading-4 font-semibold text-on-dark tabular-nums ring-2 ring-sidebar">
-                  {total > 99 ? '99+' : total}
-                </span>
-              )}
             </>
           )}
         </NavLink>

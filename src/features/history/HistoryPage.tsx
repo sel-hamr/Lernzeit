@@ -3,10 +3,11 @@ import clsx from 'clsx'
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Flame } from 'lucide-react'
 import { Chip, Dot, EmptyState, PageHeader, Section, SectionHeader, StatStrip } from '@/components/ui/primitives'
 import { TextSelect } from '@/components/ui/form'
-import { useAllReviews, useAllSessions, useCards, useLogsSince, useStudyQueue, useToday, useTopics } from '@/data/hooks'
+import { useAllReviews, useAllSessions, useCards, useLogsSince, usePracticeRuns, useToday, useTopics } from '@/data/hooks'
 import { useStreaks } from '@/data/stats'
 import { describeGoals, earliestDay, indexMinutes } from '@/lib/goals'
 import { allGoalsStreak, topicWeek, weekSummary } from '@/lib/history'
+import { formatPracticeTime, practiceTotals } from '@/lib/practice'
 import { State } from '@/lib/srs'
 import { TOPIC_COLOR_NAME } from '@/lib/colors'
 import { addDays, formatDayMonth, formatHM, formatHours, startOfWeek, weekDays } from '@/lib/time'
@@ -59,7 +60,9 @@ function FlashcardStats({ today }: { today: string }) {
   const cards = useCards()
   const reviews = useAllReviews()
   const logs = useLogsSince(addDays(today, -29))
-  const queue = useStudyQueue()
+  const runs = usePracticeRuns()
+  const monthStart = addDays(today, -29)
+  const practised = practiceTotals((runs ?? []).filter((r) => r.day >= monthStart))
   const learned = useMemo(() => new Set((reviews ?? []).filter((r) => r.state === State.Review).map((r) => r.cardId)).size, [reviews])
   const reviewLogs = logs.filter((l) => l.prevState === State.Review)
   const retention = reviewLogs.length ? Math.round((reviewLogs.filter((l) => l.rating > 1).length / reviewLogs.length) * 100) : null
@@ -68,7 +71,7 @@ function FlashcardStats({ today }: { today: string }) {
   const tiles = [
     { value: cards?.length ?? 0, label: 'total cards' },
     { value: learned, label: 'cards learned' },
-    { value: queue.total, label: 'due today' },
+    { value: formatPracticeTime(practised.ms), label: 'practised, 30 days' },
     { value: retention === null ? '—' : `${retention}%`, label: 'retention, 30 days' },
   ]
   return (
