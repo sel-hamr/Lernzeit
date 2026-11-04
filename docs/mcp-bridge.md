@@ -1,6 +1,6 @@
 # MCP bridge
 
-Lets an AI app (Claude Code, Claude Desktop, Cursor) add cards, decks, stories, practice questions, tasks and study time to Lernzeit, and read, move and delete cards.
+Lets an AI app (Claude Code, Claude Desktop, Cursor) add cards, decks, stories, practice questions, tasks and study time to Lernzeit, read, move and delete cards, and delete decks.
 
 ## Why a bridge
 
@@ -97,6 +97,7 @@ Every tool except `list_browsers` takes an optional `browser` (its name).
 | `create_cards` | `deck` (name or id), `cards[]` | added count, skipped words | `writeCardPack` |
 | `move_cards` | `deck`, `to`, `cards[]` (ids or German texts) | moved, skipped and not found words | `moveCard` |
 | `delete_cards` | `deck`, `cards[]` (ids or German texts) | deleted words, words not found | `deleteCard` |
+| `delete_deck` | `deck`, `cardCount` | the deck's name, deleted card count | `deleteDeck` |
 | `create_story` | `title`, `text`, `translation`?, `level`?, `tags`?, `topic`? | the story, and whether it was created | `saveStory` |
 | `create_questions` | `set`, `questions[]` | the set's name, added count, skipped questions | `saveQuestion` |
 | `list_grammar_topics` | – | id, title, English, level, section, exercise count | `db.grammarTopics` |
@@ -144,6 +145,12 @@ Entries that match no card in the deck are listed in `notFound`. A card named tw
 
 - Each card is deleted with its reviews, review log and drill stats, and its picture when no other card uses it. This is the same `deleteCard` as the card editor's Delete button, and it cannot be undone.
 - The tool is marked destructive, so AI apps ask before they run it, and the guide tells the AI to name the cards back to you first.
+
+### `delete_deck`
+
+- Deletes the deck with every card in it, their reviews, review logs and drill stats, and pictures no other card uses. This is the same `deleteDeck` as the Delete deck button in the deck dialog, and it cannot be undone.
+- `cardCount` is the deck's card count from `list_decks`, the number the AI told you. When the deck has a different number, nothing is deleted and the error says the real count. This stops the AI from deleting a deck it named wrongly or one that changed since it looked.
+- The tool is marked destructive, and the guide tells the AI to name the deck and its card count to you first.
 
 ### `create_story`
 
@@ -234,7 +241,7 @@ Error codes: `no_browser`, `pick_browser`, `unknown_browser`, `disconnected`, `t
 - The switch is off in every browser until you turn it on.
 - **Token:** a secret you put in the server config and paste in Settings. The server drops any connection with the wrong token, comparing in constant time.
 - **Origin check:** any website can try to open a WebSocket to localhost, so the server only accepts pages from the local dev and preview addresses and from `LERNZEIT_ORIGINS`.
-- Only cards can be changed: `move_cards` moves them and `delete_cards` deletes them. Nothing can be edited, and everything else can only be added.
+- Only cards and decks can be changed: `move_cards` moves cards, `delete_cards` deletes them, and `delete_deck` deletes a deck with its cards. Nothing can be edited, and everything else can only be added.
 - The server writes logs to stderr only, because stdout carries the MCP messages.
 
 ## Setup

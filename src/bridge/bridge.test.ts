@@ -86,7 +86,7 @@ describe('bridge end to end', () => {
     expect((await database.cards.filter((c) => c.tags.includes('ai')).toArray()).map((c) => c.german)).toEqual(['Gabel'])
   })
 
-  it('reads cards and moves them from tool calls', async () => {
+  it('reads and moves cards, and deletes a deck, from tool calls', async () => {
     await connectTab()
     await hub.request(undefined, 'create_cards', { deck: 'My Words', cards: [{ english: 'fork', german: 'die Gabel' }] })
     const { cards } = await hub.request(undefined, 'list_cards', { tag: 'ai' })
@@ -95,6 +95,9 @@ describe('bridge end to end', () => {
     const result = await hub.request(undefined, 'move_cards', { deck: 'My Words', to: 'AI terms', cards: [cards[0].id] })
     expect(result).toEqual({ from: 'My Words', to: 'AI terms', moved: ['Gabel'], skipped: [], notFound: [] })
     expect((await hub.request(undefined, 'list_cards', { deck: 'AI terms' })).cards.map((c) => c.german)).toEqual(['Gabel'])
+
+    expect(await hub.request(undefined, 'delete_deck', { deck: 'AI terms', cardCount: 1 })).toEqual({ deck: 'AI terms', deletedCards: 1 })
+    expect((await hub.request(undefined, 'list_decks', {})).map((d) => d.name)).not.toContain('AI terms')
   })
 
   it('brings errors from the app back as BridgeErrors', async () => {

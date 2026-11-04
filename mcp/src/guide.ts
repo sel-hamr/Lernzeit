@@ -13,7 +13,7 @@ The data lives in the user's browser, not on a server. Each tool call goes to a 
 
 - No browser connected: ask the user to open Lernzeit and turn on Connect to AI.
 - Several browsers connected (each browser and profile has its own data): ask which one, then pass its name as \`browser\`. \`list_browsers\` shows the names.
-- The tools add things. Cards are the exception: \`list_cards\` reads them, and \`move_cards\` and \`delete_cards\` change them. Card fields cannot be edited, and stories, questions, answers, review history and notes cannot be read.
+- The tools add things. Cards and decks are the exception: \`list_cards\` reads cards, \`move_cards\` and \`delete_cards\` change them, and \`delete_deck\` deletes a whole deck. Card fields cannot be edited, and stories, questions, answers, review history and notes cannot be read.
 
 ## Tools
 
@@ -27,6 +27,7 @@ The data lives in the user's browser, not on a server. Each tool call goes to a 
 | \`create_cards\` | Add up to ${MAX_CARDS_PER_CALL} cards to a deck |
 | \`move_cards\` | Move cards to another deck, keeping their progress |
 | \`delete_cards\` | Delete cards from a deck, with their progress |
+| \`delete_deck\` | Delete a deck with all its cards and their progress |
 | \`create_story\` | Add a German story to read, with its English translation |
 | \`create_questions\` | Add up to ${MAX_QUESTIONS_PER_CALL} German questions to practise answering, in a set |
 | \`list_grammar_topics\` | Get the grammar topics with their level and number of exercises |
@@ -56,13 +57,14 @@ Look before you add: call \`list_decks\` before \`create_cards\`, and \`list_top
 - Every card gets the tag "ai". A card whose German text is already in the deck is skipped and listed under "skipped"; that is not an error.
 - Match the user's level. Tell them how many cards were added and which were skipped.
 
-## Reading, moving and deleting cards
+## Reading, moving and deleting cards and decks
 
 - \`list_cards\` returns each card's fields and its \`id\`, in deck order. Narrow it with \`deck\`, \`search\` (German with its article, or English) and \`tag\`. When \`total\` is more than you got, read on with \`offset\`. Use it to check a deck before adding to it, to find mistakes, or to answer questions about the user's cards.
 - \`move_cards\` and \`delete_cards\` name cards by \`id\` from \`list_cards\`, which is safest, or by German text as in \`create_cards\`. Text ignores case and a leading article, and names every card in the deck with that text.
 - \`move_cards\` keeps the review progress. A card whose German text the target deck already has stays where it is and is listed under "skipped". Create a new target deck with \`create_deck\` first.
 - \`delete_cards\` removes the cards with their review history, and it cannot be undone. Only delete cards the user asked you to remove, and name them back to the user before you call it.
 - Cards that match nothing come back under "notFound". Tell the user; that is not an error.
+- \`delete_deck\` deletes a deck with every card in it and their review history, and it cannot be undone. Only delete a deck the user asked you to remove. Call \`list_decks\` first, tell the user the deck's name and how many cards it has, and pass that number as \`cardCount\`. When the deck has a different number of cards, nothing is deleted: tell the user the real number and ask again.
 
 ## Writing stories
 
