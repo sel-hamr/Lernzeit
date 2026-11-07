@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from 'react'
+import { useState, type KeyboardEvent, type RefObject } from 'react'
 import clsx from 'clsx'
 import { Volume2 } from 'lucide-react'
 import type { Gender } from '@/db/types'
@@ -51,6 +51,7 @@ export function StoryText({
   highlights,
   showTranslation,
   selected,
+  selectedRef,
   onSelect,
   onSpeak,
 }: {
@@ -59,6 +60,8 @@ export function StoryText({
   highlights: boolean
   showTranslation: boolean
   selected: WordRef | null
+  /** Set to the selected word's button, so its note can sit above it. */
+  selectedRef: RefObject<HTMLButtonElement | null>
   onSelect: (ref: WordRef) => void
   onSpeak: (text: string) => void
 }) {
@@ -83,6 +86,7 @@ export function StoryText({
               return (
                 <button
                   key={key}
+                  ref={key === selectedKey ? selectedRef : undefined}
                   type="button"
                   data-word
                   tabIndex={key === tabStop ? 0 : -1}

@@ -12,7 +12,10 @@ import {
   MAX_RULE_CHARS,
   MAX_SET_NAME,
   MAX_STORY_CHARS,
+  MAX_STORY_SENTENCE,
   MAX_STORY_TITLE,
+  MAX_STORY_WORD_TEXT,
+  MAX_STORY_WORDS,
   MAX_STUDY_MINUTES,
   toErrorBody,
   type ActionName,
@@ -21,7 +24,7 @@ import {
   type NewGrammarExercise,
   type NewQuestion,
 } from '../../src/bridge/protocol.ts'
-import type { StoryLevel } from '../../src/db/types.ts'
+import type { StoryLevel, StoryWord } from '../../src/db/types.ts'
 import type { BrowserHub } from './hub.ts'
 
 const browserField = z
@@ -61,6 +64,79 @@ const newCard = z.object({
   emoji: z.string().optional().describe('One emoji shown as the picture, for words that have a clear one.'),
   imageQuery: z.string().optional().describe('Search words for finding a photo later.'),
 }) satisfies z.ZodType<NewCard>
+
+const noteText = z.string().min(1).max(MAX_STORY_WORD_TEXT)
+
+const storyWord = z.object({
+  word: noteText.describe('One word, copied exactly from the story.'),
+  sentence: z.string().min(1).max(MAX_STORY_SENTENCE).describe('The whole sentence it appears in, copied exactly from the story.'),
+  alsoTap: z.array(noteText).optional().describe('Other words in that sentence that belong to it, such as the ein in "steigt ... ein".'),
+  baseForm: noteText.describe('The dictionary form. For a noun, leave out the article and set gender.'),
+  gender: z.enum(['der', 'die', 'das']).optional().describe('Article of a noun.'),
+  partOfSpeech: noteText.describe('The word type: noun, verb, adjective, article, preposition…'),
+  translation: noteText.describe("The short meaning in the student's language."),
+  meaning: noteText.optional().describe('One simple line that explains the word. Do not just repeat the translation. Leave it out on a short note.'),
+  grammar: z
+    .object({
+      rule: noteText.describe('The rule, in one short sentence.'),
+      why: noteText.describe('One or two short sentences on why the rule applies in this sentence: ending, case, tense or word order.'),
+      example: z
+        .object({
+          text: noteText.describe('One new, easy sentence that uses the same rule.'),
+          translation: noteText.describe('Its translation.'),
+        })
+        .describe('A new example of the rule.'),
+    })
+    .optional()
+    .describe("Why the word has this form. Leave it out when the word's form has nothing to explain."),
+  tip: noteText.optional().describe('One short tip or memory trick. Leave it out on a short note.'),
+}) satisfies z.ZodType<StoryWord>
+
+const CREATE_STORY_DESCRIPTION = `Saves a story for the student to read in Lernzeit, with teaching notes for every word that needs one. When the student taps a word, the app shows your note and can read the word aloud. The app has no AI of its own, so a word without a note gets no grammar help.
+
+Write the story in the language the student is learning (German unless they say otherwise). Write the translation and all notes in the student's own language (English unless they say otherwise).
+
+WHO YOU ARE
+You are a smart, patient teacher. Your student is a beginner who gets bored or confused easily. Never assume they know any grammar words.
+
+HOW TO WRITE EVERY NOTE
+- Use very simple words and short sentences.
+- Avoid jargon. If you need a grammar word, explain it right away: "the accusative (the form for the thing getting the action)".
+- Teach with examples and comparisons, not theory. Compare with English when it helps.
+- Talk about this sentence, not grammar in general.
+- Be warm, fun and encouraging. Never make the student feel slow.
+- Put the words being explained in **bold**.
+
+Bad: "Accusative masculine indefinite article after a transitive verb."
+Good: "What does Lena buy? A coffee. **Kaffee** is a der word, so **ein** becomes **einen**."
+
+WHICH WORDS TO EXPLAIN
+Explain every word that needs help, up to ${MAX_STORY_WORDS} notes, and skip the rest. Never write a note just to fill the list.
+- Full note, with meaning, grammar and tip: new or hard words, words whose ending or form changes, and words in a surprising place in the sentence.
+- Short note, with only word, sentence, baseForm, partOfSpeech and translation: simple words where a translation is all the student needs.
+- No note: names, and words the student surely knows at this level, such as und, ich or ist.
+One note per word is enough, because it also shows on the same word in other sentences. If the same word does a different job in another sentence, give it another note. If the story has more than ${MAX_STORY_WORDS} different words, keep the ones that help most.
+
+HOW TO FILL IN EACH WORD
+- word: one word, copied exactly from the story.
+- sentence: the whole sentence it appears in, copied exactly.
+- alsoTap: other words in that sentence that belong to it, such as the ein in "steigt ... ein".
+- baseForm: the dictionary form. For a noun, leave out the article and set gender.
+- partOfSpeech: the word type, such as noun, verb or adjective.
+- translation: the short meaning in the student's language.
+- meaning: one simple line that explains the word. Do not just repeat the translation.
+- grammar.rule: the rule in one short sentence.
+- grammar.why: one or two short sentences on why the rule applies in this sentence (ending, case, tense or word order).
+- grammar.example: one new, easy sentence that uses the same rule, with its translation.
+- tip: one short tip or memory trick.
+Leave out grammar when the word's form has nothing to explain, and leave out meaning and tip on short notes. Never fill a field with something vague.
+
+BEFORE YOU SEND
+- Check that the story and every example are correct and natural.
+- Check that each rule is true. If you are not sure about a rule, leave out grammar for that word.
+
+AFTER YOU SEND
+The result says how many notes were saved and lists any it skipped, with the reason. Fix those and send the same story text again with all the notes. Sending the same text never makes a copy: it returns the saved story and replaces its notes if you include words. Each story gets the tag "ai".`
 
 const cardRefs = z
   .array(z.string().min(1))
@@ -257,20 +333,20 @@ export function registerTools(server: McpServer, hub: BrowserHub) {
     'create_story',
     {
       title: 'Add a story',
-      description:
-        'Adds a short German story to read in Lernzeit. In the reader, words from the user\'s decks are highlighted, and tapping any word shows its card or adds it to a deck. Each story is tagged "ai". If a story with the same text exists, it is returned instead.',
+      description: CREATE_STORY_DESCRIPTION,
       inputSchema: z.object({
         browser: browserField,
         title: z.string().min(1).max(MAX_STORY_TITLE).describe('German title, e.g. "Im Café".'),
-        text: z.string().min(1).max(MAX_STORY_CHARS).describe('The story in German. Separate paragraphs with an empty line.'),
+        text: z.string().min(1).max(MAX_STORY_CHARS).describe('The story. Separate paragraphs with an empty line.'),
         translation: z
           .string()
           .max(MAX_STORY_CHARS)
           .optional()
-          .describe('English translation with the same paragraphs, so each one can show under its German paragraph.'),
+          .describe('Translation with the same paragraphs, so each one can show under its story paragraph.'),
         level: storyLevel.optional().describe('CEFR level of the text.'),
         tags: z.array(z.string()).optional().describe('Extra tags, e.g. ["food"]. The tag "ai" is always added.'),
         topic: topicField.optional().describe('Topic that reading time counts toward. Defaults to the topic of the first deck, usually German.'),
+        words: z.array(storyWord).max(MAX_STORY_WORDS).optional().describe('Teaching notes on the words that need one: full notes on hard words, short notes on simple ones.'),
       }),
       annotations: { ...add, idempotentHint: true },
     },

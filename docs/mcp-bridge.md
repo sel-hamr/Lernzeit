@@ -98,7 +98,7 @@ Every tool except `list_browsers` takes an optional `browser` (its name).
 | `move_cards` | `deck`, `to`, `cards[]` (ids or German texts) | moved, skipped and not found words | `moveCard` |
 | `delete_cards` | `deck`, `cards[]` (ids or German texts) | deleted words, words not found | `deleteCard` |
 | `delete_deck` | `deck`, `cardCount` | the deck's name, deleted card count | `deleteDeck` |
-| `create_story` | `title`, `text`, `translation`?, `level`?, `tags`?, `topic`? | the story, and whether it was created | `saveStory` |
+| `create_story` | `title`, `text`, `translation`?, `level`?, `tags`?, `topic`?, `words[]`? | the story, whether it was created, and how many notes were saved or skipped | `saveStory` |
 | `create_questions` | `set`, `questions[]` | the set's name, added count, skipped questions | `saveQuestion` |
 | `list_grammar_topics` | – | id, title, English, level, section, exercise count | `db.grammarTopics` |
 | `add_grammar` | `topic` (title or id), `exercises[]`?, `examples[]`?, and for a new topic `rule`?, `english`?, `group`?, `level`?, `summary`? | the topic, whether it was created, added count, skipped exercises | `saveTopic` |
@@ -156,8 +156,11 @@ Entries that match no card in the deck are listed in `notFound`. A card named tw
 
 - `text` is German, with an empty line between paragraphs. A `translation` with the same number of paragraphs shows under each one; otherwise it shows after the story.
 - `level` is A1, A2, B1, B2, C1 or C2. Reading time counts toward `topic`, or toward the topic of the first deck that has one (German, out of the box).
-- Every story gets the tag `ai`. A story whose text is already saved is returned with `created: false` instead of being added twice.
+- Every story gets the tag `ai`. A story whose text is already saved is returned with `created: false` instead of being added twice. If the call has usable `words`, they replace that story's notes.
 - Text and translation can each have up to 20,000 characters, and the title up to 120.
+- `words` holds up to 150 teaching notes, shown in a box above the tapped word in the reader ([stories.md](stories.md#word-notes)). Each has `word`, `sentence`, `baseForm`, `partOfSpeech` and `translation`, and may have `alsoTap`, `gender`, `meaning`, `tip` and `grammar` (`rule`, `why`, `example`). Texts can have up to 300 characters, and `sentence` up to 1,000.
+- A note that does not fit is left out, and the story is still saved. The result lists it under `words.skipped` with the reason, so the AI can fix it and send the notes again. Too many notes refuse the whole call.
+- The tool's description also tells the AI how to teach: as a patient teacher, with very simple words, for a beginner. It sits in the description so that any AI app gets it, not only those that read the guide.
 
 ### `create_questions`
 
