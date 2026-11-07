@@ -6,5 +6,7 @@
     "directory": "./dist",
     // Client-side routes such as /flashcards get index.html instead of a 404.
     "not_found_handling": "single-page-application"
-  }
+  },
+  // `wrangler preview` needs this block, even empty; it uses the settings above.
+  "previews": {}
 }
