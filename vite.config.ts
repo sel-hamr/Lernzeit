@@ -76,6 +76,12 @@ export default defineConfig(({ command }) => ({
             handler: 'CacheFirst',
             options: { cacheName: 'voice-runtime', expiration: { maxEntries: 6 } },
           },
+          // The login photos are about 3 MB, so they are cached when first seen too.
+          {
+            urlPattern: /\/login\/[^/]+\.jpg$/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'login-photos', expiration: { maxEntries: 8 } },
+          },
         ],
       },
     }),

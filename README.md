@@ -212,6 +212,7 @@ npm link
 |---|---|
 | `lz` | Builds when the code changed since the last build, then serves the production build on http://localhost:5173 and opens it. Stop it with <kbd>Ctrl</kbd>+<kbd>C</kbd> |
 | `lz --build` | Builds again even when nothing changed |
+| `lz mcp [url]` | Connects Claude Code and Claude Desktop to Lernzeit. Give it your hosted address to allow that site too. See [AI connection](#ai-connection) |
 | `lz <script>` | Runs any npm script of the project, such as `lz dev` or `lz test`. Extra words go to the script |
 
 If Lernzeit is already running, `lz` only opens it. `lz` runs the TypeScript file directly, so it needs Node 22.18 or newer, like the [MCP server](#ai-connection). `npm unlink -g lernzeit` removes it.
@@ -228,13 +229,21 @@ If Lernzeit is already running, `lz` only opens it. `lz` runs the TypeScript fil
 > [!NOTE]
 > The app uses client-side routing, so the host must serve `index.html` for every unknown path.
 
+> [!WARNING]
+> The login is hardcoded in [src/features/login/login.ts](src/features/login/login.ts) and ships in the JavaScript, so anyone who reads the site's code can see it. Change it before you deploy, and don't use a real password.
+
 ## AI connection
 
 An AI app such as Claude Code can add decks, cards, stories, practice questions, grammar topics and exercises, tasks and study time to Lernzeit through the MCP server in [`mcp/`](mcp). It can also read your cards, move them to another deck, and delete the ones you name, or a whole deck, with their progress. It never sees your review history, answers or notes, and cannot edit or delete anything else. Your data stays in the browser: the server passes each request to the open Lernzeit tab, which saves it.
 
 Set it up in two steps:
 
-1. Run `npm run mcp:setup`. It adds the server to Claude Code and Claude Desktop and prints a token.
+1. Run `lz mcp`, or `npm run mcp:setup` if you have not linked `lz`. It adds the server to Claude Code and Claude Desktop and prints a token. If you host Lernzeit, give it the address:
+
+   ```bash
+   lz mcp https://lernzeit.example.workers.dev
+   ```
+
 2. In the browser you want, open **Settings → AI connection**, turn it on and paste the token.
 
 [docs/mcp-bridge.md](docs/mcp-bridge.md#setup) has the details.

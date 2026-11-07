@@ -280,29 +280,36 @@ It needs Node 22.18 or newer, which runs the TypeScript directly.
 2. Add the server to Claude Code and Claude Desktop:
 
    ```sh
-   npm run mcp:setup
+   lz mcp
    ```
 
-   It runs `claude mcp add` for Claude Code, adds the `"lernzeit"` entry to Claude Desktop's `claude_desktop_config.json` next to your other servers, and prints the token both of them use. An app that is not installed is skipped.
+   If you have not linked `lz`, run `npm run mcp:setup` instead. It runs `claude mcp add` for Claude Code, adds the `"lernzeit"` entry to Claude Desktop's `claude_desktop_config.json` next to your other servers, and prints the token both of them use. An app that is not installed is skipped.
 
 3. In Lernzeit, open **Settings → AI connection**, turn the switch on, type a browser name and paste the token.
 4. Restart Claude Desktop, or start a new Claude Code session. The status turns to **Connected** once the server is running.
 5. Ask the AI: "Which Lernzeit browsers are connected?"
 
-### `npm run mcp:setup`
+### `lz mcp` and `npm run mcp:setup`
 
-Running it again is safe: it replaces the old entry, and keeps the token, port and origins from Claude Desktop's config unless you change them.
+They are the same command. Running it again is safe: it replaces the old entry, and keeps the token, port and origins from Claude Desktop's config unless you change them.
+
+For a hosted Lernzeit, give it the address. Only the origin is kept, so a path or trailing slash does no harm, and an address without a scheme counts as `https`. It is added to the origins already set, and the token stays the same, so you only need to paste it in the new site's Settings.
+
+```sh
+lz mcp https://lernzeit.example.workers.dev
+```
 
 | Option | What it does |
 |---|---|
+| `url` | Your hosted Lernzeit, added to `LERNZEIT_ORIGINS` |
 | `--code`, `--desktop` | Set up only that app |
 | `--token <token>` | Use this token, such as the one already in Settings. Default: the one set before, or a new one |
 | `--port <port>` | WebSocket port, see `LERNZEIT_PORT` below |
-| `--origins <urls>` | Extra page addresses, see `LERNZEIT_ORIGINS` below |
+| `--origins <urls>` | Replaces the extra page addresses, see `LERNZEIT_ORIGINS` below |
 | `--scope <scope>` | Claude Code scope: `user` (the default, so it works from any folder), `local` or `project` |
 | `--print` | Show what it would add, and change nothing |
 
-Options go after `--`, such as `npm run mcp:setup -- --desktop --token <token>`. It finds Claude Desktop's config in `%APPDATA%\Claude` on Windows (and in the Microsoft Store app's folder), `~/Library/Application Support/Claude` on macOS and `~/.config/Claude` on Linux. If that file is not valid JSON, it stops and changes nothing.
+With npm, options go after `--`, such as `npm run mcp:setup -- --desktop --token <token>`. It finds Claude Desktop's config in `%APPDATA%\Claude` on Windows (and in the Microsoft Store app's folder), `~/Library/Application Support/Claude` on macOS and `~/.config/Claude` on Linux. If that file is not valid JSON, it stops and changes nothing.
 
 ### By hand
 

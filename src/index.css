@@ -89,6 +89,7 @@
   --shadow-float: 0 2px 6px rgb(28 33 30 / 0.05), 0 20px 48px -8px rgb(28 33 30 / 0.2);
 
   --animate-fade-in: fade-in 160ms ease-out;
+  --animate-slide-progress: slide-progress linear;
   --animate-rise: rise 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
   --animate-flip-in: flip-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
   /* A soft spring: the curve runs a little past the end and settles back. */
@@ -99,6 +100,10 @@
   @keyframes fade-in {
     from { opacity: 0; }
     to { opacity: 1; }
+  }
+  @keyframes slide-progress {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
   }
   @keyframes rise {
     from { opacity: 0; transform: translateY(8px); }
