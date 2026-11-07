@@ -66,7 +66,7 @@ function connectTab(overrides: Partial<BridgeOptions> = {}, until: BridgeStatus 
 describe('bridge end to end', () => {
   it('adds and deletes cards from tool calls', async () => {
     await connectTab()
-    expect(hub.list().map((b) => b.name)).toEqual(['Chrome Personal'])
+    expect((await hub.list()).map((b) => b.name)).toEqual(['Chrome Personal'])
 
     const result = await hub.request(undefined, 'create_cards', {
       deck: 'My Words',
@@ -110,13 +110,13 @@ describe('bridge end to end', () => {
   it('stops trying after a wrong token', async () => {
     const statuses = await connectTab({ token: 'wrong' }, 'wrong_token')
     expect(statuses.at(-1)).toBe('wrong_token')
-    expect(hub.list()).toEqual([])
+    expect(await hub.list()).toEqual([])
   })
 
   it('lets only one tab of a browser connect', async () => {
     await connectTab()
     const second = await connectTab({}, 'standby')
     expect(second).toEqual(['standby'])
-    expect(hub.list()).toHaveLength(1)
+    expect(await hub.list()).toHaveLength(1)
   })
 })

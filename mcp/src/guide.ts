@@ -126,5 +126,5 @@ Every error ends with a code in brackets, and its message says what to do.
 | deck_not_found / topic_not_found | The message lists the real names |
 | invalid_input | Fix the input as the message says |
 | timeout / disconnected | The tab did not answer; ask the user to check that Lernzeit is open |
-| port_in_use | Another AI app runs the Lernzeit server on port ${DEFAULT_PORT}; only one can at a time |
+| port_in_use | Port ${DEFAULT_PORT} is held by something that cannot be shared: a Lernzeit server with another token or an older version, or another program. Ask the user to restart their AI apps |
 `

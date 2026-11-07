@@ -83,6 +83,22 @@ Names are matched without caring about upper or lower case.
 
 Only one tab connects. The tabs share a Web Lock (`navigator.locks`), and when that tab closes, another one takes over. So a request never runs twice.
 
+## Many AI sessions
+
+Each AI session starts its own copy of the server, but only one process can hold the port. So the first copy holds it, and the tabs connect to that one. Every other copy connects to it on `/peer`, proves the token, and sends its calls through it.
+
+```mermaid
+flowchart LR
+    A[Session 1] --> S1[Server holding the port]
+    B[Session 2] --> S2[Server] -->|/peer| S1
+    C[Session 3] --> S3[Server] -->|/peer| S1
+    S1 --> L[Lernzeit tab]
+```
+
+When the copy holding the port quits, the others try for it at once and one gets it. The rest join that one, and the tab reconnects within 30 seconds. Until it does, tools return `no_browser`, and a call that was running fails with `disconnected`.
+
+Browsers always send an `Origin` header, so `/peer` refuses anything that has one, and no website can reach it.
+
 ## Tools
 
 Every tool except `list_browsers` takes an optional `browser` (its name).
@@ -237,7 +253,7 @@ Error codes: `no_browser`, `pick_browser`, `unknown_browser`, `disconnected`, `t
 - Lernzeit must be open in a browser with the switch on.
 - The AI app and the browser must be on the same computer.
 - Data lands in one browser only. To get it onto your phone, use backup and restore. Real sync needs a cloud database, which is a separate project.
-- Only one AI app can use the bridge at a time. A second server cannot take the port; its tools return `port_in_use`, and it keeps trying in case the port frees up.
+- All AI apps and sessions must use the same `LERNZEIT_TOKEN`. A server with another token, or from an older version, cannot share the port; its tools return `port_in_use`, and it keeps trying in case the port frees up.
 - When Lernzeit runs from a hosted `https` address, Chrome may ask to allow access to local devices. Click Allow.
 - The AI can read your cards, decks, topics and grammar topics, but not your answers, scores, review history or notes.
 
