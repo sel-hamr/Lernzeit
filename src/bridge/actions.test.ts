@@ -546,3 +546,46 @@ describe('handleRequest', () => {
     expect(await handleRequest(request, database)).toMatchObject({ ok: false, error: { code: 'invalid_input' } })
   })
 })
+
+describe('docs', () => {
+  it('saves a doc in a new folder, tagged ai and titled from its heading', async () => {
+    const { doc, created } = await runAction('create_doc', { body: '# Pasta\n\nBoil water.', folder: 'Recipes/Italian', tags: ['food'] }, database)
+    expect(created).toBe(true)
+    expect(doc).toMatchObject({ title: 'Pasta', folder: 'Recipes/Italian', tags: ['food', AI_TAG], status: 'toRead', words: 3 })
+    expect(await database.docFolders.count()).toBe(2)
+  })
+
+  it('adds nothing when the folder already has the same text', async () => {
+    const first = await runAction('create_doc', { body: 'Same text', folder: 'A' }, database)
+    const again = await runAction('create_doc', { body: ' Same text\n', title: 'Other', folder: 'a' }, database)
+    expect(again).toMatchObject({ created: false, doc: { id: first.doc.id } })
+    expect((await runAction('create_doc', { body: 'Same text', folder: 'B' }, database)).created).toBe(true)
+  })
+
+  it('refuses a doc with no text', async () => {
+    await expectCode(runAction('create_doc', { body: '  ' }, database), 'invalid_input')
+    await expectCode(runAction('create_doc', { body: 'x'.repeat(200_001) }, database), 'invalid_input')
+  })
+
+  it('lists docs in a folder and its subfolders, without their text', async () => {
+    await runAction('create_doc', { body: '# One', folder: 'A/B' }, database)
+    await runAction('create_doc', { body: '# Two', folder: 'A' }, database)
+    await runAction('create_doc', { body: '# Three' }, database)
+    const inA = await runAction('list_docs', { folder: 'a' }, database)
+    expect(inA.total).toBe(2)
+    expect(inA.folders).toEqual(['A', 'A/B'])
+    expect(inA.docs[0]).not.toHaveProperty('body')
+    expect((await runAction('list_docs', { search: 'three' }, database)).docs.map((d) => d.title)).toEqual(['Three'])
+    expect((await runAction('list_docs', { limit: 1, offset: 1 }, database)).docs).toHaveLength(1)
+    await expectCode(runAction('list_docs', { folder: 'Nope' }, database), 'folder_not_found')
+  })
+
+  it('reads a doc by id or title, and asks which when titles repeat', async () => {
+    const { doc } = await runAction('create_doc', { body: '# One\n\nText', folder: 'A' }, database)
+    expect((await runAction('read_doc', { doc: doc.id }, database)).body).toBe('# One\n\nText')
+    expect((await runAction('read_doc', { doc: 'one' }, database)).folder).toBe('A')
+    await runAction('create_doc', { body: '# One\n\nOther text', folder: 'B' }, database)
+    await expectCode(runAction('read_doc', { doc: 'One' }, database), 'invalid_input')
+    await expectCode(runAction('read_doc', { doc: 'Nope' }, database), 'doc_not_found')
+  })
+})

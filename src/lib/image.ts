@@ -10,18 +10,18 @@ export interface PreparedImage {
 }
 
 /**
- * Shrinks an image to at most 600px wide and re-encodes it as WebP (JPEG when
+ * Shrinks an image to at most `maxWidth` (600px unless asked) and re-encodes it as WebP (JPEG when
  * WebP encoding is unavailable). Images with transparency keep it and are
  * shown with object-fit: contain; photos use cover.
  */
-export async function prepareImage(file: Blob): Promise<PreparedImage> {
+export async function prepareImage(file: Blob, maxWidth = MAX_IMAGE_WIDTH): Promise<PreparedImage> {
   if (file.type === 'image/svg+xml') {
     const { width, height } = await measure(file)
     return { blob: file, width, height, fit: 'contain' }
   }
 
   const bitmap = await createImageBitmap(file)
-  const scale = Math.min(1, MAX_IMAGE_WIDTH / bitmap.width)
+  const scale = Math.min(1, maxWidth / bitmap.width)
   const width = Math.max(1, Math.round(bitmap.width * scale))
   const height = Math.max(1, Math.round(bitmap.height * scale))
 

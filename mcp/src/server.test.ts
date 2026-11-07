@@ -42,7 +42,7 @@ describe('MCP server', () => {
     if (child.exitCode === null) await once(child, 'exit')
   })
 
-  it('offers the fifteen tools', async () => {
+  it('offers the eighteen tools', async () => {
     const { tools } = await rpc('tools/list')
     assert.deepEqual(
       tools.map((t: Named) => t.name),
@@ -60,6 +60,9 @@ describe('MCP server', () => {
         'create_questions',
         'list_grammar_topics',
         'add_grammar',
+        'list_docs',
+        'read_doc',
+        'create_doc',
         'create_task',
         'log_study_time',
       ],

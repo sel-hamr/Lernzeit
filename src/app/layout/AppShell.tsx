@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation } from 'react-router'
 import clsx from 'clsx'
-import { Bot, Plus, Search, Settings } from 'lucide-react'
+import { Bot, FileText, Plus, Search, Settings } from 'lucide-react'
 import { Logo, LogoMark } from '@/components/Logo'
 import { Dot, GroupLabel } from '@/components/ui/primitives'
 import { Dialog } from '@/components/ui/Dialog'
@@ -189,12 +189,19 @@ function MobileHeader() {
         <HeaderVoiceSelect />
         <button
           type="button"
-          aria-label="Search cards and tasks"
+          aria-label="Search cards, tasks and docs"
           onClick={() => setSearchOpen(true)}
           className="flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-field"
         >
           <Search size={19} strokeWidth={1.7} />
         </button>
+        <NavLink
+          to="/docs"
+          aria-label="Docs"
+          className={({ isActive }) => clsx('flex size-10 items-center justify-center rounded-full hover:bg-field', isActive ? 'bg-field text-ink' : 'text-ink-2')}
+        >
+          <FileText size={19} strokeWidth={1.7} />
+        </NavLink>
         <NavLink
           to={ai ? AI_SETTINGS : '/settings'}
           aria-label={ai ? `Settings, AI: ${ai.label}` : 'Settings'}
@@ -217,7 +224,7 @@ function BottomNav() {
       aria-label="Main"
       className="fixed inset-x-0 bottom-0 z-30 grid auto-cols-fr grid-flow-col border-t border-line bg-sidebar/95 pb-safe backdrop-blur-md md:hidden"
     >
-      {NAV.map(({ to, short, icon: Icon }) => (
+      {NAV.filter((item) => !item.header).map(({ to, short, icon: Icon }) => (
         <NavLink
           key={to}
           to={to}

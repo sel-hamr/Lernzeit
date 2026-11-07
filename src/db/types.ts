@@ -439,3 +439,32 @@ export interface KV {
   key: string
   value: unknown
 }
+
+export type DocStatus = 'toRead' | 'read'
+
+/** A folder on the Docs page. Top-level folders have DOC_ROOT as their parent. */
+export interface DocFolder {
+  id: string
+  name: string
+  parentId: string
+  createdAt: number
+  updatedAt: number
+}
+
+/** Markdown text saved to read later. It belongs to no topic or language. */
+export interface Doc {
+  id: string
+  /** A folder id, or DOC_ROOT for the top level. */
+  folderId: string
+  title: string
+  /** Markdown. A pasted image is written as ![name](image:<id>). */
+  body: string
+  tags: string[]
+  status: DocStatus
+  pinned: boolean
+  /** How far down it was read, from 0 to 1. */
+  position?: number
+  openedAt?: number
+  createdAt: number
+  updatedAt: number
+}

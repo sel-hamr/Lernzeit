@@ -2,27 +2,25 @@ import { useDeferredValue, useEffect, useId, useMemo, useRef, useState } from 'r
 import { useNavigate } from 'react-router'
 import { useLiveQuery } from 'dexie-react-hooks'
 import clsx from 'clsx'
-import { ListTodo, Search } from 'lucide-react'
+import { FileText, ListTodo, Search } from 'lucide-react'
 import { db } from '@/db/db'
-import type { Card, Task } from '@/db/types'
+import type { Card, Doc, Task } from '@/db/types'
 import { CardImage } from '@/components/CardImage'
 import { CardGerman } from '@/components/GermanWord'
 import { Kbd, PriorityChip } from '@/components/ui/primitives'
+import { DOC_STATUS_LABEL, filterDocs } from '@/lib/docs'
 import { wordKind } from '@/lib/german'
+import { foldText as fold } from '@/lib/text'
 import { STATUS_LABEL } from '@/data/tasks'
 
-type Result = { kind: 'card'; card: Card } | { kind: 'task'; task: Task }
-
-function fold(s: string) {
-  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ß/g, 'ss')
-}
+type Result = { kind: 'card'; card: Card } | { kind: 'task'; task: Task } | { kind: 'doc'; doc: Doc }
 
 function useSearch(query: string): Result[] {
   const q = fold(query.trim())
   const data = useLiveQuery(async () => {
-    if (!q) return { cards: [] as Card[], tasks: [] as Task[] }
-    const [cards, tasks] = await Promise.all([db.cards.toArray(), db.tasks.toArray()])
-    return { cards, tasks }
+    if (!q) return { cards: [] as Card[], tasks: [] as Task[], docs: [] as Doc[] }
+    const [cards, tasks, docs] = await Promise.all([db.cards.toArray(), db.tasks.toArray(), db.docs.toArray()])
+    return { cards, tasks, docs }
   }, [q])
   return useMemo(() => {
     if (!q || !data) return []
@@ -41,11 +39,16 @@ function useSearch(query: string): Result[] {
       .filter((t) => fold(`${t.title} ${t.description ?? ''}`).includes(q))
       .sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done'))
       .slice(0, 6)
-    return [...cardHits.map(({ card }) => ({ kind: 'card' as const, card })), ...taskHits.map((task) => ({ kind: 'task' as const, task }))]
+    const docHits = filterDocs(data.docs, { query: q }).slice(0, 6)
+    return [
+      ...cardHits.map(({ card }) => ({ kind: 'card' as const, card })),
+      ...taskHits.map((task) => ({ kind: 'task' as const, task })),
+      ...docHits.map((doc) => ({ kind: 'doc' as const, doc })),
+    ]
   }, [data, q])
 }
 
-/** "Search cards, tasks" with a results list. Used in the sidebar (dropdown) and on phones (inline). */
+/** "Search cards, tasks, docs" with a results list. Used in the sidebar (dropdown) and on phones (inline). */
 export function SearchBox({ inline = false, autoFocus = false, onDone }: { inline?: boolean; autoFocus?: boolean; onDone?: () => void }) {
   const [query, setQuery] = useState('')
   const deferred = useDeferredValue(query)
@@ -70,7 +73,8 @@ export function SearchBox({ inline = false, autoFocus = false, onDone }: { inlin
 
   const open = (r: Result) => {
     if (r.kind === 'card') navigate(`/flashcards?card=${r.card.id}`)
-    else navigate(`/board?task=${r.task.id}`)
+    else if (r.kind === 'task') navigate(`/board?task=${r.task.id}`)
+    else navigate(`/docs/${r.doc.id}`)
     setQuery('')
     inputRef.current?.blur()
     onDone?.()
@@ -89,8 +93,8 @@ export function SearchBox({ inline = false, autoFocus = false, onDone }: { inlin
           role="combobox"
           aria-expanded={showList}
           aria-controls={listId}
-          aria-label="Search cards and tasks"
-          placeholder="Search cards, tasks"
+          aria-label="Search cards, tasks and docs"
+          placeholder="Search cards, tasks, docs"
           autoFocus={autoFocus}
           value={query}
           onChange={(e) => {
@@ -137,7 +141,7 @@ export function SearchBox({ inline = false, autoFocus = false, onDone }: { inlin
           ) : (
             results.map((r, i) => (
               <button
-                key={r.kind === 'card' ? r.card.id : r.task.id}
+                key={r.kind === 'card' ? r.card.id : r.kind === 'task' ? r.task.id : r.doc.id}
                 type="button"
                 role="option"
                 aria-selected={i === activeIndex}
@@ -159,6 +163,16 @@ export function SearchBox({ inline = false, autoFocus = false, onDone }: { inlin
                       <span className="truncate text-chip text-muted">
                         {r.card.english} · {wordKind(r.card)}
                       </span>
+                    </span>
+                  </>
+                ) : r.kind === 'doc' ? (
+                  <>
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-field text-muted">
+                      <FileText size={16} strokeWidth={1.7} />
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-body font-medium">{r.doc.title}</span>
+                      <span className="text-chip text-muted">Doc · {DOC_STATUS_LABEL[r.doc.status]}</span>
                     </span>
                   </>
                 ) : (

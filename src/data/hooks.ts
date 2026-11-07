@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, DEFAULT_SETTINGS, KV_KEYS } from '@/db/db'
-import type { ActiveTimer, Card, CardReview, Deck, DrillStat, ExerciseStat, GrammarTopic, ImageFit, PracticeRun, Question, QuestionResponse, ReviewLog, Session, Settings, Story, Task, Topic } from '@/db/types'
+import type { ActiveTimer, Card, CardReview, Deck, Doc, DocFolder, DrillStat, ExerciseStat, GrammarTopic, ImageFit, PracticeRun, Question, QuestionResponse, ReviewLog, Session, Settings, Story, Task, Topic } from '@/db/types'
 import { buildQueue, usageToday } from '@/lib/queue'
 import { onVoicesChanged, voicesFor } from '@/lib/speech'
 import { dateKey, nextMidnightMs } from '@/lib/time'
@@ -96,6 +96,20 @@ export function useTasks(): Task[] | undefined {
 }
 
 /** Stories, last opened or added first. */
+/** Every doc, last opened first. */
+export function useDocs(): Doc[] | undefined {
+  return useLiveQuery(async () => (await db.docs.toArray()).sort((a, b) => (b.openedAt ?? b.updatedAt) - (a.openedAt ?? a.updatedAt)), [])
+}
+
+/** `undefined` while loading, `null` when there is no such doc. */
+export function useDoc(id: string | undefined): Doc | null | undefined {
+  return useLiveQuery(async () => (id ? ((await db.docs.get(id)) ?? null) : null), [id])
+}
+
+export function useDocFolders(): DocFolder[] | undefined {
+  return useLiveQuery(async () => (await db.docFolders.toArray()).sort((a, b) => a.name.localeCompare(b.name)), [])
+}
+
 export function useStories(): Story[] | undefined {
   return useLiveQuery(async () => (await db.stories.toArray()).sort((a, b) => (b.openedAt ?? b.createdAt) - (a.openedAt ?? a.createdAt)), [])
 }

@@ -4,6 +4,8 @@ import type {
   Card,
   CardReview,
   Deck,
+  Doc,
+  DocFolder,
   DrillStat,
   ExerciseStat,
   GrammarTopic,
@@ -38,6 +40,8 @@ export class LernzeitDB extends Dexie {
   grammarTopics!: EntityTable<GrammarTopic, 'id'>
   exerciseStats!: EntityTable<ExerciseStat, 'id'>
   practiceRuns!: EntityTable<PracticeRun, 'id'>
+  docFolders!: EntityTable<DocFolder, 'id'>
+  docs!: EntityTable<Doc, 'id'>
   kv!: EntityTable<KV, 'key'>
 
   constructor(name = 'lernzeit') {
@@ -73,6 +77,10 @@ export class LernzeitDB extends Dexie {
     })
     this.version(7).stores({
       practiceRuns: 'id, start',
+    })
+    this.version(8).stores({
+      docFolders: 'id, parentId',
+      docs: 'id, folderId, openedAt, updatedAt, *tags',
     })
   }
 }
