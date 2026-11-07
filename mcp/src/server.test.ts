@@ -72,6 +72,25 @@ describe('MCP server', () => {
     assert.deepEqual(destructive.map((t: Named) => t.name), ['delete_cards', 'delete_deck'])
   })
 
+  it('asks for teaching notes on a story, and checks them before they reach the app', async () => {
+    const { tools } = await rpc('tools/list')
+    const tool = tools.find((t: Named) => t.name === 'create_story')
+    assert.match(tool.description, /smart, patient teacher/)
+    assert.match(tool.description, /every word that needs help, up to 150 notes, and skip the rest/)
+    const { required, properties } = tool.inputSchema.properties.words.items
+    assert.deepEqual([...required].sort(), ['baseForm', 'partOfSpeech', 'sentence', 'translation', 'word'])
+    assert.deepEqual(Object.keys(properties.grammar.properties), ['rule', 'why', 'example'])
+
+    const note = { word: 'Hund', sentence: 'Der Hund bellt.', baseForm: 'Hund', partOfSpeech: 'noun', translation: 'dog' }
+    const send = (words: object[]) => rpc('tools/call', { name: 'create_story', arguments: { title: 'Hund', text: 'Der Hund bellt.', words } })
+    // No browser is connected in this test, so a good note gets as far as looking for one.
+    const good = await send([note])
+    assert.match(JSON.stringify(good.content), /browser/i)
+    const bad = await send([{ ...note, baseForm: undefined }])
+    assert.equal(bad.isError, true)
+    assert.match(JSON.stringify(bad.content), /baseForm/)
+  })
+
   it('serves a guide that mentions every tool', async () => {
     const { tools } = await rpc('tools/list')
     const { contents } = await rpc('resources/read', { uri: 'lernzeit://guide' })

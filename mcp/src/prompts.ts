@@ -64,7 +64,8 @@ export function registerGuide(server: McpServer) {
         [
           `Write a German story of about ${words} words about "${theme}" at level ${level}, following the guide.`,
           'Give it a German title, three to five paragraphs, and an English translation with the same paragraphs.',
-          'Add it with create_story, then tell me its title and word count.',
+          'Write teaching notes on the words I need help with, the way create_story asks: full notes on hard words, short notes on simple ones, and none on words that do not need one.',
+          'Add it with create_story, then tell me its title, its word count and how many notes were saved.',
           'Finally, suggest five to eight useful words from the story that I may not know yet, and offer to add them as cards.',
         ].join('\n'),
       ),

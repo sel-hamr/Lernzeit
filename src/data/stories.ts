@@ -12,7 +12,7 @@ export interface StarterStory extends Pick<Story, 'id' | 'title' | 'text' | 'tra
   topic: string
 }
 
-export type StoryInput = Pick<Story, 'title' | 'text' | 'translation' | 'level' | 'topicId' | 'tags'>
+export type StoryInput = Pick<Story, 'title' | 'text' | 'translation' | 'level' | 'topicId' | 'tags' | 'words'>
 
 /** "a2 " -> "A2"; anything else -> undefined. */
 export function parseLevel(value: string | undefined): StoryLevel | undefined {
@@ -39,6 +39,8 @@ function normalizeStory(input: StoryInput): StoryInput {
     level: parseLevel(input.level),
     topicId: input.topicId || undefined,
     tags: [...new Set(input.tags.map((t) => t.trim()).filter(Boolean))],
+    // Left out when there are none, so saving from the editor keeps the story's notes.
+    ...(input.words?.length ? { words: input.words } : {}),
   }
 }
 

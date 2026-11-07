@@ -199,6 +199,38 @@ export interface PracticeRun {
 
 export type StoryLevel ='A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'
 
+/** Why a word has its form in its sentence. */
+export interface StoryWordGrammar {
+  /** The rule, in one short sentence. */
+  rule: string
+  /** Why the rule applies in this sentence. */
+  why: string
+  /** A new sentence that uses the same rule. */
+  example: { text: string; translation: string }
+}
+
+/** A teaching note on one word of a story, shown when the word is tapped. */
+export interface StoryWord {
+  /** As written in the story. */
+  word: string
+  /** The sentence the note is about, copied from the story. Editing that sentence turns the note off. */
+  sentence: string
+  /** Words of the same sentence that open this note too, such as the "ein" of "steigt ... ein". */
+  alsoTap?: string[]
+  /** Dictionary form. Nouns leave out the article and use `gender`. */
+  baseForm: string
+  gender?: Gender
+  partOfSpeech: string
+  /** Short meaning in your own language. */
+  translation: string
+  /** One simple line that explains the word. Easy words can do without. */
+  meaning?: string
+  /** Left out when the word's form has nothing to explain. */
+  grammar?: StoryWordGrammar
+  /** A short tip or memory trick. Easy words can do without. */
+  tip?: string
+}
+
 export interface Story {
   id: string
   title: string
@@ -210,6 +242,8 @@ export interface Story {
   /** Reading time counts toward this topic. */
   topicId?: string
   tags: string[]
+  /** Teaching notes from the AI. Stories without them show only cards in the word panel. */
+  words?: StoryWord[]
   createdAt: number
   updatedAt: number
   /** Last time the story was opened in the reader. */

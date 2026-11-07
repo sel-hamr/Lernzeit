@@ -1,3 +1,4 @@
+import { MAX_STORY_WORDS } from '@/bridge/protocol'
 import type { Card, StoryLevel } from '@/db/types'
 import { germanText } from './german'
 import type { Knowledge } from './reader'
@@ -224,6 +225,7 @@ export function buildStoryPrompt({ level, length, theme, words, language = { cod
     'BEFORE YOU SAVE',
     `- Check that every sentence is correct, natural ${name}.`,
     `- Write a translation into ${native} that matches the ${name} paragraph by paragraph.`,
+    `- Write a teaching note in ${native} for every word I need help with, up to ${MAX_STORY_WORDS} notes. Follow the create_story tool: like a patient teacher, with very simple words, for a beginner. Hard words and words whose form changes get a full note with grammar. Simple words that only need a translation get a short note. Skip names and words I surely know at this level.`,
     '',
     'SAVE IT IN LERNZEIT',
     'Save the story with the Lernzeit create_story tool:',
@@ -231,6 +233,7 @@ export function buildStoryPrompt({ level, length, theme, words, language = { cod
     `- level: ${level}`,
     `- text: the ${name} story, with an empty line between paragraphs`,
     `- translation: the ${native} translation, with the same paragraphs`,
+    '- words: the teaching notes',
     'Then show me the story and tell me it is saved. If the tool is not available, tell me to turn on Settings → AI connection in Lernzeit.',
   )
   return lines.join('\n')

@@ -1,4 +1,4 @@
-import { DEFAULT_PORT, MAX_CARDS_PER_CALL, MAX_CARDS_PER_LIST, MAX_GRAMMAR_EXERCISES_PER_CALL, MAX_QUESTIONS_PER_CALL, MAX_STORY_CHARS, MAX_STUDY_MINUTES } from '../../src/bridge/protocol.ts'
+import { DEFAULT_PORT, MAX_CARDS_PER_CALL, MAX_CARDS_PER_LIST, MAX_GRAMMAR_EXERCISES_PER_CALL, MAX_QUESTIONS_PER_CALL, MAX_STORY_CHARS, MAX_STORY_WORDS, MAX_STUDY_MINUTES } from '../../src/bridge/protocol.ts'
 
 export const GUIDE_URI = 'lernzeit://guide'
 
@@ -28,7 +28,7 @@ The data lives in the user's browser, not on a server. Each tool call goes to a 
 | \`move_cards\` | Move cards to another deck, keeping their progress |
 | \`delete_cards\` | Delete cards from a deck, with their progress |
 | \`delete_deck\` | Delete a deck with all its cards and their progress |
-| \`create_story\` | Add a German story to read, with its English translation |
+| \`create_story\` | Add a German story to read, with its English translation and teaching notes on the words that need one |
 | \`create_questions\` | Add up to ${MAX_QUESTIONS_PER_CALL} German questions to practise answering, in a set |
 | \`list_grammar_topics\` | Get the grammar topics with their level and number of exercises |
 | \`add_grammar\` | Add up to ${MAX_GRAMMAR_EXERCISES_PER_CALL} exercises and examples to a grammar topic, or start a new topic |
@@ -68,12 +68,13 @@ Look before you add: call \`list_decks\` before \`create_cards\`, and \`list_top
 
 ## Writing stories
 
-In the reader, every word that is in one of the user's decks is highlighted by how well they know it, nouns are coloured by gender, and tapping a word shows its card or adds it to a deck. Stories teach best when the user already knows almost every word.
+In the reader, every word that is in one of the user's decks is highlighted by how well they know it, nouns are coloured by gender, and tapping a word shows your teaching note in a box above it, and its card or a form to add it to a deck. Stories teach best when the user already knows almost every word.
 
 - Write at the user's level and keep it short: 100 to 250 words for A1 and A2. Use everyday words, short sentences and the present tense or Perfekt.
 - Separate paragraphs with an empty line. Give \`translation\` the same number of paragraphs, so each English paragraph can show under its German one.
 - Set \`level\` (A1 to C2) and a German \`title\`. Text and translation can each have up to ${MAX_STORY_CHARS} characters.
-- Every story gets the tag "ai". Sending the same text again returns the saved story instead of a copy.
+- Add \`words\`: a teaching note on every word that needs one, up to ${MAX_STORY_WORDS}. Hard words get a full note and simple words a short one. Skip names and words the user surely knows at this level. The \`create_story\` description says how to write them. The app has no AI of its own, so a word without a note gets no grammar help.
+- Every story gets the tag "ai". Sending the same text again returns the saved story instead of a copy, and replaces its notes if you include \`words\`. Skipped notes are listed under \`words.skipped\` with the reason: fix them and send all the notes again.
 - Afterwards, offer to add the story's most useful new words as cards with \`create_cards\`, using the sentence from the story as \`exampleDe\`.
 
 ## Writing questions

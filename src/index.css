@@ -86,10 +86,15 @@
   --shadow-tab: 0 1px 2px rgb(28 33 30 / 0.08);
   --shadow-panel: 0 8px 24px rgb(28 33 30 / 0.04);
   --shadow-popup: 0 12px 32px rgb(28 33 30 / 0.08);
+  --shadow-float: 0 2px 6px rgb(28 33 30 / 0.05), 0 20px 48px -8px rgb(28 33 30 / 0.2);
 
   --animate-fade-in: fade-in 160ms ease-out;
   --animate-rise: rise 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
   --animate-flip-in: flip-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* A soft spring: the curve runs a little past the end and settles back. */
+  --animate-note-in: note-in 520ms cubic-bezier(0.22, 1.32, 0.36, 1) backwards;
+  --animate-note-out: note-out 180ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  --animate-note-part: note-part 340ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 
   @keyframes fade-in {
     from { opacity: 0; }
@@ -101,6 +106,18 @@
   }
   @keyframes flip-in {
     from { opacity: 0; transform: translateY(4px) scale(0.99); }
+    to { opacity: 1; transform: none; }
+  }
+  /* The note box grows out of its word: transform-origin is set from the word's place. */
+  @keyframes note-in {
+    from { opacity: 0; transform: scale(0.86); filter: blur(6px); }
+    to { opacity: 1; transform: none; filter: blur(0); }
+  }
+  @keyframes note-out {
+    to { opacity: 0; transform: scale(0.92); filter: blur(3px); }
+  }
+  @keyframes note-part {
+    from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: none; }
   }
 }
@@ -174,6 +191,7 @@
   --shadow-tab: 0 1px 2px rgb(0 0 0 / 0.35);
   --shadow-panel: 0 8px 24px rgb(0 0 0 / 0.2);
   --shadow-popup: 0 12px 32px rgb(0 0 0 / 0.35);
+  --shadow-float: 0 2px 6px rgb(0 0 0 / 0.3), 0 20px 48px -8px rgb(0 0 0 / 0.55);
 
   --t-sage-dot: #82b36d; --t-sage-bar: #6f9c5d; --t-sage-soft: #25321f; --t-sage-border: #34462b; --t-sage-ink: #b4d2a1;
   --t-blue-dot: #91a3d4; --t-blue-bar: #7b8cba; --t-blue-soft: #222939; --t-blue-border: #323d55; --t-blue-ink: #b6c3e6;

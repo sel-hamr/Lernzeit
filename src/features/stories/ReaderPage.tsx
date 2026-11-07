@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { BookOpen, Check, ChevronLeft, Highlighter, Languages, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -10,7 +10,8 @@ import { useLanguage, useLearningText, useSettings, useStory } from '@/data/hook
 import { markStoryOpened, markStoryRead } from '@/data/stories'
 import type { Story } from '@/db/types'
 import { isTypingTarget, useMediaQuery, useStoredToggle } from '@/lib/browser'
-import { readingMinutes, sentenceAt } from '@/lib/reader'
+import { readingMinutes, sentenceAt, splitParagraphs } from '@/lib/reader'
+import { indexStoryWords, storyWordAt } from '@/lib/storyWords'
 import { speak, stopSpeaking, voiceOptions, warmUpVoice } from '@/data/voice'
 import { count } from '@/lib/text'
 import { CoverageBar, CoverageLegend, DifficultyChip } from './Coverage'
@@ -19,6 +20,8 @@ import { HighlightKey, StoryText, type WordRef } from './StoryText'
 import { StoryEditorDialog } from './StoryEditor'
 import { useReadingTime } from './useReadingTime'
 import { annotateStory, useVocabulary } from './vocabulary'
+import { WordNote } from './WordNote'
+import { WordNoteBox } from './WordNoteBox'
 import { WordPanel } from './WordPanel'
 
 function Reader({ story }: { story: Story }) {
@@ -30,6 +33,11 @@ function Reader({ story }: { story: Story }) {
   const { toast } = useFeedback()
   const wide = useMediaQuery('(min-width: 1100px)')
   const [selected, setSelected] = useState<WordRef | null>(null)
+  const selectedRef = useRef<HTMLButtonElement>(null)
+  // The note can be closed while its word stays selected, with its card beside the story.
+  const [noteClosed, setNoteClosed] = useState(false)
+  // On narrow screens the card opens from the note, because there is no room for both.
+  const [cardOpen, setCardOpen] = useState(false)
   const [highlights, setHighlights] = useStoredToggle('lernzeit-reader-highlights', true)
   const [showTranslation, setShowTranslation] = useStoredToggle('lernzeit-reader-translation', false)
   const [editing, setEditing] = useState(false)
@@ -39,6 +47,15 @@ function Reader({ story }: { story: Story }) {
   // After an edit the selected word may no longer be there; then nothing is selected.
   const paragraph = selected ? annotated.paragraphs[selected.paragraph] : undefined
   const piece = paragraph?.pieces.find((p) => p.words && p.start === selected?.start)
+  const storyWords = useMemo(() => indexStoryWords(splitParagraphs(story.text), story.words), [story.text, story.words])
+  const match = piece && selected ? storyWordAt(storyWords, selected.paragraph, piece) : undefined
+  const closeNote = useCallback(() => setNoteClosed(true), [])
+
+  const select = (ref: WordRef) => {
+    setSelected(ref)
+    setNoteClosed(false)
+    setCardOpen(false)
+  }
 
   useEffect(() => {
     void markStoryOpened(story.id)
@@ -76,13 +93,14 @@ function Reader({ story }: { story: Story }) {
     .filter(Boolean)
     .join(' · ')
 
-  const panel = piece && paragraph && (
+  const panel = piece && paragraph && selected && (
     <WordPanel
-      key={`${selected?.paragraph}:${piece.start}`}
+      key={`${selected.paragraph}:${piece.start}`}
       word={piece.text}
       sentence={sentenceAt(paragraph.text, piece.start)}
       cardIds={piece.cardIds}
       vocabulary={vocabulary}
+      match={match}
     />
   )
 
@@ -149,9 +167,27 @@ function Reader({ story }: { story: Story }) {
             highlights={highlights && vocabulary.loaded}
             showTranslation={showTranslation}
             selected={piece ? selected : null}
-            onSelect={setSelected}
+            selectedRef={selectedRef}
+            onSelect={select}
             onSpeak={say}
           />
+          {match && piece && selected && !noteClosed && !cardOpen && (
+            <WordNoteBox
+              key={`${selected.paragraph}:${piece.start}`}
+              anchor={selectedRef}
+              label={`Note on ${piece.text}`}
+              wide={match.here && !!match.note.grammar}
+              onClose={closeNote}
+            >
+              <WordNote word={piece.text} match={match} onSpeak={say}>
+                {!wide && (
+                  <button type="button" onClick={() => setCardOpen(true)} className="self-start text-small font-medium text-sage-ink hover:text-ink">
+                    {piece.cardIds.length ? 'Show card' : 'Add to a deck'}
+                  </button>
+                )}
+              </WordNote>
+            </WordNoteBox>
+          )}
           {showTranslation && story.translation && !annotated.translation && (
             <div className="flex flex-col gap-2 border-t border-line pt-6">
               <h2 className="text-small font-medium text-muted">Translation</h2>
@@ -168,6 +204,7 @@ function Reader({ story }: { story: Story }) {
 
         {wide && (
           <aside
+            data-word-panel
             aria-label="Word"
             className="sticky top-8 flex max-h-[calc(100dvh-4rem)] min-w-0 flex-[1_1_300px] flex-col overflow-y-auto rounded-section border border-line bg-main p-2.5 pb-4 shadow-panel"
           >
@@ -175,7 +212,11 @@ function Reader({ story }: { story: Story }) {
               <div className="flex flex-col gap-4 p-3.5">
                 <div className="flex flex-col gap-1">
                   <h2 className="text-section font-semibold">Tap a word</h2>
-                  <p className="text-small text-muted">See its card with the picture and the {language.native.name}, or add it to a deck.</p>
+                  <p className="text-small text-muted">
+                    {story.words?.length
+                      ? `See what it means and why it has this form, with its card and the ${language.native.name}.`
+                      : `See its card with the picture and the ${language.native.name}, or add it to a deck.`}
+                  </p>
                 </div>
                 <HighlightKey />
               </div>
@@ -185,7 +226,14 @@ function Reader({ story }: { story: Story }) {
       </div>
 
       {!wide && (
-        <Dialog open={!!panel} onClose={() => setSelected(null)} title="Word">
+        <Dialog
+          open={!!panel && (!match || cardOpen)}
+          onClose={() => {
+            setSelected(null)
+            setCardOpen(false)
+          }}
+          title="Word"
+        >
           {panel}
         </Dialog>
       )}
