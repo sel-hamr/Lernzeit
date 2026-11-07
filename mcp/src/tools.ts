@@ -211,7 +211,13 @@ export function registerTools(server: McpServer, hub: BrowserHub) {
       description: 'Lists the browsers that have Lernzeit open with Connect to AI on. Each browser keeps its own data.',
       annotations: look,
     },
-    () => reply(hub.list()),
+    async () => {
+      try {
+        return reply(await hub.list())
+      } catch (error) {
+        return failure(error)
+      }
+    },
   )
 
   server.registerTool(
