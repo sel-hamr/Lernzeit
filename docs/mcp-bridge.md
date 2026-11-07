@@ -98,6 +98,9 @@ Every tool except `list_browsers` takes an optional `browser` (its name).
 | `move_cards` | `deck`, `to`, `cards[]` (ids or German texts) | moved, skipped and not found words | `moveCard` |
 | `delete_cards` | `deck`, `cards[]` (ids or German texts) | deleted words, words not found | `deleteCard` |
 | `delete_deck` | `deck`, `cardCount` | the deck's name, deleted card count | `deleteDeck` |
+| `list_docs` | `folder?`, `search?`, `tag?`, `limit?`, `offset?` | folder paths, total, docs without their text | `db.docs` |
+| `read_doc` | `doc` (id or exact title) | the doc with its Markdown text | `db.docs` |
+| `create_doc` | `body`, `title?`, `folder?`, `tags?` | the doc, whether it was new | `saveDoc` |
 | `create_story` | `title`, `text`, `translation`?, `level`?, `tags`?, `topic`?, `words[]`? | the story, whether it was created, and how many notes were saved or skipped | `saveStory` |
 | `create_questions` | `set`, `questions[]` | the set's name, added count, skipped questions | `saveQuestion` |
 | `list_grammar_topics` | – | id, title, English, level, section, exercise count | `db.grammarTopics` |
@@ -245,6 +248,7 @@ Error codes: `no_browser`, `pick_browser`, `unknown_browser`, `disconnected`, `t
 - **Token:** a secret you put in the server config and paste in Settings. The server drops any connection with the wrong token, comparing in constant time.
 - **Origin check:** any website can try to open a WebSocket to localhost, so the server only accepts pages from the local dev and preview addresses and from `LERNZEIT_ORIGINS`.
 - Only cards and decks can be changed: `move_cards` moves cards, `delete_cards` deletes them, and `delete_deck` deletes a deck with its cards. Nothing can be edited, and everything else can only be added.
+- Docs can be read with `list_docs` and `read_doc` and added with `create_doc`, but not changed or deleted.
 - The server writes logs to stderr only, because stdout carries the MCP messages.
 
 ## Setup

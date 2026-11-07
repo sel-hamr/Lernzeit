@@ -1,6 +1,6 @@
 import Papa from 'papaparse'
 import { db, getSettings, KV_KEYS, newId, type LernzeitDB } from '@/db/db'
-import type { Card, CardType, Conjugation, Deck, DeckDirections, DrillStat, ExerciseStat, Gender, GrammarTopic, KV, PracticeRun, Question, QuestionResponse, ReviewLog, Session, Settings, StoredImage, Story, Task, Topic, CardReview } from '@/db/types'
+import type { Card, CardType, Conjugation, Deck, DeckDirections, Doc, DocFolder, DrillStat, ExerciseStat, Gender, GrammarTopic, KV, PracticeRun, Question, QuestionResponse, ReviewLog, Session, Settings, StoredImage, Story, Task, Topic, CardReview } from '@/db/types'
 import { cleanConjugation } from '@/lib/conjugation'
 import { splitArticle } from '@/lib/german'
 import { blobToDataUrl, dataUrlToBlob } from '@/lib/image'
@@ -361,12 +361,15 @@ export interface Backup {
   exerciseStats?: ExerciseStat[]
   /** Missing in backups made before practice history was added. */
   practiceRuns?: PracticeRun[]
+  /** Missing in backups made before docs were added. */
+  docFolders?: DocFolder[]
+  docs?: Doc[]
   images: BackupImage[]
   settings: Settings
 }
 
 export async function exportBackup(database: LernzeitDB = db): Promise<Backup> {
-  const [topics, sessions, decks, cards, reviews, reviewLogs, tasks, stories, questions, responses, drillStats, grammarTopics, exerciseStats, practiceRuns, images, settings] = await Promise.all([
+  const [topics, sessions, decks, cards, reviews, reviewLogs, tasks, stories, questions, responses, drillStats, grammarTopics, exerciseStats, practiceRuns, docFolders, docs, images, settings] = await Promise.all([
     database.topics.toArray(),
     database.sessions.toArray(),
     database.decks.toArray(),
@@ -381,6 +384,8 @@ export async function exportBackup(database: LernzeitDB = db): Promise<Backup> {
     database.grammarTopics.toArray(),
     database.exerciseStats.toArray(),
     database.practiceRuns.toArray(),
+    database.docFolders.toArray(),
+    database.docs.toArray(),
     database.images.toArray(),
     getSettings(database),
   ])
@@ -402,6 +407,8 @@ export async function exportBackup(database: LernzeitDB = db): Promise<Backup> {
     grammarTopics,
     exerciseStats,
     practiceRuns,
+    docFolders,
+    docs,
     images: await Promise.all(
       images.map(async (img) => ({ id: img.id, width: img.width, height: img.height, fit: img.fit, dataUrl: await blobToDataUrl(img.blob) })),
     ),
@@ -415,7 +422,7 @@ function assertBackup(value: unknown): asserts value is Backup {
   if (!b || b.app !== 'lernzeit' || typeof b.version !== 'number') throw new Error('This is not a Lernzeit backup file')
   if (b.version > 1) throw new Error('This backup comes from a newer version of Lernzeit')
   for (const key of arrays) if (!Array.isArray(b[key])) throw new Error(`The backup is missing "${key}"`)
-  for (const key of ['stories', 'questions', 'responses', 'drillStats', 'grammarTopics', 'exerciseStats', 'practiceRuns'] as const) {
+  for (const key of ['stories', 'questions', 'responses', 'drillStats', 'grammarTopics', 'exerciseStats', 'practiceRuns', 'docFolders', 'docs'] as const) {
     if (b[key] !== undefined && !Array.isArray(b[key])) throw new Error(`The backup has broken "${key}"`)
   }
 }
@@ -430,7 +437,7 @@ export async function restoreBackup(raw: unknown, database: LernzeitDB = db): Pr
   const tables = [
     database.topics, database.sessions, database.decks, database.cards, database.reviews,
     database.reviewLogs, database.tasks, database.stories, database.questions, database.responses, database.drillStats, database.grammarTopics, database.exerciseStats,
-    database.practiceRuns, database.images, database.kv,
+    database.practiceRuns, database.docFolders, database.docs, database.images, database.kv,
   ]
   await database.transaction('rw', tables, async () => {
     // The AI connection belongs to this browser, not to the backup.
@@ -450,6 +457,8 @@ export async function restoreBackup(raw: unknown, database: LernzeitDB = db): Pr
     await database.grammarTopics.bulkAdd(backup.grammarTopics ?? [])
     await database.exerciseStats.bulkAdd(backup.exerciseStats ?? [])
     await database.practiceRuns.bulkAdd(backup.practiceRuns ?? [])
+    await database.docFolders.bulkAdd(backup.docFolders ?? [])
+    await database.docs.bulkAdd(backup.docs ?? [])
     await database.images.bulkAdd(images)
     const kv: KV[] = [{ key: KV_KEYS.seeded, value: Date.now() }]
     if (backup.settings) kv.push({ key: KV_KEYS.settings, value: backup.settings })

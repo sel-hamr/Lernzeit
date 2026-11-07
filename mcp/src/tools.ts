@@ -3,6 +3,9 @@ import * as z from 'zod'
 import {
   MAX_CARDS_PER_CALL,
   MAX_CARDS_PER_LIST,
+  MAX_DOC_CHARS,
+  MAX_DOC_TITLE,
+  MAX_DOCS_PER_LIST,
   MAX_GRAMMAR_EXAMPLES_PER_CALL,
   MAX_GRAMMAR_EXERCISES_PER_CALL,
   MAX_GRAMMAR_TEXT,
@@ -405,6 +408,55 @@ export function registerTools(server: McpServer, hub: BrowserHub) {
       annotations: { ...add, idempotentHint: true },
     },
     ({ browser, ...params }) => forward(browser, 'add_grammar', params),
+  )
+
+  server.registerTool(
+    'list_docs',
+    {
+      title: 'List docs',
+      description: 'Lists the folders on the Docs page and the docs that match, without their text. Docs are general reading the user saved, not study material. Call read_doc for a doc\'s text.',
+      inputSchema: z.object({
+        browser: browserField,
+        folder: z.string().min(1).optional().describe('Folder path, e.g. "Recipes/Italian". Docs in the folders inside it count too. Leave it out for every doc.'),
+        search: z.string().min(1).optional().describe('Text to find in the title, tags or text, ignoring case.'),
+        tag: z.string().min(1).optional(),
+        limit: z.number().int().min(1).max(MAX_DOCS_PER_LIST).optional().describe(`Defaults to ${MAX_DOCS_PER_LIST}.`),
+        offset: z.number().int().min(0).optional(),
+      }),
+      annotations: look,
+    },
+    ({ browser, ...params }) => forward(browser, 'list_docs', params),
+  )
+
+  server.registerTool(
+    'read_doc',
+    {
+      title: 'Read a doc',
+      description: 'Returns one doc with its Markdown text. Only read a doc the user asked about.',
+      inputSchema: z.object({
+        browser: browserField,
+        doc: z.string().min(1).describe('Doc id from list_docs, or its exact title.'),
+      }),
+      annotations: look,
+    },
+    ({ browser, ...params }) => forward(browser, 'read_doc', params),
+  )
+
+  server.registerTool(
+    'create_doc',
+    {
+      title: 'Save a doc',
+      description: 'Saves Markdown text on the Docs page, shown like a README. It is marked "To read" and tagged "ai". Saving the same text in the same folder again adds nothing. Existing docs cannot be changed.',
+      inputSchema: z.object({
+        browser: browserField,
+        title: z.string().min(1).max(MAX_DOC_TITLE).optional().describe('Leave it out to use the first heading of the text.'),
+        body: z.string().min(1).max(MAX_DOC_CHARS).describe('The text in GitHub-style Markdown: headings, lists, tables, task lists, code blocks, links and web images. Raw HTML is not shown.'),
+        folder: z.string().min(1).optional().describe('Folder path, e.g. "Recipes/Italian". Folders that are missing are made. Leave it out for the top level.'),
+        tags: z.array(z.string()).optional().describe('Extra tags. The tag "ai" is always added.'),
+      }),
+      annotations: { ...add, idempotentHint: true },
+    },
+    ({ browser, ...params }) => forward(browser, 'create_doc', params),
   )
 
   server.registerTool(

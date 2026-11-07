@@ -13,7 +13,7 @@ The data lives in the user's browser, not on a server. Each tool call goes to a 
 
 - No browser connected: ask the user to open Lernzeit and turn on Connect to AI.
 - Several browsers connected (each browser and profile has its own data): ask which one, then pass its name as \`browser\`. \`list_browsers\` shows the names.
-- The tools add things. Cards and decks are the exception: \`list_cards\` reads cards, \`move_cards\` and \`delete_cards\` change them, and \`delete_deck\` deletes a whole deck. Card fields cannot be edited, and stories, questions, answers, review history and notes cannot be read.
+- The tools add things. Cards and decks are the exception: \`list_cards\` reads cards, \`move_cards\` and \`delete_cards\` change them, and \`delete_deck\` deletes a whole deck. Docs can be read too: \`list_docs\` and \`read_doc\`. Card fields and docs cannot be edited, and stories, questions, answers, review history and notes cannot be read.
 
 ## Tools
 
@@ -32,6 +32,9 @@ The data lives in the user's browser, not on a server. Each tool call goes to a 
 | \`create_questions\` | Add up to ${MAX_QUESTIONS_PER_CALL} German questions to practise answering, in a set |
 | \`list_grammar_topics\` | Get the grammar topics with their level and number of exercises |
 | \`add_grammar\` | Add up to ${MAX_GRAMMAR_EXERCISES_PER_CALL} exercises and examples to a grammar topic, or start a new topic |
+| \`list_docs\` | List the folders and docs on the Docs page, without their text |
+| \`read_doc\` | Read one doc's Markdown text |
+| \`create_doc\` | Save Markdown text to the Docs page, in a folder |
 | \`create_task\` | Add a task to the board |
 | \`log_study_time\` | Save study time done away from the timer |
 

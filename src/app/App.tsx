@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router'
+import { createBrowserRouter, Navigate, Route, RouterProvider, Routes, useLocation } from 'react-router'
 import { FeedbackProvider } from '@/components/ui/feedback'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { UIProvider } from './ui'
@@ -22,6 +22,7 @@ const GrammarPage = lazy(() => import('@/features/grammar/GrammarPage'))
 const TopicPage = lazy(() => import('@/features/grammar/TopicPage'))
 const GrammarPracticePage = lazy(() => import('@/features/grammar/PracticePage'))
 const GrammarReviewPage = lazy(() => import('@/features/grammar/ReviewPage'))
+const DocsRoutes = lazy(() => import('@/features/docs/DocsRoutes'))
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'))
 
 function PageFallback() {
@@ -46,6 +47,7 @@ function Pages() {
           <Route path="/grammar/review" element={<GrammarReviewPage />} />
           <Route path="/grammar/:topicId" element={<TopicPage />} />
           <Route path="/grammar/:topicId/practice" element={<GrammarPracticePage />} />
+          <Route path="/docs/*" element={<DocsRoutes />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/board" element={<BoardPage />} />
           <Route path="/settings" element={<SettingsPage />} />
@@ -56,23 +58,28 @@ function Pages() {
   )
 }
 
+function Root() {
+  return (
+    <FeedbackProvider>
+      <UIProvider>
+        <ThemeSync />
+        <TimerEngine />
+        <ReminderEngine />
+        <BridgeEngine />
+        <SessionNoteDialog />
+        <Welcome />
+        <AppShell>
+          <Pages />
+        </AppShell>
+      </UIProvider>
+    </FeedbackProvider>
+  )
+}
+
+/** A data router, because only those can stop you leaving a page with unsaved changes. */
+const router = createBrowserRouter([{ path: '*', element: <Root /> }])
+
 export function App() {
   useStarterUpdates()
-  return (
-    <BrowserRouter>
-      <FeedbackProvider>
-        <UIProvider>
-          <ThemeSync />
-          <TimerEngine />
-          <ReminderEngine />
-          <BridgeEngine />
-          <SessionNoteDialog />
-          <Welcome />
-          <AppShell>
-            <Pages />
-          </AppShell>
-        </UIProvider>
-      </FeedbackProvider>
-    </BrowserRouter>
-  )
+  return <RouterProvider router={router} />
 }

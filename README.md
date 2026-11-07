@@ -44,6 +44,7 @@ Everything lives in your browser, works offline, and installs on your phone.
 | **Grammar** | A course from A1 to B1: 27 topics with the rule, examples and 384 explained exercises of four kinds, a path with progress, and spaced review. Your own topics and words too |
 | **Stories** | Short German stories read with your decks: words light up by how well you know them, and any word can become a card |
 | **Questions** | German questions like in the speaking part of an exam: write your own answer once, then answer from memory and compare |
+| **Docs** | Paste Markdown into nested folders and read it like a README. Pinned and recent docs, tags, read status, search, and it reopens where you stopped |
 | **History** | Week calendar, 16-week heatmap, streaks, hours per topic and flashcard stats |
 | **Board** | Backlog, To do, Doing and Done, with drag and drop on desktop and touch |
 | **Settings** | Goals per weekday, decks, voice and speed, themes, reminders, backup and restore |
@@ -129,6 +130,18 @@ Shows progress per topic with the time left, start buttons, today's sessions, ca
 - There is no grading. Questions you have not answered come first, then the ones you answered longest ago.
 - Listen to the question and the answers. Active practice time can count toward German.
 - Your AI app can add questions with a suggested answer, never your own (see [AI connection](#ai-connection)). [docs/questions.md](docs/questions.md) has the details.
+
+</details>
+
+<details>
+<summary><b>Docs</b></summary>
+<br />
+
+- Paste Markdown into folders, with folders inside folders. A `# Heading` becomes the title.
+- Docs read like a GitHub README: tables, task lists, code with colours and a Copy button, images, and a table of contents.
+- Pin docs, see recent ones, add tags, mark docs as *To read* or *Read*, and search them here or in the app's main search.
+- A doc reopens where you stopped. Paste an image and it is saved in the app, so it works offline.
+- Docs are general reading, so they belong to no topic or language. Your AI app can save and read them too. [docs/docs.md](docs/docs.md) has the details.
 
 </details>
 
@@ -285,7 +298,7 @@ src/
 ├── components/   Shared UI: buttons, dialogs, form controls, chips, station clock, card image
 ├── data/         Database actions (timer, cards, topics, tasks, import/export), speaking with saved clips, and React hooks
 ├── db/           Dexie schema and types
-├── features/     One folder per page: today, timer, flashcards, grammar, stories, questions, history, board, settings,
+├── features/     One folder per page: today, timer, flashcards, grammar, stories, questions, docs, history, board, settings,
 │                 and the Welcome dialog that picks a language
 ├── languages/    The language packs, one folder per language, found by their files
 ├── lib/          Pure logic: time maths, goals and streaks, FSRS wrapper, review queue,

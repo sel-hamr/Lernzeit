@@ -5,7 +5,7 @@
  * outside the Vite build, so it uses relative imports with extensions and only
  * erasable TypeScript.
  */
-import type { CardType, Conjugation, Gender, Priority, StoryLevel, StoryWord, TaskStatus } from '../db/types.ts'
+import type { CardType, Conjugation, DocStatus, Gender, Priority, StoryLevel, StoryWord, TaskStatus } from '../db/types.ts'
 
 export const PROTOCOL_VERSION = 1
 export const DEFAULT_PORT = 47821
@@ -32,6 +32,11 @@ export const MAX_GRAMMAR_EXAMPLES_PER_CALL = 20
 /** For a topic's title, and for each exercise, example and explanation. */
 export const MAX_GRAMMAR_TEXT = 300
 export const MAX_RULE_CHARS = 8_000
+export const MAX_DOC_TITLE = 200
+/** About 30,000 words. */
+export const MAX_DOC_CHARS = 200_000
+/** Most docs list_docs returns at once; `offset` pages through the rest. */
+export const MAX_DOCS_PER_LIST = 200
 
 /** Page origins the server always accepts: the Vite dev server and `vite preview`. */
 export const LOCAL_ORIGINS: readonly string[] = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:4173', 'http://127.0.0.1:4173']
@@ -292,6 +297,64 @@ export interface AddGrammarResult {
   skipped: string[]
 }
 
+export interface DocSummary {
+  id: string
+  title: string
+  /** Folder path like "Recipes/Italian". Empty at the top level. */
+  folder: string
+  tags: string[]
+  status: DocStatus
+  words: number
+  /** Local date and time. */
+  updatedAt: string
+}
+
+export interface ListDocsParams {
+  /** Folder path, with the folders inside it. Every doc when left out. */
+  folder?: string
+  /** Text to find in the title, tags or text, ignoring case. */
+  search?: string
+  tag?: string
+  /** Defaults to MAX_DOCS_PER_LIST. */
+  limit?: number
+  offset?: number
+}
+
+export interface ListDocsResult {
+  /** Every folder path. */
+  folders: string[]
+  /** Docs that match, before limit and offset. */
+  total: number
+  offset: number
+  docs: DocSummary[]
+}
+
+export interface ReadDocParams {
+  /** Doc id or exact title. */
+  doc: string
+}
+
+export interface DocDetails extends DocSummary {
+  /** The Markdown text. */
+  body: string
+}
+
+export interface CreateDocParams {
+  /** Left out: the first heading, or else the first line of the text. */
+  title?: string
+  /** Markdown. */
+  body: string
+  /** Folder path like "Recipes/Italian". Folders that are missing are made. The top level when left out. */
+  folder?: string
+  tags?: string[]
+}
+
+export interface CreateDocResult {
+  doc: DocSummary
+  /** False when the folder already had a doc with the same text. */
+  created: boolean
+}
+
 export interface CreateTaskParams {
   title: string
   description?: string
@@ -345,6 +408,9 @@ export interface ActionMap {
   create_questions: { params: CreateQuestionsParams; result: CreateQuestionsResult }
   list_grammar_topics: { params: NoParams; result: GrammarTopicSummary[] }
   add_grammar: { params: AddGrammarParams; result: AddGrammarResult }
+  list_docs: { params: ListDocsParams; result: ListDocsResult }
+  read_doc: { params: ReadDocParams; result: DocDetails }
+  create_doc: { params: CreateDocParams; result: CreateDocResult }
   create_task: { params: CreateTaskParams; result: TaskSummary }
   log_study_time: { params: LogStudyTimeParams; result: SessionSummary }
 }
@@ -364,6 +430,8 @@ export type BridgeErrorCode =
   | 'port_in_use'
   | 'deck_not_found'
   | 'topic_not_found'
+  | 'doc_not_found'
+  | 'folder_not_found'
   | 'invalid_input'
   | 'internal'
 

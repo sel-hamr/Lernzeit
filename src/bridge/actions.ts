@@ -1,21 +1,27 @@
 import { db, newId, type LernzeitDB } from '@/db/db'
-import type { Card, Deck, Gender, GrammarTopic, Story, StoryWord, Topic } from '@/db/types'
+import type { Card, Deck, Doc, DocFolder, Gender, GrammarTopic, Story, StoryWord, Topic } from '@/db/types'
 import { createDeck, deleteCard, deleteDeck, moveCard } from '@/data/cards'
+import { ensureDocFolder, findDocFolder, saveDoc } from '@/data/docs'
 import { writeCardPack, type CardPack, type CardPackCard } from '@/data/io'
 import { DEFAULT_GROUP, saveTopic } from '@/data/grammar'
 import { saveQuestion } from '@/data/questions'
 import { defaultStoryTopicId, parseLevel, saveStory } from '@/data/stories'
 import { createTask } from '@/data/tasks'
 import { logManualSession } from '@/data/topics'
+import { filterDocs, folderChoices, folderSubtree, folderTrail } from '@/lib/docs'
 import { splitArticle } from '@/lib/german'
 import { exerciseProblem } from '@/lib/grammar'
 import { countWords, splitParagraphs } from '@/lib/reader'
 import { placementProblem } from '@/lib/storyWords'
+import { foldText } from '@/lib/text'
 import { dateKey, MINUTE } from '@/lib/time'
 import {
   BridgeError,
   MAX_CARDS_PER_CALL,
   MAX_CARDS_PER_LIST,
+  MAX_DOC_CHARS,
+  MAX_DOC_TITLE,
+  MAX_DOCS_PER_LIST,
   MAX_GRAMMAR_EXAMPLES_PER_CALL,
   MAX_GRAMMAR_EXERCISES_PER_CALL,
   MAX_GRAMMAR_TEXT,
@@ -38,6 +44,8 @@ import {
   type CreateCardsResult,
   type CreateDeckParams,
   type CreateDeckResult,
+  type CreateDocParams,
+  type CreateDocResult,
   type AddGrammarParams,
   type AddGrammarResult,
   type CardDetails,
@@ -52,12 +60,17 @@ import {
   type DeleteCardsResult,
   type DeleteDeckParams,
   type DeleteDeckResult,
+  type DocDetails,
+  type DocSummary,
   type ListCardsParams,
   type ListCardsResult,
+  type ListDocsParams,
+  type ListDocsResult,
   type LogStudyTimeParams,
   type MoveCardsParams,
   type MoveCardsResult,
   type NewCard,
+  type ReadDocParams,
   type RequestMessage,
   type ResponseMessage,
   type SessionSummary,
@@ -66,7 +79,7 @@ import {
   type TopicSummary,
 } from './protocol'
 
-/** Every card, story and question added through the bridge gets this tag, so it is easy to find and check. */
+/** Every card, story, question and doc added through the bridge gets this tag, so it is easy to find and check. */
 export const AI_TAG = 'ai'
 
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -495,6 +508,52 @@ async function addGrammar(params: AddGrammarParams, database: LernzeitDB): Promi
   })
 }
 
+const docFolderPath = (folders: DocFolder[], id: string) =>
+  folderTrail(folders, id)
+    .map((f) => f.name)
+    .join('/')
+
+function describeDoc(doc: Doc, folders: DocFolder[]): DocSummary {
+  const { id, title, tags, status } = doc
+  return { id, title, folder: docFolderPath(folders, doc.folderId), tags, status, words: countWords(doc.body), updatedAt: localDateTime(doc.updatedAt) }
+}
+
+async function listDocs({ folder, search, tag, limit = MAX_DOCS_PER_LIST, offset = 0 }: ListDocsParams, database: LernzeitDB): Promise<ListDocsResult> {
+  const [docs, folders] = await Promise.all([database.docs.toArray(), database.docFolders.toArray()])
+  const paths = folderChoices(folders).map((f) => docFolderPath(folders, f.id))
+  let inside = docs
+  if (folder?.trim()) {
+    const found = await findDocFolder(folder, database)
+    if (!found) throw new BridgeError('folder_not_found', `There is no folder "${folder}". Folders: ${paths.join(', ') || 'none'}.`)
+    const ids = folderSubtree(folders, found.id)
+    inside = docs.filter((d) => ids.has(d.folderId))
+  }
+  const matches = filterDocs(inside, { query: search, tag: tag?.trim() })
+  const size = Math.min(Math.max(1, limit), MAX_DOCS_PER_LIST)
+  return { folders: paths, total: matches.length, offset, docs: matches.slice(offset, offset + size).map((d) => describeDoc(d, folders)) }
+}
+
+async function readDoc({ doc: ref }: ReadDocParams, database: LernzeitDB): Promise<DocDetails> {
+  const folders = await database.docFolders.toArray()
+  const byId = await database.docs.get(ref)
+  const named = byId ? [byId] : await database.docs.filter((d) => foldText(d.title) === foldText(ref.trim())).toArray()
+  if (!named.length) throw new BridgeError('doc_not_found', `There is no doc "${ref}". Call list_docs to see the docs.`)
+  if (named.length > 1) throw invalid(`${named.length} docs are called "${ref}". Use an id: ${named.map((d) => d.id).join(', ')}.`)
+  return { ...describeDoc(named[0], folders), body: named[0].body }
+}
+
+async function createDoc({ title, body, folder, tags }: CreateDocParams, database: LernzeitDB): Promise<CreateDocResult> {
+  if (!body.trim()) throw invalid('A doc needs some text.')
+  if (body.length > MAX_DOC_CHARS) throw invalid(`A doc can have at most ${MAX_DOC_CHARS} characters.`)
+  if (title && title.length > MAX_DOC_TITLE) throw invalid(`A title can have at most ${MAX_DOC_TITLE} characters.`)
+  return database.transaction('rw', database.docs, database.docFolders, database.cards, database.images, async () => {
+    const folderId = await ensureDocFolder(folder ?? '', database)
+    const twin = await database.docs.where('folderId').equals(folderId).filter((d) => d.body.trim() === body.trim()).first()
+    const doc = twin ?? (await saveDoc({ title: title ?? '', body, folderId, tags: [...(tags ?? []), AI_TAG] }, undefined, database))
+    return { doc: describeDoc(doc, await database.docFolders.toArray()), created: !twin }
+  })
+}
+
 async function createTaskAction(
   { title, description, priority = 'medium', status = 'todo', dueDate, topic }: CreateTaskParams,
   database: LernzeitDB,
@@ -535,6 +594,9 @@ const handlers: { [A in ActionName]: Handler<A> } = {
   create_questions: createQuestions,
   list_grammar_topics: listGrammarTopics,
   add_grammar: addGrammar,
+  list_docs: listDocs,
+  read_doc: readDoc,
+  create_doc: createDoc,
   create_task: createTaskAction,
   log_study_time: logStudyTime,
 }

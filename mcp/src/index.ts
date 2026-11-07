@@ -10,6 +10,7 @@ const INSTRUCTIONS = `Lernzeit is the user's study app: flashcards for German, d
 Its data lives in the user's browser, so these tools work only while Lernzeit is open there with Settings → AI connection → Connect to AI on.
 Look before you add: call list_decks before create_cards, and list_topics before naming a topic.
 These tools add things, and for cards also read (list_cards), move (move_cards) and delete (delete_cards), and delete a whole deck (delete_deck). delete_cards and delete_deck remove cards with their progress: call them only when the user asks, after naming the cards or the deck and its card count back to them. Card fields cannot be edited.
+The Docs page holds general Markdown the user saved to read: list_docs, read_doc and create_doc. It is not study material, and existing docs cannot be changed.
 The resource lernzeit://guide has the details, including how to write good German cards.`
 
 // stdout carries the MCP messages, so logs go to stderr.
