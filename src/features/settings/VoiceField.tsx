@@ -28,11 +28,10 @@ export function VoiceField() {
   const settings = useSettings()
   const language = useLanguage()
   const voices = useVoices(language.speech)
-  const german = language.code === 'de'
   const { toast, confirm } = useFeedback()
   const [status, setStatus] = useState<Status>(() => (thorstenSupported() ? 'checking' : 'unsupported'))
   // Thorsten speaks German only.
-  const offerThorsten = german && status !== 'unsupported'
+  const offerThorsten = status !== 'unsupported'
   const [progress, setProgress] = useState(0)
 
   useEffect(() => {
@@ -86,7 +85,7 @@ export function VoiceField() {
     else if (status === 'missing') void download()
   }
 
-  const thorstenOn = german && settings.voiceEngine === 'thorsten' && status === 'ready'
+  const thorstenOn = settings.voiceEngine === 'thorsten' && status === 'ready'
   const hint =
     status === 'downloading'
       ? `Downloading the Thorsten voice (${THORSTEN_SIZE_MB} MB). The browser voice speaks until it is ready.`

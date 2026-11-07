@@ -6,7 +6,7 @@ export const STORY_TAG = 'story'
 
 export const STORY_LEVELS: StoryLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 
-/** A story from a language pack, as it is installed. */
+/** A story from the German pack, as it is installed. */
 export interface StarterStory extends Pick<Story, 'id' | 'title' | 'text' | 'translation' | 'level' | 'tags'> {
   /** Topic name; reading time counts toward it. */
   topic: string

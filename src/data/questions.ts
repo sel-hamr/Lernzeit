@@ -5,7 +5,7 @@ import { parseLevel } from './stories'
 /** Questions added without a set go here. */
 export const DEFAULT_SET = 'My questions'
 
-/** A question from a language pack, as it is installed. */
+/** A question from the German pack, as it is installed. */
 export type StarterQuestion = Pick<Question, 'id' | 'set' | 'question' | 'english' | 'suggested' | 'words' | 'level' | 'tags'>
 
 export type QuestionInput = Pick<Question, 'set' | 'question' | 'english' | 'myAnswer' | 'suggested' | 'words' | 'level' | 'tags'>

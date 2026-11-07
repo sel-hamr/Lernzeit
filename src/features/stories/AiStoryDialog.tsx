@@ -8,7 +8,7 @@ import { Field, Input, Segmented, Select, Textarea } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
 import { AI_TAG } from '@/bridge/actions'
 import { useBridgeIndicator } from '@/bridge/status'
-import { useDecks, useLanguage, useLearningText, useStories } from '@/data/hooks'
+import { useDecks, useLearningText, useStories } from '@/data/hooks'
 import { STORY_LEVELS } from '@/data/stories'
 import type { StoryLevel } from '@/db/types'
 import { AI_CONNECTION_ID } from '@/features/settings/AiConnectionGroup'
@@ -90,7 +90,6 @@ function Step({ n, done, children }: { n: number; done?: boolean; children: Reac
 
 function AiStoryForm({ onClose }: { onClose: () => void }) {
   const learning = useLearningText()
-  const language = useLanguage()
   const decks = useDecks()
   const vocabulary = useVocabulary()
   const stories = useStories()
@@ -108,7 +107,7 @@ function AiStoryForm({ onClose }: { onClose: () => void }) {
     const cards = [...vocabulary.cards.values()].filter((c) => !deck || c.deckId === deck.id)
     return pickPromptWords(cards, (id) => vocabulary.knowledge.get(id))
   }, [vocabulary, deck])
-  const prompt = buildStoryPrompt({ level, length, theme, words, language: { code: language.code, name: language.name, native: language.native.name } })
+  const prompt = buildStoryPrompt({ level, length, theme, words })
   // The story Claude saved while this dialog was open.
   const arrived = stories?.find((s) => s.createdAt >= openedAt && s.tags.includes(AI_TAG))
 

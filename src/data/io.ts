@@ -165,7 +165,7 @@ export const CSV_TEMPLATE =
 export interface CardPackDeck {
   id: string
   name: string
-  /** Topic name, e.g. "French". */
+  /** Topic name, e.g. "German". */
   topic?: string
   directions?: Partial<DeckDirections>
   newPerDay?: number
@@ -468,7 +468,7 @@ export async function restoreBackup(raw: unknown, database: LernzeitDB = db): Pr
   return { cards: backup.cards.length, sessions: backup.sessions.length, tasks: backup.tasks.length }
 }
 
-/** Wipes everything; Welcome then asks for a language again. */
+/** Wipes everything; the app starts empty again. */
 export async function resetAllData(database: LernzeitDB = db) {
   await database.transaction('rw', database.tables, async () => {
     await Promise.all(database.tables.map((t) => t.clear()))

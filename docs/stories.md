@@ -10,7 +10,7 @@ Read short German stories with your decks. Every word that is in a deck is highl
 | Word notes | [src/lib/storyWords.ts](../src/lib/storyWords.ts) | Links the AI's teaching notes to the words of a story |
 | Active time | [src/lib/activity.ts](../src/lib/activity.ts) | Counts reading time while the page is visible and someone scrolled, tapped or typed in the last two minutes |
 | Data | [src/data/stories.ts](../src/data/stories.ts) | Save, delete, mark as read, starter stories |
-| Starter stories | [src/languages/de/stories/](../src/languages/de/stories) | The German pack's 103 stories by theme. Other packs have theirs in `src/languages/<code>/texts.ts` |
+| Starter stories | [src/languages/de/stories/](../src/languages/de/stories) | The German pack's 103 stories by theme. |
 | Pages | [src/features/stories/](../src/features/stories) | Stories list, reader, word panel, note box, editor, Write with AI |
 | Prompt | [src/lib/storyPrompt.ts](../src/lib/storyPrompt.ts) | Picks a deck's words and builds the prompt for Claude |
 | AI | [src/bridge/actions.ts](../src/bridge/actions.ts), [mcp/src/tools.ts](../mcp/src/tools.ts) | The `create_story` tool and the `write_story` prompt |

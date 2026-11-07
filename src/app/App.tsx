@@ -6,7 +6,6 @@ import { UIProvider } from './ui'
 import { AppShell } from './layout/AppShell'
 import { BridgeEngine, ReminderEngine, SessionNoteDialog, ThemeSync, TimerEngine } from './engines'
 import { useStarterUpdates } from './useStarterUpdates'
-import { Welcome } from '@/features/languages/Welcome'
 import { TodayPage } from '@/features/today/TodayPage'
 import { TimerPage } from '@/features/timer/TimerPage'
 import { LibraryPage } from '@/features/flashcards/LibraryPage'
@@ -67,7 +66,6 @@ function Root() {
         <ReminderEngine />
         <BridgeEngine />
         <SessionNoteDialog />
-        <Welcome />
         <AppShell>
           <Pages />
         </AppShell>

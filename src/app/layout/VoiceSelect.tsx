@@ -18,7 +18,7 @@ function useVoiceSelect() {
   const language = useLanguage()
   const voices = useVoices(language.speech)
   const navigate = useNavigate()
-  const offerThorsten = language.code === 'de' && thorstenSupported()
+  const offerThorsten = thorstenSupported()
   const [downloaded, setDownloaded] = useState(false)
 
   // Settings changes the engine when Thorsten is downloaded or removed, so check again then.

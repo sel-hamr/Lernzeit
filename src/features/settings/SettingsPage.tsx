@@ -19,7 +19,7 @@ import { dateKey, formatHM } from '@/lib/time'
 import { count } from '@/lib/text'
 import { AiConnectionGroup } from './AiConnectionGroup'
 import { Group } from './Group'
-import { LanguageGroup } from './LanguageGroup'
+import { LevelGroup } from './LevelGroup'
 import { TopicDialog } from './TopicDialog'
 import { VoiceField } from './VoiceField'
 
@@ -254,7 +254,7 @@ export default function SettingsPage() {
 
       <div className="grid items-start gap-5 xl:grid-cols-2">
         <div className="flex flex-col gap-5">
-          <LanguageGroup />
+          <LevelGroup />
           <TopicsGroup />
           <DecksGroup />
 

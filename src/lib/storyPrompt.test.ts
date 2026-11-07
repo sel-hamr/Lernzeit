@@ -52,12 +52,11 @@ describe('buildStoryPrompt', () => {
     expect(prompt).toContain('- translation: the English translation, with the same paragraphs\n- words: the teaching notes\n')
   })
 
-  it('asks for teaching notes on the words that need one, in the language you know', () => {
+  it('asks for teaching notes on the words that need one, in English', () => {
     const prompt = buildStoryPrompt({ level: 'A1', length: 'short', theme: '', words })
     expect(prompt).toContain('for every word I need help with, up to 150 notes')
     expect(prompt).toContain('Skip names and words I surely know at this level.')
-    const french = buildStoryPrompt({ level: 'A1', length: 'short', theme: '', words, language: { code: 'fr', name: 'French', native: 'Arabic' } })
-    expect(french).toContain('Write a teaching note in Arabic')
+    expect(prompt).toContain('Write a teaching note in English')
   })
 
   it('changes the length, grammar and freedom with the level', () => {

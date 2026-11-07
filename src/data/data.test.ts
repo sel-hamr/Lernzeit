@@ -2,8 +2,8 @@ import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getActiveTimer, KV_KEYS, LernzeitDB } from '@/db/db'
 import { seedGerman } from '@/test/fixtures'
-import { localizePack, loadPack, packInfo } from '@/languages'
-import { addStarterContent, addStarterConjugations, installLanguage, syncStarterTopics } from './languages'
+import { loadPack, packLevels } from '@/languages'
+import { addStarterContent, addStarterConjugations, installLevels, syncStarterTopics } from './languages'
 import { MINUTE } from '@/lib/time'
 import { completePhase, pauseTimer, resumeTimer, startTimer, stopTimer, getPendingNote, resolvePendingNote, recordReviewTime } from './timer'
 import { createDeck, deleteCard, deleteDeck, gradeReview, moveCard, quickAddCard, saveCard, undoGrade } from './cards'
@@ -46,7 +46,7 @@ async function germanId() {
 
 /** The German pack's grammar topics at every level, as they are installed. */
 async function germanTopics() {
-  return localizePack(packInfo('de')!, await loadPack('de'), 'en', ['A1', 'A2', 'B1']).topics
+  return packLevels(await loadPack(), ['A1', 'A2', 'B1']).topics
 }
 
 describe('German pack', () => {
@@ -89,7 +89,7 @@ describe('German pack', () => {
 
   it('can install a level again without duplicating anything', async () => {
     const before = await database.cards.count()
-    const result = await installLanguage({ learning: 'de', native: 'en', levels: ['A1'] }, database)
+    const result = await installLevels(['A1'], database)
     expect(result).toEqual({ cards: 0, stories: 0, questions: 0, topics: 0 })
     expect(await database.cards.count()).toBe(before)
     expect(await database.images.count()).toBe(9)
@@ -98,7 +98,7 @@ describe('German pack', () => {
   it('restores deleted starter cards when the level is installed again', async () => {
     await database.cards.delete('de-0046')
     await database.reviews.where('cardId').equals('de-0046').delete()
-    const result = await installLanguage({ learning: 'de', native: 'en', levels: ['A1'] }, database)
+    const result = await installLevels(['A1'], database)
     expect(result.cards).toBe(1)
     expect((await database.cards.get('de-0046'))?.imageId).toBeDefined()
   })

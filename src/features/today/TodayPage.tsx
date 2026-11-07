@@ -163,7 +163,7 @@ function WordOfTheDay() {
             <CardGerman card={card} />
           </div>
           <div className="self-start text-body text-muted" dir="auto">
-            {card.gender && language.native.code === 'en' ? 'the ' : ''}
+            {card.gender ? 'the ' : ''}
             {card.english}
             {card.plural && (
               <>

@@ -104,9 +104,6 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'light',
   remindersEnabled: false,
   reminderTimes: ['18:00'],
-  // Installs from before language packs learn German from English; Welcome sets these for a new one.
-  learning: 'de',
-  native: 'en',
   levels: [],
 }
 

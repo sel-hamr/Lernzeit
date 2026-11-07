@@ -55,13 +55,13 @@ function QuickAddForm({ onClose, onMore }: { onClose: () => void; onMore: (deckI
           autoFocus
           value={english}
           onChange={(e) => setEnglish(e.target.value)}
-          placeholder={language.native.code === 'en' ? 'dog' : undefined}
+          placeholder="dog"
           autoComplete="off"
           dir="auto"
         />
       </Field>
-      <Field label={language.name} htmlFor="quick-de" hint={language.code === 'de' ? 'Include the article: der Hund' : 'Include the article for a noun'}>
-        <Input id="quick-de" value={german} onChange={(e) => setGerman(e.target.value)} placeholder={language.code === 'de' ? 'der Hund' : undefined} autoComplete="off" {...learning} />
+      <Field label={language.name} htmlFor="quick-de" hint="Include the article: der Hund">
+        <Input id="quick-de" value={german} onChange={(e) => setGerman(e.target.value)} placeholder="der Hund" autoComplete="off" {...learning} />
       </Field>
       {decks.length > 1 && (
         <Field label="Deck" htmlFor="quick-deck">

@@ -4,7 +4,7 @@ import { Volume2 } from 'lucide-react'
 import type { Gender } from '@/db/types'
 import type { Piece, WordStatus } from '@/lib/reader'
 import { statusOf, type AnnotatedStory, type Vocabulary } from './vocabulary'
-import { useLanguage, useLearningText, useNativeText } from '@/data/hooks'
+import { useLearningText, useNativeText } from '@/data/hooks'
 
 /** A word in the story, by its paragraph and its offset in that paragraph. */
 export interface WordRef {
@@ -128,13 +128,10 @@ export function StoryText({
 
 const GERMAN_SAMPLES = ['Haus', 'gehen', 'gut', 'Nudeln']
 
-/** What the highlights mean, with a sample of each: German words, or the words of the language's voice sample. */
+/** What the highlights mean, with a sample of each. */
 export function HighlightKey() {
   const learning = useLearningText()
-  const language = useLanguage()
-  const german = language.code === 'de'
-  const words = german ? GERMAN_SAMPLES : (language.sample.match(/[\p{L}\p{M}]+/gu) ?? [])
-  const sample = (i: number) => words[i % Math.max(words.length, 1)] ?? language.name
+  const sample = (i: number) => GERMAN_SAMPLES[i % GERMAN_SAMPLES.length]
   const rows: { sample: string; status: WordStatus; text: string }[] = [
     { sample: sample(0), status: 'new', text: 'In a deck, not studied yet' },
     { sample: sample(1), status: 'learning', text: 'Learning' },
@@ -153,12 +150,10 @@ export function HighlightKey() {
           </li>
         ))}
       </ul>
-      {german && (
-        <p className="text-muted">
-          Nouns take their gender colour: <span className="font-medium text-der">der</span>, <span className="font-medium text-die">die</span>,{' '}
-          <span className="font-medium text-das">das</span>.
-        </p>
-      )}
+      <p className="text-muted">
+        Nouns take their gender colour: <span className="font-medium text-der">der</span>, <span className="font-medium text-die">die</span>,{' '}
+        <span className="font-medium text-das">das</span>.
+      </p>
     </div>
   )
 }

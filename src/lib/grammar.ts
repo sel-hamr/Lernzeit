@@ -534,14 +534,11 @@ export function askClaudePrompt({
   question,
   answer,
   correct,
-  language = { name: 'German', native: 'English' },
 }: {
   topic: GrammarTopic
   question: ExerciseQuestion
   answer: string
   correct: boolean
-  /** German and English when left out. */
-  language?: { name: string; native: string }
 }): string {
   const { form } = question
   const shown =
@@ -554,14 +551,14 @@ export function askClaudePrompt({
           : form.prompt
   const mine = form.type === 'mistake' ? form.words[Number(answer)] : answer
   const facts = [
-    `I'm learning ${language.name} grammar: "${topic.title}"${topic.english ? ` (${topic.english})` : ''}${topic.level ? `, level ${topic.level}` : ''}.`,
+    `I'm learning German grammar: "${topic.title}"${topic.english ? ` (${topic.english})` : ''}${topic.level ? `, level ${topic.level}` : ''}.`,
     `Exercise: ${shown}`,
     question.english && `Meaning: ${question.english}`,
     mine?.trim() ? `My answer: ${mine.trim()}${correct ? ' (right)' : ' (wrong)'}` : 'I did not know the answer.',
     `Right answer: ${filledSentence(question)}`,
     question.why && `The app says: ${question.why}`,
   ]
-  const ask = `Explain simply, in ${language.native}, why the right answer is right${correct ? '' : ' and what was wrong with mine'}. Then give two more example sentences and three short sentences for me to try, with the answers at the end.`
+  const ask = `Explain simply, in English, why the right answer is right${correct ? '' : ' and what was wrong with mine'}. Then give two more example sentences and three short sentences for me to try, with the answers at the end.`
   return `${facts.filter(Boolean).join('\n')}\n\n${ask}`
 }
 

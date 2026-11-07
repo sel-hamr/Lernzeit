@@ -9,7 +9,7 @@ const genderClass: Record<Gender, string> = {
   das: 'text-das',
 }
 
-/** A German noun with its article coloured by gender (der blue, die red, das green). Other languages have no gender here and show the word as written. */
+/** A German noun with its article coloured by gender (der blue, die red, das green). */
 export function GermanWord({ word, gender, className }: { word: string; gender?: Gender; className?: string }) {
   const learning = useLearningText()
   return (

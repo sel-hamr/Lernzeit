@@ -85,7 +85,6 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
   const learning = useLearningText()
   const language = useLanguage()
   // Gender, conjugation and the examples are German; other languages write the article with the word.
-  const german = language.code === 'de'
   const decks = useDecks()
   const topics = useTopics()
   const settings = useSettings()
@@ -111,7 +110,6 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
     if (!state.english.trim()) next.english = state.type === 'word' ? `Add the ${language.native.name} word` : `Add the ${language.native.name} sentence`
     if (!state.german.trim()) next.german = state.type === 'word' ? `Add the ${language.name} word` : `Add the ${language.name} sentence`
     if (state.type === 'cloze' && state.german.trim() && !parseCloze(state.german)) next.german = 'Mark the hidden word like {{this}}'
-    if (!deckId && newDeckName === null) next.deckId = 'Create a deck first'
     if (state.type === 'word') for (const tense of TENSES) if (tenseProblem(state[tense])) next[tense] = tenseProblem(state[tense])
     setErrors(next)
     return Object.keys(next).length === 0
@@ -126,6 +124,10 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
         const deck = await createDeck({ name: newDeckName || 'New deck', topicId: topics[0]?.id })
         targetDeck = deck.id
         setNewDeckName(null)
+        set('deckId', deck.id)
+      } else if (!targetDeck) {
+        const deck = await createDeck({ name: `${language.name} words`, topicId: topics[0]?.id })
+        targetDeck = deck.id
         set('deckId', deck.id)
       }
       let tags = state.tags.split(',').map((t) => t.trim()).filter(Boolean)
@@ -177,7 +179,7 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
 
   // Typing "der Hund" fills in the gender and keeps just the word.
   const onGermanBlur = () => {
-    if (state.type !== 'word' || !german) return
+    if (state.type !== 'word') return
     const split = splitArticle(state.german)
     if (split.gender) setState((s) => ({ ...s, german: split.word, gender: split.gender! }))
   }
@@ -233,6 +235,7 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
               value={deckId}
               onChange={(e) => (e.target.value === '__new' ? setNewDeckName('') : set('deckId', e.target.value))}
             >
+              {!decks.length && <option value="">{language.name} words</option>}
               {decks.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
@@ -262,7 +265,7 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
               autoFocus={!card}
               value={state.english}
               onChange={(e) => set('english', e.target.value)}
-              placeholder={language.native.code === 'en' ? (word ? 'dog' : 'The dog is playing in the garden.') : undefined}
+              placeholder={(word ? 'dog' : 'The dog is playing in the garden.')}
               dir="auto"
             />
           </Field>
@@ -275,13 +278,9 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
               state.type === 'cloze'
                 ? cloze
                   ? `Shown as: ${cloze.masked} → ${cloze.answer}`
-                  : german
-                    ? 'Example: Der Hund {{spielt}} im Garten.'
-                    : 'Put the hidden word in {{ }}.'
+                  : 'Example: Der Hund {{spielt}} im Garten.'
                 : word
-                  ? german
-                    ? 'Typing “der Hund” sets the gender for you.'
-                    : 'Write a noun with its article, the way you want to learn it.'
+                  ? 'Typing “der Hund” sets the gender for you.'
                   : undefined
             }
           >
@@ -292,7 +291,7 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
                   value={state.german}
                   onChange={(e) => set('german', e.target.value)}
                   onBlur={onGermanBlur}
-                  placeholder={german ? 'Hund' : undefined}
+                  placeholder="Hund"
                   className={clsx('flex-1', state.gender !== 'none' && GENDER_TEXT[state.gender])}
                   autoComplete="off"
                   {...learning}
@@ -304,7 +303,7 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
                   rows={2}
                   value={state.german}
                   onChange={(e) => set('german', e.target.value)}
-                  placeholder={german ? (state.type === 'cloze' ? 'Der Hund {{spielt}} im Garten.' : 'Der Hund spielt im Garten.') : undefined}
+                  placeholder={(state.type === 'cloze' ? 'Der Hund {{spielt}} im Garten.' : 'Der Hund spielt im Garten.')}
                   className="flex-1"
                   {...learning}
                 />
@@ -331,20 +330,18 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
 
           {word && (
             <>
-              {german && (
-                <Field label="Gender (nouns)">
-                  <Segmented label="Gender" options={GENDER_OPTIONS} value={state.gender} onChange={(v) => set('gender', v)} size="sm" className="self-start" />
-                </Field>
-              )}
+              <Field label="Gender (nouns)">
+                <Segmented label="Gender" options={GENDER_OPTIONS} value={state.gender} onChange={(v) => set('gender', v)} size="sm" className="self-start" />
+              </Field>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Plural" htmlFor="card-plural">
-                  <Input id="card-plural" value={state.plural} onChange={(e) => set('plural', e.target.value)} placeholder={german ? 'die Hunde' : undefined} {...learning} />
+                  <Input id="card-plural" value={state.plural} onChange={(e) => set('plural', e.target.value)} placeholder="die Hunde" {...learning} />
                 </Field>
                 <Field label="Verb forms" htmlFor="card-verb">
-                  <Input id="card-verb" value={state.verbForms} onChange={(e) => set('verbForms', e.target.value)} placeholder={german ? 'gehen – ging – gegangen' : undefined} {...learning} />
+                  <Input id="card-verb" value={state.verbForms} onChange={(e) => set('verbForms', e.target.value)} placeholder="gehen – ging – gegangen" {...learning} />
                 </Field>
               </div>
-              {german && (state.verbForms.trim() || TENSES.some((t) => state[t].trim())) && (
+              {(state.verbForms.trim() || TENSES.some((t) => state[t].trim())) && (
                 <fieldset className="flex flex-col gap-3">
                   <legend className="mb-1.5 text-small font-medium text-ink-2">Conjugation</legend>
                   <p className="text-chip text-pretty text-muted">
@@ -365,14 +362,14 @@ function CardForm({ card, request, onDone }: { card?: Card; request: CardEditorR
                 </fieldset>
               )}
               <Field label={`Example sentence (${language.name})`} htmlFor="card-ex-de">
-                <Input id="card-ex-de" value={state.exampleDe} onChange={(e) => set('exampleDe', e.target.value)} placeholder={german ? 'Der Hund spielt im Garten.' : undefined} {...learning} />
+                <Input id="card-ex-de" value={state.exampleDe} onChange={(e) => set('exampleDe', e.target.value)} placeholder="Der Hund spielt im Garten." {...learning} />
               </Field>
               <Field label={`Example sentence (${language.native.name})`} htmlFor="card-ex-en">
                 <Input
                   id="card-ex-en"
                   value={state.exampleEn}
                   onChange={(e) => set('exampleEn', e.target.value)}
-                  placeholder={language.native.code === 'en' ? 'The dog is playing in the garden.' : undefined}
+                  placeholder="The dog is playing in the garden."
                   dir="auto"
                 />
               </Field>

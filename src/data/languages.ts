@@ -3,7 +3,7 @@ import type { Card, Settings, StoredImage, StoryLevel } from '@/db/types'
 import { cleanConjugation } from '@/lib/conjugation'
 import { nextTopicColor } from '@/lib/colors'
 import { uniformGoals } from '@/lib/goals'
-import { endonym, isRtl, languageName, LEVELS, loadPack, localizePack, packInfo, speechLang, type LangCode, type LocalizedPack } from '@/languages'
+import { LEVELS, loadPack, PACK, packLevels, type PackLevels } from '@/languages'
 import { installStarterTopics, refreshStarterTopics, STARTER_GRAMMAR_VERSION } from './grammar'
 import { prepareCardPack, writeCardPack } from './io'
 import { installStarterQuestions } from './questions'
@@ -12,42 +12,30 @@ import { createTopic } from './topics'
 
 /** The language you learn and your own, as the app shows and speaks them. */
 export interface Language {
-  code: LangCode
-  /** "French" */
+  /** "German" */
   name: string
-  /** "fr-FR", for the voice and the `lang` attribute. */
+  /** "de-DE", for the voice and the `lang` attribute. */
   speech: string
-  rtl: boolean
-  /** Letters a keyboard may lack: ä, é… */
+  /** Letters a keyboard may lack: ä, ö, ü, ß. */
   letters: string[]
   /** A short sentence to test the voice with. */
   sample: string
-  native: { code: LangCode; name: string; rtl: boolean }
+  native: { code: string; name: string }
 }
 
-export function languageOf(settings: Pick<Settings, 'learning' | 'native'>): Language {
-  return {
-    code: settings.learning,
-    name: languageName(settings.learning),
-    speech: speechLang(settings.learning),
-    rtl: isRtl(settings.learning),
-    letters: packInfo(settings.learning)?.letters ?? [],
-    sample: packInfo(settings.learning)?.sample ?? endonym(settings.learning),
-    native: { code: settings.native, name: languageName(settings.native), rtl: isRtl(settings.native) },
-  }
+/** Lernzeit teaches German, explained in English. */
+export const LANGUAGE: Language = {
+  name: PACK.name,
+  speech: PACK.speech,
+  letters: PACK.letters,
+  sample: PACK.sample,
+  native: { code: 'en', name: 'English' },
 }
 
 /** True once there is something to learn: a deck, a card, a story, a question or a grammar topic. */
 export async function hasLearningData(database: LernzeitDB = db): Promise<boolean> {
   const counts = await Promise.all([database.decks, database.cards, database.stories, database.questions, database.grammarTopics].map((t) => t.count()))
   return counts.some((n) => n > 0)
-}
-
-export interface LanguageChoice {
-  learning: LangCode
-  native: LangCode
-  /** One level, or several installed in the pack's order. */
-  levels: StoryLevel[]
 }
 
 export interface InstallResult {
@@ -66,27 +54,18 @@ function svgImage(body: string): StoredImage {
 }
 
 /**
- * Installs levels of a pack: their decks, cards, stories, questions and
- * grammar, with a topic named after the language for the study time. Safe to
- * run again: what is already there is skipped. The first install sets the
- * language you learn; another language needs a reset first, because the app
- * speaks and labels one language at a time.
+ * Installs levels of the pack: their decks, cards, stories, questions and
+ * grammar, with a German topic for the study time. Safe to run again: what is
+ * already there is skipped.
  */
-export async function installLanguage({ learning, native, levels }: LanguageChoice, database: LernzeitDB = db): Promise<InstallResult> {
-  const info = packInfo(learning)
-  if (!info) throw new Error(`There is no ${languageName(learning)} pack`)
-  if (!info.natives.includes(native)) throw new Error(`The ${info.name} pack is not written in ${languageName(native)} yet`)
+export async function installLevels(levels: StoryLevel[], database: LernzeitDB = db): Promise<InstallResult> {
   if (!levels.length) throw new Error('Pick a level')
-  const missing = levels.find((l) => !info.levels.includes(l))
-  if (missing) throw new Error(`The ${info.name} pack has no ${missing} level`)
+  const missing = levels.find((l) => !PACK.levels.includes(l))
+  if (missing) throw new Error(`The ${PACK.name} pack has no ${missing} level`)
   const settings = await getSettings(database)
-  const sameLanguage = settings.learning === learning && settings.native === native
-  if (!sameLanguage && (await hasLearningData(database))) {
-    throw new Error(`You are learning ${languageName(settings.learning)}. Reset all data in Settings to learn ${info.name} instead.`)
-  }
 
   // Load and prepare before the transaction: IndexedDB transactions cannot wait on other work.
-  const local = localizePack(info, await loadPack(learning), native, levels)
+  const local = packLevels(await loadPack(), levels)
   const prepared = await prepareCardPack(local.cards)
   const tables = [
     database.kv, database.topics, database.decks, database.cards, database.reviews, database.images,
@@ -94,8 +73,8 @@ export async function installLanguage({ learning, native, levels }: LanguageChoi
   ]
   return database.transaction('rw', tables, async () => {
     const topics = await database.topics.toArray()
-    if (!topics.some((t) => !t.archived && t.name.toLowerCase() === info.name.toLowerCase())) {
-      await createTopic({ name: info.name, color: nextTopicColor(topics.map((t) => t.color)), goals: uniformGoals(DEFAULT_GOAL) }, database)
+    if (!topics.some((t) => !t.archived && t.name.toLowerCase() === PACK.name.toLowerCase())) {
+      await createTopic({ name: PACK.name, color: nextTopicColor(topics.map((t) => t.color)), goals: uniformGoals(DEFAULT_GOAL) }, database)
     }
 
     // Drawings are stored only for cards that are actually added.
@@ -117,8 +96,8 @@ export async function installLanguage({ learning, native, levels }: LanguageChoi
       questions: await installStarterQuestions(local.questions, database),
       topics: await installStarterTopics(local.topics, database),
     }
-    const installed = new Set([...(sameLanguage ? settings.levels : []), ...levels])
-    await updateSettings({ learning, native, levels: LEVELS.filter((l) => installed.has(l)) }, database)
+    const installed = new Set([...settings.levels, ...levels])
+    await updateSettings({ levels: LEVELS.filter((l) => installed.has(l)) }, database)
     // The pack is the current version: nothing for the updates from before packs to do.
     await database.kv.bulkPut([
       { key: KV_KEYS.starterGrammar, value: STARTER_GRAMMAR_VERSION },
@@ -128,18 +107,20 @@ export async function installLanguage({ learning, native, levels }: LanguageChoi
   })
 }
 
-/** The current language's pack at the levels you installed, or undefined when there is no pack for it. */
-export async function installedContent(database: LernzeitDB = db): Promise<LocalizedPack | undefined> {
-  const { learning, native, levels } = await getSettings(database)
-  const info = packInfo(learning)
-  if (!info) return undefined
-  return localizePack(info, await loadPack(learning), native, levels)
+/** The pack at the levels you installed. */
+export async function installedContent(database: LernzeitDB = db): Promise<PackLevels> {
+  const { levels } = await getSettings(database)
+  return packLevels(await loadPack(), levels)
 }
 
-/** Adds back the pack's stories, questions or grammar topics you deleted. Returns how many were added. */
+/**
+ * Adds the pack's stories, questions or grammar topics you do not have, of the
+ * levels you added, or of every level before you added one. Returns how many
+ * were added.
+ */
 export async function addStarterContent(part: 'stories' | 'questions' | 'topics', database: LernzeitDB = db): Promise<number> {
-  const local = await installedContent(database)
-  if (!local) return 0
+  const { levels } = await getSettings(database)
+  const local = packLevels(await loadPack(), levels.length ? levels : PACK.levels)
   if (part === 'stories') return installStarterStories(local.stories, database)
   if (part === 'questions') return installStarterQuestions(local.questions, database)
   return installStarterTopics(local.topics, database)
@@ -154,26 +135,25 @@ export async function updateStarterData(database: LernzeitDB = db): Promise<void
 }
 
 /**
- * A German install from before packs (or a restored backup of one) had every
- * level. Its settings say so once, so Starter buttons and Add a level work.
+ * An install from before packs (or a restored backup of one) had every level.
+ * Its settings say so once, so Starter buttons and Add a level work.
  */
 export async function markLegacyLevels(database: LernzeitDB = db): Promise<void> {
   if (!(await database.kv.get(KV_KEYS.seeded))) return
   const stored = (await database.kv.get(KV_KEYS.settings))?.value as Partial<Settings> | undefined
-  if (stored?.levels || (stored?.learning ?? 'de') !== 'de') return
-  await updateSettings({ levels: [...(packInfo('de')?.levels ?? [])] }, database)
+  if (stored?.levels) return
+  await updateSettings({ levels: [...PACK.levels] }, database)
 }
 
 /**
  * Brings the grammar topics you have not edited up to the pack's version
- * once, when STARTER_GRAMMAR_VERSION is newer. A German install from before
+ * once, when STARTER_GRAMMAR_VERSION is newer. An install from before
  * packs (or a restored backup) gets the topics it never had the first time.
  */
 export async function syncStarterTopics(database: LernzeitDB = db): Promise<{ added: number; updated: number }> {
   const synced = (await database.kv.get(KV_KEYS.starterGrammar))?.value
   if (synced === STARTER_GRAMMAR_VERSION) return { added: 0, updated: 0 }
-  const { learning } = await getSettings(database)
-  const legacy = synced === undefined && learning === 'de' && !!(await database.kv.get(KV_KEYS.seeded))
+  const legacy = synced === undefined && !!(await database.kv.get(KV_KEYS.seeded))
   const local = synced !== undefined || legacy ? await installedContent(database) : undefined
   const added = legacy && local ? await installStarterTopics(local.topics, database) : 0
   const updated = local ? await refreshStarterTopics(database, local.topics) : 0
@@ -189,8 +169,7 @@ export async function syncStarterTopics(database: LernzeitDB = db): Promise<{ ad
  */
 export async function addStarterConjugations(database: LernzeitDB = db): Promise<number> {
   if (await database.kv.get(KV_KEYS.starterConjugations)) return 0
-  const { learning } = await getSettings(database)
-  const tables = new Map(learning === 'de' ? (await loadPack('de')).cards.filter((c) => c.conjugation).map((c) => [c.id, c]) : [])
+  const tables = new Map((await loadPack()).cards.filter((c) => c.conjugation).map((c) => [c.id, c]))
   return database.transaction('rw', [database.cards, database.kv], async () => {
     if (await database.kv.get(KV_KEYS.starterConjugations)) return 0
     const cards = (await database.cards.bulkGet([...tables.keys()])).filter((c): c is Card => !!c)

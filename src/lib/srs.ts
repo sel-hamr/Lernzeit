@@ -98,7 +98,7 @@ export function directionsFor(card: Pick<Card, 'type' | 'imageId' | 'emoji' | 'g
 }
 
 /**
- * "English → French". The ids say German and English from before language
+ * "English → German". The ids say German and English from before language
  * packs; they stand for the language you learn and your own.
  */
 export function directionLabel(direction: Direction, names: { learning: string; native: string }): string {
