@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * `npm run mcp:setup`: adds the Lernzeit MCP server to Claude Code and Claude Desktop.
+ * `lz mcp` or `npm run mcp:setup`: adds the Lernzeit MCP server to Claude Code and Claude Desktop.
  *
  * Claude Code gets it through `claude mcp add`, and Claude Desktop through its
  * claude_desktop_config.json, next to the servers already there. Both get the
@@ -23,18 +23,22 @@ const SERVER_PATH = fileURLToPath(new URL('../mcp/src/index.ts', import.meta.url
 const NAME = 'lernzeit'
 const SCOPES = ['user', 'local', 'project']
 
-const USAGE = `Usage: npm run mcp:setup -- [options]
+const USAGE = `Usage: lz mcp [url] [options]
+       npm run mcp:setup -- [url] [options]
 
 Adds the Lernzeit MCP server to Claude Code and Claude Desktop, with one token for both.
 Running it again keeps the token, port and origins from Claude Desktop's config.
 
+  url                 The address of your hosted Lernzeit, such as
+                      https://lernzeit.example.workers.dev. It is added to the
+                      origins already set. Not needed for localhost
   --code              Only Claude Code
   --desktop           Only Claude Desktop
   --token <token>     The token (default: the one set before, or a new one)
   --port <port>       WebSocket port (default: ${DEFAULT_PORT})
-  --origins <urls>    Extra page addresses allowed to connect, comma-separated,
-                      such as your hosted Lernzeit
-  --scope <scope>     Claude Code scope: user, local or project (default: user,
+  --origins <urls>    Replaces the extra page addresses allowed to connect,
+                      comma-separated
+  --scope <scope>    Claude Code scope: user, local or project (default: user,
                       so it works from any folder)
   --print             Show what it would add, and change nothing
   -h, --help          Show this help`
@@ -45,14 +49,33 @@ export interface SetupOptions {
   token?: string
   port?: number
   origins?: string
+  /** The hosted app's origin, added to the origins. */
+  url?: string
   scope: string
   print: boolean
 }
 
+/**
+ * The origin of a pasted address. A browser sends only the origin when it connects, so a path or
+ * a trailing slash would never match. An address without a scheme is taken as https.
+ */
+export function pageOrigin(address: string): string {
+  const text = address.trim()
+  let url: URL
+  try {
+    url = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(text) ? text : `https://${text}`)
+  } catch {
+    throw new Error(`"${address}" is not a web address.`)
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') throw new Error(`"${address}" must start with https:// or http://.`)
+  return url.origin
+}
+
 /** The options from the command line; throws a readable message when one is wrong. */
 export function setupOptions(args: string[]): SetupOptions {
-  const { values } = parseArgs({
+  const { values, positionals } = parseArgs({
     args,
+    allowPositionals: true,
     options: {
       code: { type: 'boolean', default: false },
       desktop: { type: 'boolean', default: false },
@@ -68,6 +91,7 @@ export function setupOptions(args: string[]): SetupOptions {
   if (!SCOPES.includes(values.scope)) throw new Error(`--scope must be ${SCOPES.join(', ')}, got "${values.scope}".`)
   const token = values.token?.trim()
   if (values.token !== undefined && !token) throw new Error('--token is empty.')
+  if (positionals.length > 1) throw new Error(`Give one address, got ${positionals.length}. --origins takes several.`)
   const both = !values.code && !values.desktop
   return {
     code: both || values.code,
@@ -75,6 +99,7 @@ export function setupOptions(args: string[]): SetupOptions {
     token,
     port,
     origins: values.origins?.split(',').map((o) => o.trim().replace(/\/+$/, '')).filter(Boolean).join(','),
+    url: positionals[0] === undefined ? undefined : pageOrigin(positionals[0]),
     scope: values.scope,
     print: values.print,
   }
@@ -83,7 +108,8 @@ export function setupOptions(args: string[]): SetupOptions {
 /** The server's environment: the options, then what was set before, then the defaults. Leaves out what is default. */
 export function serverEnv(options: SetupOptions, before: Record<string, string> = {}): Record<string, string> {
   const port = options.port ?? (before.LERNZEIT_PORT ? Number(before.LERNZEIT_PORT) : DEFAULT_PORT)
-  const origins = options.origins ?? before.LERNZEIT_ORIGINS
+  const listed = (options.origins ?? before.LERNZEIT_ORIGINS)?.split(',') ?? []
+  const origins = [...new Set([...listed, options.url])].filter(Boolean).join(',')
   return {
     LERNZEIT_TOKEN: options.token ?? before.LERNZEIT_TOKEN ?? randomUUID(),
     ...(port !== DEFAULT_PORT && { LERNZEIT_PORT: String(port) }),
@@ -221,7 +247,7 @@ function main(args: string[]): number {
   console.log(`
 Token: ${token}${same}
 
-1. Open Lernzeit, then Settings → AI connection.
+1. Open ${options.url ?? 'Lernzeit'}, then Settings → AI connection.
 2. Turn on Connect to AI, type a browser name and paste the token.${port}
 3. Restart Claude Desktop, or start a new Claude Code session.
 4. Ask: "Which Lernzeit browsers are connected?"`)

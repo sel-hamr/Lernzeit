@@ -212,6 +212,7 @@ npm link
 |---|---|
 | `lz` | Builds when the code changed since the last build, then serves the production build on http://localhost:5173 and opens it. Stop it with <kbd>Ctrl</kbd>+<kbd>C</kbd> |
 | `lz --build` | Builds again even when nothing changed |
+| `lz mcp [url]` | Connects Claude Code and Claude Desktop to Lernzeit. Give it your hosted address to allow that site too. See [AI connection](#ai-connection) |
 | `lz <script>` | Runs any npm script of the project, such as `lz dev` or `lz test`. Extra words go to the script |
 
 If Lernzeit is already running, `lz` only opens it. `lz` runs the TypeScript file directly, so it needs Node 22.18 or newer, like the [MCP server](#ai-connection). `npm unlink -g lernzeit` removes it.
@@ -234,7 +235,12 @@ An AI app such as Claude Code can add decks, cards, stories, practice questions,
 
 Set it up in two steps:
 
-1. Run `npm run mcp:setup`. It adds the server to Claude Code and Claude Desktop and prints a token.
+1. Run `lz mcp`, or `npm run mcp:setup` if you have not linked `lz`. It adds the server to Claude Code and Claude Desktop and prints a token. If you host Lernzeit, give it the address:
+
+   ```bash
+   lz mcp https://lernzeit.example.workers.dev
+   ```
+
 2. In the browser you want, open **Settings → AI connection**, turn it on and paste the token.
 
 [docs/mcp-bridge.md](docs/mcp-bridge.md#setup) has the details.

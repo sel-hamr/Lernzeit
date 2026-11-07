@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { claudeCodeArgs, desktopConfigPaths, parseDesktopConfig, previousEnv, serverEntry, serverEnv, setupOptions, withServer } from './setup-mcp.ts'
+import { claudeCodeArgs, desktopConfigPaths, pageOrigin, parseDesktopConfig, previousEnv, serverEntry, serverEnv, setupOptions, withServer } from './setup-mcp.ts'
 
 const PATH = 'C:/Lernzeit/mcp/src/index.ts'
 
@@ -27,6 +27,30 @@ describe('mcp:setup options', () => {
     expect(() => setupOptions(['--scope', 'global'])).toThrow('--scope must be user, local, project')
     expect(() => setupOptions(['--token', ' '])).toThrow('--token is empty')
     expect(() => setupOptions(['--force'])).toThrow()
+    expect(() => setupOptions(['https://a.example', 'https://b.example'])).toThrow('Give one address')
+    expect(() => setupOptions(['not an address'])).toThrow('is not a web address')
+  })
+
+  it('takes the hosted address as a plain word, next to other options', () => {
+    expect(setupOptions(['https://a.example', '--code'])).toMatchObject({ url: 'https://a.example', code: true, desktop: false })
+    expect(setupOptions(['--code', 'https://a.example']).url).toBe('https://a.example')
+  })
+})
+
+describe('pageOrigin', () => {
+  it('keeps only what a browser sends as the origin', () => {
+    expect(pageOrigin('https://lernzeit.example.workers.dev')).toBe('https://lernzeit.example.workers.dev')
+    expect(pageOrigin(' https://Lernzeit.Example.dev/flashcards?x=1 ')).toBe('https://lernzeit.example.dev')
+    expect(pageOrigin('http://192.168.1.5:4173/')).toBe('http://192.168.1.5:4173')
+  })
+
+  it('takes an address without a scheme as https', () => {
+    expect(pageOrigin('lernzeit.example.workers.dev/')).toBe('https://lernzeit.example.workers.dev')
+  })
+
+  it('refuses what cannot be a page address', () => {
+    expect(() => pageOrigin('ftp://a.example')).toThrow('must start with https:// or http://')
+    expect(() => pageOrigin('')).toThrow('is not a web address')
   })
 })
 
@@ -41,6 +65,13 @@ describe('serverEnv', () => {
     const before = { LERNZEIT_TOKEN: 'old', LERNZEIT_PORT: '50000', LERNZEIT_ORIGINS: 'https://a.example' }
     expect(serverEnv(setupOptions([]), before)).toEqual(before)
     expect(serverEnv(setupOptions(['--token', 'new', '--port', '47821']), before)).toEqual({ LERNZEIT_TOKEN: 'new', LERNZEIT_ORIGINS: 'https://a.example' })
+  })
+
+  it('adds the hosted address to the origins and keeps the token', () => {
+    const before = { LERNZEIT_TOKEN: 'old', LERNZEIT_ORIGINS: 'https://a.example' }
+    expect(serverEnv(setupOptions(['https://b.example']), before)).toEqual({ LERNZEIT_TOKEN: 'old', LERNZEIT_ORIGINS: 'https://a.example,https://b.example' })
+    expect(serverEnv(setupOptions(['https://a.example/']), before)).toEqual(before)
+    expect(serverEnv(setupOptions(['https://b.example']), { LERNZEIT_TOKEN: 'old' })).toEqual({ LERNZEIT_TOKEN: 'old', LERNZEIT_ORIGINS: 'https://b.example' })
   })
 })
 

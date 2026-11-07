@@ -12,6 +12,7 @@ import { needsBuild } from './build-state.ts'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const VITE = fileURLToPath(new URL('../node_modules/vite/bin/vite.js', import.meta.url))
+const MCP_SETUP = fileURLToPath(new URL('../scripts/setup-mcp.ts', import.meta.url))
 /**
  * The dev server's port. The browser keeps data per address, so the build sees the same cards and
  * history as `npm run dev`. The two cannot run at the same time.
@@ -20,6 +21,7 @@ const PORT = 5173
 const ADDRESS = `http://localhost:${PORT}`
 
 const USAGE = `Usage: lz [--build]
+       lz mcp [url] [options]
        lz <script> [args]
 
 Starts Lernzeit's production build on ${ADDRESS} and opens it.
@@ -27,6 +29,10 @@ Builds first when the code changed since the last build.
 
   -b, --build   Build again even when nothing changed
   -h, --help    Show this help
+
+lz mcp connects Claude Code and Claude Desktop to Lernzeit. Give it your
+hosted address, such as lz mcp https://lernzeit.example.workers.dev, to
+allow that site too. lz mcp --help lists its options.
 
 lz <script> runs one of the project's npm scripts from any folder,
 such as lz dev, lz test or lz lint. Extra words go to the script.`
@@ -74,6 +80,7 @@ async function main(argv: readonly string[]): Promise<number> {
   process.on('SIGINT', () => {})
 
   const [script, ...rest] = argv
+  if (script === 'mcp') return run(process.execPath, [MCP_SETUP, ...rest])
   if (script && !script.startsWith('-')) return npm(['run', script, '--', ...rest])
 
   const unknown = argv.filter((arg) => !['-b', '--build', '-h', '--help'].includes(arg))
