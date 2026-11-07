@@ -6,6 +6,9 @@ import { UIProvider } from './ui'
 import { AppShell } from './layout/AppShell'
 import { BridgeEngine, ReminderEngine, SessionNoteDialog, ThemeSync, TimerEngine } from './engines'
 import { useStarterUpdates } from './useStarterUpdates'
+import { useStoredToggle } from '@/lib/browser'
+import { LoginPage } from '@/features/login/LoginPage'
+import { SIGNED_IN_KEY } from '@/features/login/login'
 import { TodayPage } from '@/features/today/TodayPage'
 import { TimerPage } from '@/features/timer/TimerPage'
 import { LibraryPage } from '@/features/flashcards/LibraryPage'
@@ -58,17 +61,25 @@ function Pages() {
 }
 
 function Root() {
+  const [signedIn, setSignedIn] = useStoredToggle(SIGNED_IN_KEY, false)
   return (
     <FeedbackProvider>
       <UIProvider>
         <ThemeSync />
-        <TimerEngine />
-        <ReminderEngine />
-        <BridgeEngine />
-        <SessionNoteDialog />
-        <AppShell>
-          <Pages />
-        </AppShell>
+        {signedIn ? (
+          <>
+            <TimerEngine />
+            <ReminderEngine />
+            <BridgeEngine />
+            <SessionNoteDialog />
+            <AppShell>
+              <Pages />
+            </AppShell>
+          </>
+        ) : (
+          // Not a route: whatever address you opened is still there once you sign in.
+          <LoginPage onSignIn={() => setSignedIn(true)} />
+        )}
       </UIProvider>
     </FeedbackProvider>
   )

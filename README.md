@@ -229,6 +229,9 @@ If Lernzeit is already running, `lz` only opens it. `lz` runs the TypeScript fil
 > [!NOTE]
 > The app uses client-side routing, so the host must serve `index.html` for every unknown path.
 
+> [!WARNING]
+> The login is hardcoded in [src/features/login/login.ts](src/features/login/login.ts) and ships in the JavaScript, so anyone who reads the site's code can see it. Change it before you deploy, and don't use a real password.
+
 ## AI connection
 
 An AI app such as Claude Code can add decks, cards, stories, practice questions, grammar topics and exercises, tasks and study time to Lernzeit through the MCP server in [`mcp/`](mcp). It can also read your cards, move them to another deck, and delete the ones you name, or a whole deck, with their progress. It never sees your review history, answers or notes, and cannot edit or delete anything else. Your data stays in the browser: the server passes each request to the open Lernzeit tab, which saves it.

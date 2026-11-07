@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router'
-import { Bell, ChevronRight, Download, HardDriveDownload, Plus, Smartphone, Trash2, Upload, Volume2 } from 'lucide-react'
+import { Bell, ChevronRight, Download, HardDriveDownload, LogOut, Plus, Smartphone, Trash2, Upload, Volume2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Chip, Dot, PageHeader } from '@/components/ui/primitives'
 import { Field, Input, Segmented, Select, Switch } from '@/components/ui/form'
@@ -11,6 +11,7 @@ import { useCards, useDecks, useLanguage, useSettings, useTopics } from '@/data/
 import { downloadFile, exportBackup, resetAllData, restoreBackup } from '@/data/io'
 import { DeckDialog } from '@/features/flashcards/DeckDialog'
 import { ImportCsvDialog } from '@/features/flashcards/ImportCsvDialog'
+import { signOut } from '@/features/login/login'
 import { describeGoals } from '@/lib/goals'
 import { isStandalone, useInstallPrompt } from '@/lib/install'
 import { notificationPermission, requestNotificationPermission, showNotification } from '@/lib/notify'
@@ -407,6 +408,14 @@ export default function SettingsPage() {
               <span className="text-small text-muted">Remove everything and start fresh.</span>
               <Button variant="danger" size="sm" icon={<Trash2 size={15} strokeWidth={1.8} />} onClick={() => void reset()}>
                 Delete all data
+              </Button>
+            </div>
+          </Group>
+
+          <Group title="Account" description="Your data stays in this browser when you sign out.">
+            <div>
+              <Button variant="outline" icon={<LogOut size={15} strokeWidth={1.8} />} onClick={signOut}>
+                Sign out
               </Button>
             </div>
           </Group>
