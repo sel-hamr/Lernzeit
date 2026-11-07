@@ -28,7 +28,6 @@ export function QuestionEditorDialog(props: EditorProps) {
 function QuestionEditor({ open, question, set: startSet, onClose, onDeleted }: EditorProps) {
   const learning = useLearningText()
   const language = useLanguage()
-  const de = language.code === 'de'
   const questions = useQuestions()
   const { toast, confirm } = useFeedback()
   const formId = useId()
@@ -103,26 +102,26 @@ function QuestionEditor({ open, question, set: startSet, onClose, onDeleted }: E
         className="flex flex-col gap-5"
       >
         <Field label="Question" htmlFor="question-text">
-          <Input id="question-text" value={text} onChange={(e) => setText(e.target.value)} placeholder={de ? 'Was ist dein Beruf?' : undefined} autoComplete="off" {...learning} autoFocus={!question} />
+          <Input id="question-text" value={text} onChange={(e) => setText(e.target.value)} placeholder="Was ist dein Beruf?" autoComplete="off" {...learning} autoFocus={!question} />
         </Field>
         <Field label={`${language.native.name} (optional)`} htmlFor="question-english">
           <Input
             id="question-english"
             value={english}
             onChange={(e) => setEnglish(e.target.value)}
-            placeholder={language.native.code === 'en' ? 'What is your job?' : undefined}
+            placeholder="What is your job?"
             autoComplete="off"
             dir="auto"
           />
         </Field>
         <Field label="Your answer" htmlFor="question-mine" hint="Your real answer, about your life. This is the one you practise.">
-          <Textarea id="question-mine" rows={2} value={myAnswer} onChange={(e) => setMyAnswer(e.target.value)} placeholder={de ? 'Ich bin Softwareentwickler.' : undefined} {...learning} />
+          <Textarea id="question-mine" rows={2} value={myAnswer} onChange={(e) => setMyAnswer(e.target.value)} placeholder="Ich bin Softwareentwickler." {...learning} />
         </Field>
         <Field label="Suggested answer (optional)" htmlFor="question-suggested" hint="An example answer that shows the sentence pattern.">
-          <Textarea id="question-suggested" rows={2} value={suggested} onChange={(e) => setSuggested(e.target.value)} placeholder={de ? 'Ich arbeite als Lehrerin.' : undefined} {...learning} />
+          <Textarea id="question-suggested" rows={2} value={suggested} onChange={(e) => setSuggested(e.target.value)} placeholder="Ich arbeite als Lehrerin." {...learning} />
         </Field>
         <Field label="Useful words (optional)" htmlFor="question-words" hint="Separate them with commas. Practice offers them as hints, with the words of your answer.">
-          <Input id="question-words" value={words} onChange={(e) => setWords(e.target.value)} placeholder={de ? 'Lehrer, die Ärztin, arbeiten als' : undefined} autoComplete="off" {...learning} />
+          <Input id="question-words" value={words} onChange={(e) => setWords(e.target.value)} placeholder="Lehrer, die Ärztin, arbeiten als" autoComplete="off" {...learning} />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Set" htmlFor="question-set">

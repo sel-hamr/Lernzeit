@@ -9,7 +9,7 @@ export function speechSupported(): boolean {
   return supported
 }
 
-/** The browser's voices for a language ("fr-FR" or "fr"), voices on this device first. */
+/** The browser's voices for a language ("de-DE" or "de"), voices on this device first. */
 export function voicesFor(lang: string): SpeechSynthesisVoice[] {
   if (!supported) return []
   const base = lang.split('-')[0].toLowerCase()
@@ -26,14 +26,13 @@ export function onVoicesChanged(callback: () => void): () => void {
   return () => speechSynthesis.removeEventListener('voiceschanged', callback)
 }
 
-export function browserSpeak(text: string, opts: { voiceURI?: string; rate?: number; lang?: string } = {}) {
+export function browserSpeak(text: string, opts: { voiceURI?: string; rate?: number } = {}) {
   if (!supported || !text.trim()) return
   speechSynthesis.cancel()
   const utterance = new SpeechSynthesisUtterance(text)
-  const lang = opts.lang ?? 'de-DE'
+  const lang = 'de-DE'
   utterance.lang = lang
   utterance.rate = opts.rate ?? 0.95
-  // A chosen voice of another language (from before the language changed) is passed over.
   const voices = voicesFor(lang)
   const voice = voices.find((v) => v.voiceURI === opts.voiceURI) ?? voices.find((v) => v.lang === lang) ?? voices[0]
   if (voice) utterance.voice = voice

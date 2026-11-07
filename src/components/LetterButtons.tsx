@@ -1,6 +1,6 @@
 import { useLanguage } from '@/data/hooks'
 
-/** Buttons for the letters of the language you learn that a keyboard may not have, such as ä or é. */
+/** Buttons for the German letters a keyboard may not have: ä, ö, ü, ß. */
 export function LetterButtons({ onLetter }: { onLetter: (letter: string) => void }) {
   const { letters } = useLanguage()
   if (!letters.length) return null

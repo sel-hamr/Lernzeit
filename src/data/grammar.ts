@@ -6,7 +6,7 @@ import { parseLevel } from './stories'
 /** Topics added without a section go here. */
 export const DEFAULT_GROUP = 'My topics'
 
-/** A grammar topic from a language pack, as it is installed. */
+/** A grammar topic from the German pack, as it is installed. */
 export type StarterTopic = Omit<GrammarTopic, 'createdAt' | 'updatedAt'>
 
 export type TopicInput = Pick<GrammarTopic, 'title' | 'english' | 'group' | 'level' | 'summary' | 'rule' | 'examples' | 'exercises' | 'drill'>

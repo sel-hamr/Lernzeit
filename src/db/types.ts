@@ -427,11 +427,7 @@ export interface Settings {
   theme: ThemePref
   remindersEnabled: boolean
   reminderTimes: string[]
-  /** The language you learn: a pack code such as "fr". */
-  learning: string
-  /** Your own language, which meanings and explanations are written in. */
-  native: string
-  /** Levels installed from the pack, easiest first. */
+  /** Levels installed from the German pack, easiest first. */
   levels: StoryLevel[]
 }
 

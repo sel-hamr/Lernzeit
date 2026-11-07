@@ -1,32 +1,15 @@
 import type { CardType, Conjugation, DeckDirections, Gender, StoryLevel, TopicDrill } from '@/db/types'
 
-/** A language code such as "de" or "ar" (ISO 639-1). */
-export type LangCode = string
-
-/**
- * Text the learner reads in their own language: a meaning, a translation, an
- * explanation. A plain string is English; a map gives it per native language,
- * such as `{ ar: '…', fr: '…' }`.
- */
-export type Text = string | Partial<Record<LangCode, string>>
-
 /** What the app knows about a pack without loading its content. */
 export interface PackInfo {
-  code: LangCode
-  /** English name, shown in the app: "French". */
+  /** Shown in the app: "German". */
   name: string
-  /** The name in the language itself: "Français". */
-  endonym: string
-  /** BCP 47 tag the browser voice speaks: "fr-FR". */
+  /** BCP 47 tag the browser voice speaks: "de-DE". */
   speech: string
-  /** Written right to left, like Arabic. */
-  rtl?: boolean
   /** A short sentence to test the voice with. */
   sample: string
   /** Letters a keyboard may lack, offered as buttons when you type an answer: ä, ö, ü, ß. */
-  letters?: string[]
-  /** Native languages every meaning and explanation in the pack is written in. */
-  natives: LangCode[]
+  letters: string[]
   /** Levels the pack has content for, easiest first. */
   levels: StoryLevel[]
 }
@@ -39,27 +22,23 @@ export interface PackDeck {
 }
 
 export interface PackCard {
-  /** Prefixed with the language, "fr-0001", and never changed: installing again skips the ids it has. */
+  /** Never changed: installing again skips the ids it has. */
   id: string
   deckId: string
   level: StoryLevel
   type?: CardType
-  /**
-   * The word or sentence in the language you learn. German nouns leave the
-   * article to `gender`; other languages write it: "le chien". Cloze cards
-   * mark the hidden word: "Je {{suis}} étudiant."
-   */
+  /** The word or sentence. Nouns leave the article to `gender`. Cloze cards mark the hidden word: "Der Hund {{spielt}} im Garten." */
   text: string
-  meaning: Text
-  /** German only: der, die or das. */
+  meaning: string
+  /** der, die or das. */
   gender?: Gender
   plural?: string
   verbForms?: string
-  /** German only: six forms per tense, for grammar practice. */
+  /** Six forms per tense, for grammar practice. */
   conjugation?: Conjugation
   partOfSpeech?: string
   example?: string
-  exampleMeaning?: Text
+  exampleMeaning?: string
   tags?: string[]
   emoji?: string
   imageQuery?: string
@@ -74,17 +53,17 @@ export interface PackStory {
   /** A blank line starts a new paragraph. */
   text: string
   /** Paragraph by paragraph, like the text. */
-  translation?: Text
+  translation?: string
   tags?: string[]
 }
 
 export interface PackQuestion {
   id: string
   level: StoryLevel
-  /** Set name in the language you learn: "Se présenter". */
+  /** Set name in German: "Sich vorstellen". */
   set: string
   question: string
-  meaning?: Text
+  meaning?: string
   suggested?: string
   words?: string[]
   tags?: string[]
@@ -95,21 +74,21 @@ export interface PackExercise {
   id: string
   /** In the editor's format, see GrammarExercise. */
   text: string
-  meaning?: Text
-  why?: Text
+  meaning?: string
+  why?: string
 }
 
 export interface PackGrammarTopic {
   id: string
   level: StoryLevel
-  /** In the language you learn: "Le présent". */
+  /** In German: "Der Dativ". */
   title: string
-  meaning?: Text
-  /** Section on the Grammar page, in English like the rest of the app: "Verbs". */
+  meaning?: string
+  /** Section on the Grammar page: "Verbs". */
   group: string
-  summary?: Text
-  rule: Text
-  examples: { text: string; meaning?: Text }[]
+  summary?: string
+  rule: string
+  examples: { text: string; meaning?: string }[]
   exercises: PackExercise[]
   drill?: TopicDrill
 }

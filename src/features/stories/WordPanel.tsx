@@ -216,7 +216,7 @@ function AddWordForm({ word, sentence, note, onAdded }: { word: string; sentence
   return (
     <form onSubmit={submit} className="flex flex-col gap-3.5 rounded-row border border-line bg-soft p-4">
       <div className="text-small font-medium">Add it to a deck</div>
-      <Field label={language.name} htmlFor={`${id}-de`} hint={language.code === 'de' ? 'The base form, with the article for a noun: der Hund, gehen' : 'The base form, with the article for a noun'}>
+      <Field label={language.name} htmlFor={`${id}-de`} hint="The base form, with the article for a noun: der Hund, gehen">
         <Input id={`${id}-de`} value={german} onChange={(e) => setGerman(e.target.value)} autoComplete="off" {...learning} />
       </Field>
       <Field label={language.native.name} htmlFor={`${id}-en`}>

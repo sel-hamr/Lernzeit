@@ -97,8 +97,5 @@ export default defineConfig(({ command }) => ({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts', 'bin/**/*.test.ts', 'scripts/**/*.test.ts'],
-    // A cached module keeps the files its import.meta.glob found, so a language pack added
-    // since (src/languages) would be left out of the tests that check every pack.
-    fsModuleCache: false,
   },
 }))

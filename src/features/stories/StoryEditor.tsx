@@ -84,7 +84,7 @@ function StoryForm({ story, onClose, onSaved, onDeleted }: { story?: Story; onCl
       className="flex flex-col gap-5"
     >
       <Field label="Title" htmlFor="story-title">
-        <Input id="story-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={language.code === 'de' ? 'Ein Tag in Berlin' : undefined} autoComplete="off" {...learning} autoFocus={!story} />
+        <Input id="story-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ein Tag in Berlin" autoComplete="off" {...learning} autoFocus={!story} />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Level" htmlFor="story-level">
@@ -113,7 +113,7 @@ function StoryForm({ story, onClose, onSaved, onDeleted }: { story?: Story; onCl
         htmlFor="story-text"
         hint={text.trim() ? `${count(paragraphs, 'paragraph')} · ${count(countWords(text), 'word')}. Leave an empty line between paragraphs.` : 'Leave an empty line between paragraphs.'}
       >
-        <Textarea id="story-text" rows={10} value={text} onChange={(e) => setText(e.target.value)} {...learning} placeholder={language.code === 'de' ? 'Anna wohnt in Berlin. Sie hat einen Hund.' : undefined} />
+        <Textarea id="story-text" rows={10} value={text} onChange={(e) => setText(e.target.value)} {...learning} placeholder="Anna wohnt in Berlin. Sie hat einen Hund." />
       </Field>
       <Field
         label={`${language.native.name} translation (optional)`}
@@ -129,7 +129,7 @@ function StoryForm({ story, onClose, onSaved, onDeleted }: { story?: Story; onCl
           rows={6}
           value={translation}
           onChange={(e) => setTranslation(e.target.value)}
-          placeholder={language.native.code === 'en' ? 'Anna lives in Berlin. She has a dog.' : undefined}
+          placeholder="Anna lives in Berlin. She has a dog."
           dir="auto"
         />
       </Field>

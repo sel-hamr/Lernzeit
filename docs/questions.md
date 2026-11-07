@@ -11,7 +11,7 @@ There is no grading. You see the answers side by side and judge for yourself.
 | Practice logic | [src/lib/questions.ts](../src/lib/questions.ts) | Groups questions by set, picks the practice order, compares your answer with the one you wrote |
 | Data | [src/data/questions.ts](../src/data/questions.ts) | Save and delete questions, save responses, starter questions |
 | Active time | [src/data/studyTime.ts](../src/data/studyTime.ts) | Counts practice time while the page is in use, shared with story reading |
-| Starter questions | [src/languages/de/questions.ts](../src/languages/de/questions.ts) | The German pack's 45 questions in six sets, with useful words. Other packs have theirs in `src/languages/<code>/texts.ts` |
+| Starter questions | [src/languages/de/questions.ts](../src/languages/de/questions.ts) | The German pack's 45 questions in six sets, with useful words. |
 | Pages | [src/features/questions/](../src/features/questions) | Questions list, editor, practice |
 | AI | [src/bridge/actions.ts](../src/bridge/actions.ts), [mcp/src/tools.ts](../mcp/src/tools.ts) | The `create_questions` tool and the `make_questions` prompt |
 

@@ -10,7 +10,7 @@ import { Diff } from '@/components/Diff'
 import { CardGerman, GermanWord } from '@/components/GermanWord'
 import { saveDrillAnswer } from '@/data/drills'
 import { saveExerciseAnswer } from '@/data/grammar'
-import { useDecks, useLanguage, useLearningText, useSettings, useTopics } from '@/data/hooks'
+import { useDecks, useLearningText, useSettings, useTopics } from '@/data/hooks'
 import { pickStoryTopic } from '@/data/stories'
 import { useActiveStudyTime, type ActiveRun } from '@/data/studyTime'
 import { recordGrammarTime } from '@/data/timer'
@@ -622,16 +622,15 @@ function Feedback({ question, result, given, typed }: { question: RoundQuestion;
 
 /** Why the answer is right, and a way to ask Claude for more. */
 function Explain({ question, topic, given, correct }: { question: ExerciseQuestion; topic?: GrammarTopic; given: string; correct: boolean }) {
-  const { name, native } = useLanguage()
   const href = useMemo(
-    () => (topic ? claudeChatUrl(askClaudePrompt({ topic, question, answer: given, correct, language: { name, native: native.name } })) : undefined),
-    [topic, question, given, correct, name, native.name],
+    () => (topic ? claudeChatUrl(askClaudePrompt({ topic, question, answer: given, correct })) : undefined),
+    [topic, question, given, correct],
   )
   if (!question.why && !href) return null
   return (
     <div className="flex w-full max-w-md animate-fade-in flex-col gap-2.5 rounded-row bg-field px-4 py-3 text-left">
       {question.why && (
-        <p className="flex gap-2 text-body text-pretty" dir={native.rtl ? 'rtl' : 'ltr'}>
+        <p className="flex gap-2 text-body text-pretty">
           <Lightbulb size={16} strokeWidth={1.8} className="mt-0.5 shrink-0 text-(--t-sand-ink)" aria-hidden />
           <span>{question.why}</span>
         </p>

@@ -5,7 +5,7 @@ import type { ActiveTimer, Card, CardReview, Deck, Doc, DocFolder, DrillStat, Ex
 import { buildQueue, usageToday } from '@/lib/queue'
 import { onVoicesChanged, voicesFor } from '@/lib/speech'
 import { dateKey, nextMidnightMs } from '@/lib/time'
-import { hasLearningData, languageOf, type Language } from './languages'
+import { hasLearningData, LANGUAGE, type Language } from './languages'
 import type { PendingNote } from './timer'
 
 export function useSettings(): Settings {
@@ -13,25 +13,25 @@ export function useSettings(): Settings {
   return useMemo(() => ({ ...DEFAULT_SETTINGS, ...((row?.value as Partial<Settings>) ?? {}) }), [row])
 }
 
-/** The language you learn and your own, from Settings. */
+/** German, explained in English. */
 export function useLanguage(): Language {
-  const { learning, native } = useSettings()
-  return useMemo(() => languageOf({ learning, native }), [learning, native])
+  return LANGUAGE
 }
 
-/** Attributes for text in the language you learn: its `lang`, and a direction that follows the text, for Arabic. */
-export function useLearningText(): { lang: string; dir: 'auto' } {
-  const { speech } = useLanguage()
-  return useMemo(() => ({ lang: speech, dir: 'auto' }), [speech])
+const LEARNING_TEXT = { lang: LANGUAGE.speech }
+const NATIVE_TEXT = { lang: LANGUAGE.native.code }
+
+/** Attributes for German text. */
+export function useLearningText(): { lang: string } {
+  return LEARNING_TEXT
 }
 
-/** Attributes for text in your own language (meanings, translations, explanations): its `lang` and direction. */
-export function useNativeText(): { lang: string; dir: 'rtl' | 'ltr' } {
-  const { native } = useLanguage()
-  return useMemo(() => ({ lang: native.code, dir: native.rtl ? 'rtl' : 'ltr' }), [native.code, native.rtl])
+/** Attributes for English text: meanings, translations, explanations. */
+export function useNativeText(): { lang: string } {
+  return NATIVE_TEXT
 }
 
-/** False while there is nothing to learn yet (Welcome then offers the packs); undefined while loading. */
+/** False while there is nothing to learn yet; undefined while loading. */
 export function useHasLearningData(): boolean | undefined {
   return useLiveQuery(() => hasLearningData(db), [])
 }

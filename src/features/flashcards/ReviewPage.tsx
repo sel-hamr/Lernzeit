@@ -100,7 +100,7 @@ function hasPicture(card: Pick<Card, 'imageId' | 'emoji'>): boolean {
   return !!card.imageId || !!card.emoji
 }
 
-/** "What is this in French?" with an optional hint, for when a picture could mean more than one word. */
+/** "What is this in German?" with an optional hint, for when a picture could mean more than one word. */
 function PictureQuestion({ card }: { card: Card }) {
   const language = useLanguage()
   const [hint, setHint] = useState(false)
@@ -717,7 +717,7 @@ export default function ReviewPage() {
                   value={typed}
                   readOnly={revealed}
                   onChange={(e) => setTyped(e.target.value)}
-                  placeholder={expectedAnswer(card, review.direction, listening).german ? `Type in ${language.name}${language.code === 'de' ? ', e.g. der Hund' : ''}` : `Type in ${language.native.name}`}
+                  placeholder={expectedAnswer(card, review.direction, listening).german ? `Type in ${language.name}, e.g. der Hund` : `Type in ${language.native.name}`}
                   aria-label="Your answer"
                   autoComplete="off"
                   autoCapitalize="off"
