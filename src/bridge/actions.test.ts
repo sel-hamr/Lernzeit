@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LernzeitDB } from '@/db/db'
+import { saveStory } from '@/data/stories'
 import { seedGerman } from '@/test/fixtures'
 import { AI_TAG, handleRequest, runAction } from './actions'
 import { BridgeError, type BridgeErrorCode } from './protocol'
@@ -294,6 +295,100 @@ describe('create_story', () => {
     await expectCode(runAction('create_story', { title: 'x', text: 'a'.repeat(20_001) }, database), 'invalid_input')
     await expectCode(runAction('create_story', { title: 'x', text, topic: 'Spanish' }, database), 'topic_not_found')
     expect(await database.stories.count()).toBe(before)
+  })
+
+  describe('teaching notes', () => {
+    const note = {
+      word: 'Nudeln',
+      sentence: 'Ich koche heute Nudeln.',
+      baseForm: 'Nudel',
+      gender: 'die' as const,
+      partOfSpeech: 'noun',
+      translation: 'pasta',
+      meaning: 'Long, thin food made from flour.',
+      grammar: {
+        rule: 'Most die words get -n in the plural.',
+        why: 'There is more than one piece of pasta, so **Nudel** becomes **Nudeln**.',
+        example: { text: 'Ich esse zwei Birnen.', translation: 'I am eating two pears.' },
+      },
+      tip: 'Think of a whole plate of them.',
+    }
+
+    it('saves the notes and reports them', async () => {
+      const { story, words } = await runAction('create_story', { title: 'Küche', text, words: [note] }, database)
+      expect(words).toEqual({ saved: 1, skipped: [] })
+      expect((await database.stories.get(story.id))?.words).toEqual([note])
+    })
+
+    it('saves a short note on an easy word', async () => {
+      const short = { word: 'heute', sentence: 'Ich koche heute Nudeln.', baseForm: 'heute', partOfSpeech: 'adverb', translation: 'today' }
+      const { story, words } = await runAction('create_story', { title: 'Küche', text, words: [short] }, database)
+      expect(words).toEqual({ saved: 1, skipped: [] })
+      expect((await database.stories.get(story.id))?.words).toEqual([short])
+    })
+
+    it('reports no notes for a call without them', async () => {
+      expect(await runAction('create_story', { title: 'Küche', text }, database)).not.toHaveProperty('words')
+    })
+
+    it('saves the story and reports the notes it cannot use', async () => {
+      const { grammar, ...plain } = note
+      const { created, story, words } = await runAction(
+        'create_story',
+        {
+          title: 'Küche',
+          text,
+          words: [
+            plain,
+            { ...note, sentence: 'Ich koche morgen Nudeln.' },
+            { ...note, word: 'Reis' },
+            { ...note, baseForm: '  ' },
+            { ...note, translation: 'a'.repeat(301) },
+            { ...note, gender: 'den' as 'der' },
+            { ...note, grammar: { ...grammar, why: '' } },
+          ],
+        },
+        database,
+      )
+      expect(created).toBe(true)
+      expect(words?.saved).toBe(1)
+      expect(words?.skipped.map((s) => s.reason)).toEqual([
+        'The sentence is not in the story. Copy it exactly.',
+        '"Reis" is not one word of that sentence. Copy one word exactly.',
+        'baseForm is missing.',
+        'Keep translation under 300 characters.',
+        'gender must be der, die or das.',
+        'grammar.why is missing.',
+      ])
+      expect((await database.stories.get(story.id))?.words).toEqual([plain])
+    })
+
+    it('replaces the notes of a story with the same text, and keeps them when a call brings no good ones', async () => {
+      const { story } = await runAction('create_story', { title: 'Küche', text }, database)
+      const first = await runAction('create_story', { title: 'Küche', text, words: [note] }, database)
+      expect(first).toMatchObject({ created: false, words: { saved: 1, skipped: [] } })
+      expect((await database.stories.get(story.id))?.words).toEqual([note])
+
+      const bad = await runAction('create_story', { title: 'Küche', text, words: [{ ...note, sentence: 'Nein.' }] }, database)
+      expect(bad.words?.saved).toBe(0)
+      await runAction('create_story', { title: 'Küche', text }, database)
+      expect((await database.stories.get(story.id))?.words).toEqual([note])
+    })
+
+    it('refuses too many notes, and notes that are not a list', async () => {
+      const before = await database.stories.count()
+      await expectCode(runAction('create_story', { title: 'x', text, words: Array.from({ length: 151 }, () => note) }, database), 'invalid_input')
+      await expectCode(runAction('create_story', { title: 'x', text, words: 'lots' as unknown as [] }, database), 'invalid_input')
+      expect(await database.stories.count()).toBe(before)
+    })
+
+    it('keeps the notes when the story is edited', async () => {
+      const { story } = await runAction('create_story', { title: 'Küche', text, words: [note] }, database)
+      const saved = (await database.stories.get(story.id))!
+      // The editor sends only its own fields.
+      await saveStory({ title: 'Neu', text: saved.text, level: 'A1', topicId: saved.topicId, tags: saved.tags }, story.id, database)
+      expect(await database.stories.get(story.id)).toMatchObject({ title: 'Neu', words: [note] })
+    })
   })
 })
 

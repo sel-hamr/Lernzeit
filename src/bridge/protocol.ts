@@ -5,7 +5,7 @@
  * outside the Vite build, so it uses relative imports with extensions and only
  * erasable TypeScript.
  */
-import type { CardType, Conjugation, Gender, Priority, StoryLevel, TaskStatus } from '../db/types.ts'
+import type { CardType, Conjugation, Gender, Priority, StoryLevel, StoryWord, TaskStatus } from '../db/types.ts'
 
 export const PROTOCOL_VERSION = 1
 export const DEFAULT_PORT = 47821
@@ -16,6 +16,12 @@ export const MAX_STUDY_MINUTES = 12 * 60
 export const MAX_STORY_TITLE = 120
 /** For the text and for the translation, each. About 3,000 words. */
 export const MAX_STORY_CHARS = 20_000
+/** Teaching notes on one story: enough for nearly every word of a story up to B1. */
+export const MAX_STORY_WORDS = 150
+/** For each text of a teaching note. */
+export const MAX_STORY_WORD_TEXT = 300
+/** For the sentence a teaching note copies from the story. */
+export const MAX_STORY_SENTENCE = 1_000
 export const MAX_QUESTIONS_PER_CALL = 50
 export const MAX_SET_NAME = 60
 /** For the question and for each answer. */
@@ -189,6 +195,8 @@ export interface CreateStoryParams {
   tags?: string[]
   /** Topic name or id that reading time counts toward. */
   topic?: string
+  /** Teaching notes, up to MAX_STORY_WORDS. They replace the notes of a story with the same text. */
+  words?: StoryWord[]
 }
 
 export interface StorySummary {
@@ -205,6 +213,12 @@ export interface CreateStoryResult {
   story: StorySummary
   /** False when a story with the same text already existed. */
   created: boolean
+  /** How the teaching notes went, when the call sent any. */
+  words?: {
+    saved: number
+    /** Notes left out. The story is saved without them. */
+    skipped: { word: string; sentence: string; reason: string }[]
+  }
 }
 
 export interface NewQuestion {

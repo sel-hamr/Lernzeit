@@ -11,11 +11,12 @@ import { useUI } from '@/app/ui'
 import { createDeck, INCOMPLETE_TAG, saveCard } from '@/data/cards'
 import { useDecks, useLanguage, useLearningText, useSettings, useTopics } from '@/data/hooks'
 import { STORY_TAG } from '@/data/stories'
-import type { Card, TopicColor } from '@/db/types'
+import type { Card, StoryWord, TopicColor } from '@/db/types'
 import { LAST_DECK_KEY } from '@/features/flashcards/QuickAdd'
 import { storage } from '@/lib/browser'
 import { GENDER_LABEL, germanText, wordKind } from '@/lib/german'
 import { lookupKey, type Knowledge } from '@/lib/reader'
+import { baseFormText, type StoryWordMatch } from '@/lib/storyWords'
 import { speak, voiceOptions } from '@/data/voice'
 import type { Vocabulary } from './vocabulary'
 
@@ -26,21 +27,38 @@ const KNOWLEDGE_CHIP: Record<Knowledge, { label: string; color?: TopicColor }> =
   known: { label: 'Known' },
 }
 
-/** What a tapped word is: its card (or cards), or a form to add it to a deck. */
-export function WordPanel({ word, sentence, cardIds, vocabulary }: { word: string; sentence: string; cardIds: string[]; vocabulary: Vocabulary }) {
-  const learning = useLearningText()
+/** What a tapped word is in your decks: its card (or cards), or a form to add it. The AI's note on the word, if any, fills that form in. */
+export function WordPanel({
+  word,
+  sentence,
+  cardIds,
+  vocabulary,
+  match,
+}: {
+  word: string
+  sentence: string
+  cardIds: string[]
+  vocabulary: Vocabulary
+  match?: StoryWordMatch
+}) {
   const settings = useSettings()
   // A word added here has no form that matches the text when it was saved in its base form.
   const [addedId, setAddedId] = useState<string>()
   const say = (text: string) => speak(text, voiceOptions(settings))
-  const ids = cardIds.length ? cardIds : addedId ? [addedId] : []
+  // The "ein" of "steigt ... ein" is part of the verb, whatever cards share its spelling.
+  const partOfVerb = match?.here && match.note.alsoTap?.some((part) => lookupKey(part) === lookupKey(word))
+  const matched = partOfVerb ? [] : cardIds
+  const ids = matched.length ? matched : addedId ? [addedId] : []
   const cards = ids.map((id) => vocabulary.cards.get(id)).filter((c): c is Card => !!c)
 
-  if (!cards.length) {
-    // The card was just added and the live query has not caught up yet.
-    if (addedId) return null
-    return <UnknownWord word={word} sentence={sentence} onSpeak={say} onAdded={setAddedId} />
-  }
+  if (cards.length) return <WordCards word={word} cards={cards} vocabulary={vocabulary} onSpeak={say} />
+  // The card was just added and the live query has not caught up yet.
+  if (addedId) return null
+  return <UnknownWord word={partOfVerb && match ? match.note.baseForm : word} sentence={sentence} match={match} onSpeak={say} onAdded={setAddedId} />
+}
+
+function WordCards({ word, cards, vocabulary, onSpeak }: { word: string; cards: Card[]; vocabulary: Vocabulary; onSpeak: (text: string) => void }) {
+  const learning = useLearningText()
   const isForm = cards.every((c) => ![c.german, germanText(c)].some((text) => lookupKey(text) === lookupKey(word)))
   return (
     <div className="flex flex-col gap-5">
@@ -53,7 +71,7 @@ export function WordPanel({ word, sentence, cardIds, vocabulary }: { word: strin
         </p>
       )}
       {cards.map((card) => (
-        <CardBlock key={card.id} card={card} knowledge={vocabulary.knowledge.get(card.id) ?? 'new'} compact={cards.length > 1} onSpeak={say} />
+        <CardBlock key={card.id} card={card} knowledge={vocabulary.knowledge.get(card.id) ?? 'new'} compact={cards.length > 1} onSpeak={onSpeak} />
       ))}
     </div>
   )
@@ -115,7 +133,19 @@ function CardBlock({ card, knowledge, compact, onSpeak }: { card: Card; knowledg
   )
 }
 
-function UnknownWord({ word, sentence, onSpeak, onAdded }: { word: string; sentence: string; onSpeak: (text: string) => void; onAdded: (cardId: string) => void }) {
+function UnknownWord({
+  word,
+  sentence,
+  match,
+  onSpeak,
+  onAdded,
+}: {
+  word: string
+  sentence: string
+  match?: StoryWordMatch
+  onSpeak: (text: string) => void
+  onAdded: (cardId: string) => void
+}) {
   const learning = useLearningText()
   const language = useLanguage()
   return (
@@ -131,21 +161,24 @@ function UnknownWord({ word, sentence, onSpeak, onAdded }: { word: string; sente
           <Volume2 size={18} strokeWidth={1.8} />
         </Button>
       </div>
-      <a
-        href={`https://dict.leo.org/englisch-deutsch/${encodeURIComponent(word)}`}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center gap-1 self-start px-1 text-small text-sage-ink hover:text-ink"
-      >
-        Look it up on LEO <ExternalLink size={13} strokeWidth={1.8} />
-      </a>
-      <AddWordForm word={word} sentence={sentence} onAdded={onAdded} />
+      {/* A note from another sentence may mean something else here, so the dictionary stays one tap away. */}
+      {!match?.here && (
+        <a
+          href={`https://dict.leo.org/englisch-deutsch/${encodeURIComponent(word)}`}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 self-start px-1 text-small text-sage-ink hover:text-ink"
+        >
+          Look it up on LEO <ExternalLink size={13} strokeWidth={1.8} />
+        </a>
+      )}
+      <AddWordForm word={word} sentence={sentence} note={match?.here ? match.note : undefined} onAdded={onAdded} />
     </div>
   )
 }
 
-/** Adds the word as a card, with the story's sentence as its example. */
-function AddWordForm({ word, sentence, onAdded }: { word: string; sentence: string; onAdded: (cardId: string) => void }) {
+/** Adds the word as a card, with the story's sentence as its example. A note about this sentence fills the form in. */
+function AddWordForm({ word, sentence, note, onAdded }: { word: string; sentence: string; note?: StoryWord; onAdded: (cardId: string) => void }) {
   const learning = useLearningText()
   const language = useLanguage()
   const decks = useDecks()
@@ -153,8 +186,8 @@ function AddWordForm({ word, sentence, onAdded }: { word: string; sentence: stri
   const { toast } = useFeedback()
   const { openCardEditor } = useUI()
   const id = useId()
-  const [german, setGerman] = useState(word)
-  const [english, setEnglish] = useState('')
+  const [german, setGerman] = useState(note ? baseFormText(note) : word)
+  const [english, setEnglish] = useState(note?.translation ?? '')
   const [deckId, setDeckId] = useState(() => storage.get(LAST_DECK_KEY) ?? '')
   const [saving, setSaving] = useState(false)
   const effectiveDeck = decks.some((d) => d.id === deckId) ? deckId : (decks[0]?.id ?? '')
@@ -167,7 +200,7 @@ function AddWordForm({ word, sentence, onAdded }: { word: string; sentence: stri
     try {
       const target = effectiveDeck || (await createDeck({ name: `${language.name} words`, topicId: topics[0]?.id })).id
       const card = await saveCard(
-        { deckId: target, type: 'word', english, german, exampleDe: sentence, tags: [INCOMPLETE_TAG, STORY_TAG] },
+        { deckId: target, type: 'word', english, german, partOfSpeech: note?.partOfSpeech, exampleDe: sentence, tags: [INCOMPLETE_TAG, STORY_TAG] },
         { kind: 'keep' },
       )
       storage.set(LAST_DECK_KEY, target)

@@ -110,6 +110,7 @@ Shows progress per topic with the time left, start buttons, today's sessions, ca
 - Every word that is in one of your decks is highlighted by how well you know it: <b>yellow</b> for new, <b>green</b> for learning, a thin underline once it is known (next review three weeks or more away). Nouns take their gender colour.
 - Words are found in their forms too: plurals, verb endings, past tenses from the card's verb forms, adjective endings, *im* for *in*, *ihn* for *er*.
 - Tap a word to see its card with the picture, the English and the audio. A word that is not in a deck can be added in one step, with the story's sentence as its example.
+- In stories written by AI, the words you need help with explain themselves, and hard words go further: the meaning, why the word has this form in this sentence, one more example, and a tip.
 - A bar shows how much of the story you know, are learning, have in a deck but not studied yet, or do not have. Reading is easy from about 95% known.
 - Listen to each paragraph, show the English translation under it, and mark the story as read. Active reading time can count toward the story's topic.
 - **Write with AI** builds a prompt with every word of the deck you pick, marking the ones you know or are learning, at your level and theme. Paste it into Claude Desktop or Claude Code: Claude writes the story and saves it here through the [AI connection](#ai-connection).

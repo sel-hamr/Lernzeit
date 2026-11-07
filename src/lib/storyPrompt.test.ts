@@ -49,7 +49,15 @@ describe('buildStoryPrompt', () => {
     expect(prompt).toContain('- Build the story mostly from the words below.\n- Words I know or am learning: Wort0, Wort1')
     expect(prompt).toContain('- You may also use up to 3 of these new words: die Katze.')
     expect(prompt).toContain('Save the story with the Lernzeit create_story tool:\n- title: the German title\n- level: A1\n')
-    expect(prompt).toContain('- translation: the English translation, with the same paragraphs')
+    expect(prompt).toContain('- translation: the English translation, with the same paragraphs\n- words: the teaching notes\n')
+  })
+
+  it('asks for teaching notes on the words that need one, in the language you know', () => {
+    const prompt = buildStoryPrompt({ level: 'A1', length: 'short', theme: '', words })
+    expect(prompt).toContain('for every word I need help with, up to 150 notes')
+    expect(prompt).toContain('Skip names and words I surely know at this level.')
+    const french = buildStoryPrompt({ level: 'A1', length: 'short', theme: '', words, language: { code: 'fr', name: 'French', native: 'Arabic' } })
+    expect(french).toContain('Write a teaching note in Arabic')
   })
 
   it('changes the length, grammar and freedom with the level', () => {
