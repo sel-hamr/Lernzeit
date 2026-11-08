@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation } from 'react-router'
 import clsx from 'clsx'
-import { Bot, FileText, Plus, Search, Settings } from 'lucide-react'
+import { Bot, Plus, Search, Settings } from 'lucide-react'
 import { Logo, LogoMark } from '@/components/Logo'
 import { Dot, GroupLabel } from '@/components/ui/primitives'
 import { Dialog } from '@/components/ui/Dialog'
@@ -10,26 +10,12 @@ import { useCards, useDecks, usePracticeRuns, useTopics } from '@/data/hooks'
 import { useTodayProgress } from '@/data/progress'
 import { goalFor } from '@/lib/goals'
 import { formatPracticeTime, practiceTotals } from '@/lib/practice'
-import { formatHM, formatTimer } from '@/lib/time'
-import { isPaused, remainingMs, elapsedMs } from '@/lib/timer'
+import { formatHM } from '@/lib/time'
 import { useUI } from '@/app/ui'
+import { useFeatures } from '@/app/plugins'
 import { AI_CONNECTION_ID } from '@/features/settings/AiConnectionGroup'
-import { NAV } from './nav'
 import { SearchBox } from './Search'
 import { HeaderVoiceSelect, SidebarVoiceSelect } from './VoiceSelect'
-
-function TimerBadge() {
-  const { timer, now } = useTodayProgress()
-  if (!timer) return null
-  const left = remainingMs(timer, now)
-  const shown = left ?? elapsedMs(timer, now)
-  return (
-    <span className={clsx('flex items-center gap-1.5 text-chip font-medium tabular-nums', isPaused(timer) ? 'text-muted' : 'text-sage-ink')}>
-      <span className={clsx('size-1.5 rounded-full', isPaused(timer) ? 'bg-muted' : 'bg-sage-dot animate-pulse')} />
-      {formatTimer(shown)}
-    </span>
-  )
-}
 
 function GoalsToday() {
   const progress = useTodayProgress()
@@ -127,6 +113,7 @@ function DailyPlan() {
 function Sidebar() {
   const { pathname } = useLocation()
   const { openQuickAdd } = useUI()
+  const features = useFeatures()
   const onFlashcards = pathname.startsWith('/flashcards')
   return (
     <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-4.5 overflow-y-auto px-3.5 py-5 md:flex">
@@ -148,11 +135,11 @@ function Sidebar() {
       <SearchBox />
       <nav aria-label="Main" className="flex flex-col gap-0.5">
         <div className="px-3 pb-1.5 text-chip text-muted">Workspace</div>
-        {NAV.map(({ to, label, icon: Icon }) => (
+        {features.map(({ id, path, label, icon: Icon, badge: Badge }) => (
           <NavLink
-            key={to}
-            to={to}
-            end={to === '/'}
+            key={id}
+            to={path}
+            end={path === '/'}
             className={({ isActive }) =>
               clsx(
                 'flex h-10 items-center gap-2.5 rounded-img border px-3 text-body transition-colors',
@@ -162,7 +149,7 @@ function Sidebar() {
           >
             <Icon size={18} strokeWidth={1.7} aria-hidden />
             <span className="flex-1">{label}</span>
-            {to === '/timer' && <TimerBadge />}
+            {Badge && <Badge />}
           </NavLink>
         ))}
       </nav>
@@ -179,6 +166,7 @@ function Sidebar() {
 function MobileHeader() {
   const [searchOpen, setSearchOpen] = useState(false)
   const ai = useBridgeIndicator()
+  const inHeader = useFeatures().filter((f) => f.header)
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-sidebar/90 px-4 backdrop-blur-md md:hidden">
       <Link to="/" className="flex items-center gap-2" aria-label="Lernzeit home">
@@ -195,13 +183,16 @@ function MobileHeader() {
         >
           <Search size={19} strokeWidth={1.7} />
         </button>
-        <NavLink
-          to="/docs"
-          aria-label="Docs"
-          className={({ isActive }) => clsx('flex size-10 items-center justify-center rounded-full hover:bg-field', isActive ? 'bg-field text-ink' : 'text-ink-2')}
-        >
-          <FileText size={19} strokeWidth={1.7} />
-        </NavLink>
+        {inHeader.map(({ id, path, label, icon: Icon }) => (
+          <NavLink
+            key={id}
+            to={path}
+            aria-label={label}
+            className={({ isActive }) => clsx('flex size-10 items-center justify-center rounded-full hover:bg-field', isActive ? 'bg-field text-ink' : 'text-ink-2')}
+          >
+            <Icon size={19} strokeWidth={1.7} />
+          </NavLink>
+        ))}
         <NavLink
           to={ai ? AI_SETTINGS : '/settings'}
           aria-label={ai ? `Settings, AI: ${ai.label}` : 'Settings'}
@@ -219,16 +210,17 @@ function MobileHeader() {
 }
 
 function BottomNav() {
+  const features = useFeatures()
   return (
     <nav
       aria-label="Main"
       className="fixed inset-x-0 bottom-0 z-30 grid auto-cols-fr grid-flow-col border-t border-line bg-sidebar/95 pb-safe backdrop-blur-md md:hidden"
     >
-      {NAV.filter((item) => !item.header).map(({ to, short, icon: Icon }) => (
+      {features.filter((f) => !f.header).map(({ id, path, short, icon: Icon }) => (
         <NavLink
-          key={to}
-          to={to}
-          end={to === '/'}
+          key={id}
+          to={path}
+          end={path === '/'}
           className={({ isActive }) =>
             clsx('relative flex h-15 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors', isActive ? 'text-ink' : 'text-muted')
           }

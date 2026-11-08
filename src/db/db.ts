@@ -105,6 +105,7 @@ export const DEFAULT_SETTINGS: Settings = {
   remindersEnabled: false,
   reminderTimes: ['18:00'],
   levels: [],
+  hiddenFeatures: [],
 }
 
 export const KV_KEYS = {

@@ -9,22 +9,8 @@ import { useStarterUpdates } from './useStarterUpdates'
 import { useStoredToggle } from '@/lib/browser'
 import { LoginPage } from '@/features/login/LoginPage'
 import { SIGNED_IN_KEY } from '@/features/login/login'
-import { TodayPage } from '@/features/today/TodayPage'
-import { TimerPage } from '@/features/timer/TimerPage'
-import { LibraryPage } from '@/features/flashcards/LibraryPage'
+import { useFeatures } from './plugins'
 
-const ReviewPage = lazy(() => import('@/features/flashcards/ReviewPage'))
-const HistoryPage = lazy(() => import('@/features/history/HistoryPage'))
-const BoardPage = lazy(() => import('@/features/board/BoardPage'))
-const StoriesPage = lazy(() => import('@/features/stories/StoriesPage'))
-const ReaderPage = lazy(() => import('@/features/stories/ReaderPage'))
-const QuestionsPage = lazy(() => import('@/features/questions/QuestionsPage'))
-const PracticePage = lazy(() => import('@/features/questions/PracticePage'))
-const GrammarPage = lazy(() => import('@/features/grammar/GrammarPage'))
-const TopicPage = lazy(() => import('@/features/grammar/TopicPage'))
-const GrammarPracticePage = lazy(() => import('@/features/grammar/PracticePage'))
-const GrammarReviewPage = lazy(() => import('@/features/grammar/ReviewPage'))
-const DocsRoutes = lazy(() => import('@/features/docs/DocsRoutes'))
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'))
 
 function PageFallback() {
@@ -33,25 +19,13 @@ function PageFallback() {
 
 function Pages() {
   const { pathname } = useLocation()
+  // A feature you turn off loses its routes too, so its addresses go to Today.
+  const features = useFeatures()
   return (
     <ErrorBoundary resetKey={pathname}>
       <Suspense fallback={<PageFallback />}>
         <Routes>
-          <Route path="/" element={<TodayPage />} />
-          <Route path="/timer" element={<TimerPage />} />
-          <Route path="/flashcards" element={<LibraryPage />} />
-          <Route path="/flashcards/review" element={<ReviewPage />} />
-          <Route path="/stories" element={<StoriesPage />} />
-          <Route path="/stories/:storyId" element={<ReaderPage />} />
-          <Route path="/questions" element={<QuestionsPage />} />
-          <Route path="/questions/practice" element={<PracticePage />} />
-          <Route path="/grammar" element={<GrammarPage />} />
-          <Route path="/grammar/review" element={<GrammarReviewPage />} />
-          <Route path="/grammar/:topicId" element={<TopicPage />} />
-          <Route path="/grammar/:topicId/practice" element={<GrammarPracticePage />} />
-          <Route path="/docs/*" element={<DocsRoutes />} />
-          <Route path="/history" element={<HistoryPage />} />
-          <Route path="/board" element={<BoardPage />} />
+          {features.flatMap((feature) => feature.routes.map(({ path, page: Page }) => <Route key={path} path={path} element={<Page />} />))}
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
