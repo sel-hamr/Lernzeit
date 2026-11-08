@@ -429,6 +429,8 @@ export interface Settings {
   reminderTimes: string[]
   /** Levels installed from the German pack, easiest first. */
   levels: StoryLevel[]
+  /** Plugin ids of the features turned off in Settings. New features start on. */
+  hiddenFeatures: string[]
 }
 
 export interface KV {

@@ -19,6 +19,7 @@ import { END_SOUND_LABEL, playEndSound, unlockAudio } from '@/lib/sound'
 import { dateKey, formatHM } from '@/lib/time'
 import { count } from '@/lib/text'
 import { AiConnectionGroup } from './AiConnectionGroup'
+import { FeaturesGroup } from './FeaturesGroup'
 import { Group } from './Group'
 import { LevelGroup } from './LevelGroup'
 import { TopicDialog } from './TopicDialog'
@@ -339,6 +340,8 @@ export default function SettingsPage() {
             <Switch label="Typing mode" description="Type each answer. Small slips such as a missing accent are accepted." checked={settings.typingMode} onChange={(v) => void updateSettings({ typingMode: v })} />
             <Switch label="Listening mode" description={`Hear the ${language.name} and type what you heard.`} checked={settings.listeningMode} onChange={(v) => void updateSettings({ listeningMode: v })} />
           </Group>
+
+          <FeaturesGroup />
 
           <Group title="Appearance">
             <Segmented<ThemePref>
