@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="public/favicon.svg" width="64" height="64" alt="Lernzeit logo" />
+<img src="public/favicon.svg" width="64" height="64" alt="sel-hamr logo" />
 
 # Lernzeit
 

@@ -70,7 +70,7 @@ export function LoginSlides() {
       <div className="flex min-h-70 min-w-0 flex-1 flex-col justify-between gap-6 bg-linear-to-t from-[#0c1412]/90 via-[#0c1412]/30 to-[#0c1412]/55 px-5 pt-[calc(14px+env(safe-area-inset-top))] pb-13 text-[#fff] lg:justify-end lg:gap-7 lg:to-[#0c1412]/5 lg:p-12">
         <div className="flex flex-col gap-2 lg:hidden">
           {bars}
-          <div className="-ml-2" style={{ '--logo-face': '#fff', '--logo-hands': '#1c211e' } as CSSProperties}>
+          <div className="-ml-2" style={{ '--logo-face': '#fff' } as CSSProperties}>
             <Logo />
           </div>
         </div>
