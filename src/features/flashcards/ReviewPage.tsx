@@ -19,7 +19,7 @@ import { checkAnswer, type CheckResult } from '@/lib/answer'
 import { isTypingTarget } from '@/lib/browser'
 import { germanText, isPluralOnly, parseCloze, splitArticle, stripCloze, wordKind } from '@/lib/german'
 import { readPicked } from '@/lib/picked'
-import { addDeckTime, inPlan, readPlan } from '@/lib/practice'
+import { addDeckTime, addRating, countRatings, inPlan, readPlan, type RoundRatings } from '@/lib/practice'
 import { buildPickedQueue, buildPracticeQueue, LEARN_AHEAD_MS, pickNextReview, PRACTICE_RETURN, requeueAfterRating, studiesAhead } from '@/lib/queue'
 import { prepareSpeech, speak, stopSpeaking, voiceOptions } from '@/data/voice'
 import { directionLabel, directionsFor, GRADE_LABEL, GRADES, State } from '@/lib/srs'
@@ -43,13 +43,12 @@ interface Progress {
   /** When the last card was rated; the start until then. */
   lastAt: number
   decks: Record<string, PracticeDeckTime>
-  /** How many times each button was pressed this round. */
-  ratings: Record<Grade, number>
+  ratings: RoundRatings
 }
 
 /** A new round before its first card is picked. */
 function startRound(kind: PracticeKind, main: string[], now: number): Omit<Progress, 'current'> {
-  return { roundId: newId(), kind, main, learning: [], reviewed: 0, correct: 0, activeMs: 0, startedAt: now, lastAt: now, decks: {}, ratings: { 1: 0, 2: 0, 3: 0, 4: 0 } }
+  return { roundId: newId(), kind, main, learning: [], reviewed: 0, correct: 0, activeMs: 0, startedAt: now, lastAt: now, decks: {}, ratings: {} }
 }
 
 interface HistoryEntry {
@@ -537,7 +536,7 @@ export default function ReviewPage() {
           learning,
           reviewed: progress.reviewed + 1,
           correct: progress.correct + (g > 1 ? 1 : 0),
-          ratings: { ...progress.ratings, [g]: progress.ratings[g] + 1 },
+          ratings: addRating(progress.ratings, review.id, g),
           activeMs: progress.activeMs + durationMs,
           lastAt: now,
           decks: addDeckTime(progress.decks, review.deckId, durationMs, g > 1),
@@ -854,12 +853,13 @@ function returnLabel(g: Grade): string {
 
 const RATING_COLOR: Record<Grade, string> = { 1: 'text-red-ink', 2: 'text-(--t-sand-ink)', 3: 'text-sage-ink', 4: 'text-blue-ink' }
 
-/** "Again 2 · Hard 1 · Good 9 · Easy 3": the buttons pressed so far. Phones show the first letter unless `long`. */
-function RatingCounts({ ratings, long }: { ratings: Record<Grade, number>; long?: boolean }) {
+/** "Again 2 · Hard 1 · Good 9 · Easy 3": the cards at each latest rating. Phones show the first letter unless `long`. */
+function RatingCounts({ ratings, long }: { ratings: RoundRatings; long?: boolean }) {
+  const counts = countRatings(ratings)
   return GRADES.map((g) => (
     <span key={g} className={RATING_COLOR[g]} title={GRADE_LABEL[g]}>
       <span className={clsx(!long && 'hidden sm:inline')}>{GRADE_LABEL[g]}</span>
-      {!long && <span className="sm:hidden">{GRADE_LABEL[g][0]}</span>} {ratings[g]}
+      {!long && <span className="sm:hidden">{GRADE_LABEL[g][0]}</span>} {counts[g]}
     </span>
   ))
 }
@@ -885,7 +885,7 @@ function SessionDone({
   reviewed: number
   correct: number
   activeMs: number
-  ratings: Record<Grade, number>
+  ratings: RoundRatings
   kind: PracticeKind
   /** The Review dialog chose some of the decks or directions. */
   filtered: boolean

@@ -1,4 +1,4 @@
-import type { CardReview, Direction, PracticeDeckTime, PracticeRun } from '@/db/types'
+import type { CardReview, Direction, Grade, PracticeDeckTime, PracticeRun } from '@/db/types'
 import { addDays, dateKey, formatDayMonthShort } from './time'
 
 export const ALL_DIRECTIONS: Direction[] = ['imageToDe', 'enToDe', 'deToEn', 'cloze']
@@ -47,6 +47,21 @@ export function inPlan(review: Pick<CardReview, 'deckId' | 'direction'>, plan: P
 export function addDeckTime(decks: Record<string, PracticeDeckTime>, deckId: string, ms: number, correct: boolean): Record<string, PracticeDeckTime> {
   const was = decks[deckId] ?? { ms: 0, reviewed: 0, correct: 0 }
   return { ...decks, [deckId]: { ms: was.ms + ms, reviewed: was.reviewed + 1, correct: was.correct + (correct ? 1 : 0) } }
+}
+
+/** A session's latest rating of each review, by review id. */
+export type RoundRatings = Record<string, Grade>
+
+/** Records a rating. A card that comes back replaces its earlier one. */
+export function addRating(ratings: RoundRatings, reviewId: string, grade: Grade): RoundRatings {
+  return { ...ratings, [reviewId]: grade }
+}
+
+/** How many cards stand at each rating. */
+export function countRatings(ratings: RoundRatings): Record<Grade, number> {
+  const counts: Record<Grade, number> = { 1: 0, 2: 0, 3: 0, 4: 0 }
+  for (const grade of Object.values(ratings)) counts[grade]++
+  return counts
 }
 
 export interface PracticeTotals {

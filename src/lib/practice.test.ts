@@ -1,6 +1,25 @@
 import { describe, expect, it } from 'vitest'
 import type { PracticeRun } from '@/db/types'
-import { addDeckTime, formatLastPractised, formatPracticeTime, inPlan, percentCorrect, planHref, practiceTotals, readPlan, runPart, totalsByDeck } from './practice'
+import { addDeckTime, addRating, countRatings, formatLastPractised, formatPracticeTime, inPlan, percentCorrect, planHref, practiceTotals, readPlan, runPart, totalsByDeck } from './practice'
+
+describe('rating counts', () => {
+  it('moves a card to its latest rating when it comes back', () => {
+    const hard = addRating({}, 'a', 2)
+    expect(countRatings(hard)).toEqual({ 1: 0, 2: 1, 3: 0, 4: 0 })
+    expect(countRatings(addRating(hard, 'a', 4))).toEqual({ 1: 0, 2: 0, 3: 0, 4: 1 })
+  })
+
+  it('counts every card once, and keeps the earlier ratings for undo', () => {
+    const first = addRating(addRating({}, 'a', 1), 'b', 1)
+    const second = addRating(first, 'a', 3)
+    expect(countRatings(second)).toEqual({ 1: 1, 2: 0, 3: 1, 4: 0 })
+    expect(countRatings(first)).toEqual({ 1: 2, 2: 0, 3: 0, 4: 0 })
+  })
+
+  it('starts at zero', () => {
+    expect(countRatings({})).toEqual({ 1: 0, 2: 0, 3: 0, 4: 0 })
+  })
+})
 
 describe('review plan', () => {
   it('reads decks, directions and scope from the address, ignoring unknown directions', () => {
