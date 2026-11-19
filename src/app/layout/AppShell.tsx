@@ -35,6 +35,13 @@ function GoalsToday() {
           </div>
         </div>
       ))}
+      {/* Lined up with the topic names; counts all of today's time, also on topics without a goal. */}
+      <div className="flex flex-col gap-px border-t border-line pt-3 pl-4.5">
+        <span className="text-small font-medium">Worked today</span>
+        <span className="text-chip text-muted tabular-nums">
+          {progress.totalGoal ? `${formatHM(progress.totalDone)} of ${formatHM(progress.totalGoal)} h` : `${formatHM(progress.totalDone)} h`}
+        </span>
+      </div>
     </div>
   )
 }

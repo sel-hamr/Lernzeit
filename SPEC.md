@@ -386,7 +386,7 @@ Each topic gets its own color set (dot, bar, soft block, border, text). New topi
   2. **Search box**: white, rounded 10px, with placeholder "Search cards, tasks".
   3. **"Workspace" label**, then the nav links: Today, Focus timer, Flashcards (with a sage count badge for cards due, for example "38"), History, Board.
      - The active link is a white rounded box with a thin border and tiny shadow, in bold.
-  4. **"Goals today"**: each topic with a colored dot and "1:10 of 2:30 h".
+  4. **"Goals today"**: each topic with a colored dot and "1:10 of 2:30 h", then a last row **"Worked today"** below a thin line, lined up with the topic names: all of today's time against the total goal, "2:14 of 5:45 h" (just "2:14 h" with no goal). It counts every session of the day, also on archived topics, and the running timer.
   5. **Bottom**: the daily plan summary ("4:30 h goal per day") and a settings button.
 - **Main area**: white, with a 1px left border. Page title and subtitle on the left, action buttons on the right.
 - **Phone**: the sidebar is hidden and a bottom tab bar is shown. Cards stack in one column.
