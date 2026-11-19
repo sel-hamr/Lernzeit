@@ -160,7 +160,7 @@ function Reader({ story }: { story: Story }) {
       </Section>
 
       <div className="flex flex-wrap items-start gap-6">
-        <Section data-tour="reader-text" className="flex min-w-0 flex-[999_1_520px] flex-col gap-8 px-5 py-6 sm:px-8 sm:py-8">
+        <Section className="flex min-w-0 flex-[999_1_520px] flex-col gap-8 px-5 py-6 sm:px-8 sm:py-8">
           <StoryText
             story={annotated}
             vocabulary={vocabulary}
@@ -169,7 +169,6 @@ function Reader({ story }: { story: Story }) {
             selected={piece ? selected : null}
             selectedRef={selectedRef}
             onSelect={select}
-            hasNote={(index, piece) => !!storyWordAt(storyWords, index, piece)}
             onSpeak={say}
           />
           {match && piece && selected && !noteClosed && !cardOpen && (

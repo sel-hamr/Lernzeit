@@ -378,9 +378,6 @@ export default function ReviewPage() {
   // Take a snapshot of the queue once, so the session does not shift under you.
   useEffect(() => {
     if (progress || !study.loaded || !cards || !allReviews) return
-    // useDecks gives an empty list until the decks load, and every card has a deck: without
-    // this wait a round opened before then leaves out every card and says there are none.
-    if (cards.length && !decks.length) return
     let ids: string[]
     let kind: PracticeKind
     const due = study.queue.filter((r) => inPlan(r, plan)).map((r) => r.id)
@@ -407,7 +404,7 @@ export default function ReviewPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time snapshot once data has loaded
     setProgress(pickNext(startRound(kind, ids, now), now))
     shownAt.current = now
-  }, [progress, study, plan, cards, allReviews, decks, picked, pickedIds, cardParam, deckById, practiceIds, pickNext])
+  }, [progress, study, plan, cards, allReviews, picked, pickedIds, cardParam, deckById, practiceIds, pickNext])
 
   // Starts another round once a session ends: the picked cards or every card again, or a practice round.
   // Undo history belongs to the round before. The round opens with a different word from the one that ended the last.
@@ -686,7 +683,7 @@ export default function ReviewPage() {
         />
       ) : (
         <>
-          <article key={review.id + progress.reviewed} data-tour="practice-card" className="flex animate-flip-in flex-col gap-5 rounded-flash border border-line bg-main p-3 pb-6 shadow-panel sm:p-4 sm:pb-7">
+          <article key={review.id + progress.reviewed} className="flex animate-flip-in flex-col gap-5 rounded-flash border border-line bg-main p-3 pb-6 shadow-panel sm:p-4 sm:pb-7">
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-1 text-chip text-muted">
               <span className="min-w-0">
                 {deck?.name} · {listening ? 'Listening' : directionLabel(review.direction, { learning: language.name, native: language.native.name })}
@@ -756,12 +753,12 @@ export default function ReviewPage() {
 
           <div className="sticky bottom-[calc(68px+env(safe-area-inset-bottom))] z-10 -mx-1 bg-main/95 backdrop-blur-sm px-1 pt-3 pb-1 md:bottom-4">
             {!revealed ? (
-              <Button data-tour="practice-show" variant="primary" size="lg" className="w-full" onClick={reveal}>
+              <Button variant="primary" size="lg" className="w-full" onClick={reveal}>
                 {typing ? 'Check' : 'Show answer'}
                 <span className="hidden opacity-60 sm:inline">{typing ? 'Enter' : 'Space'}</span>
               </Button>
             ) : (
-              <div data-tour="practice-rate" className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 {GRADES.map((g) => (
                   <button
                     key={g}

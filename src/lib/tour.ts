@@ -10,38 +10,15 @@ export interface TourStop {
   id: string
   /** The feature it shows (a plugin id). The stop is left out while that feature is off. */
   feature?: string
-  /** What the stop needs to make sense; it is left out without it. */
-  needs?: TourNeed[]
-  /** The page it is on, and may hold `:story`. A stop without one stays on the page you are on. */
+  /** The page it is on. A stop without one stays on the page you are on. */
   path?: string
-  /** What it points at, as a CSS selector that may hold `:story`. A stop without one sits in the middle of the screen. */
+  /** What it points at, as a CSS selector. A stop without one sits in the middle of the screen. */
   target?: string
-  /** Something the tour does on the page first, such as tapping a word to open its note. */
-  prepare?: TourAction
   side?: 'top' | 'right' | 'bottom' | 'left'
   align?: 'start' | 'center' | 'end'
   title: string
   /** HTML written here, never anything you typed, so it is safe to render. */
   body: string
-}
-
-/**
- * cards: there are cards to practise. story: there is a story to open.
- * recall: practice shows Show answer, not a typing box. wide: the reader has
- * room for the word panel beside the story.
- */
-export type TourNeed = 'cards' | 'story' | 'recall' | 'wide'
-
-/** reveal-answer: presses Show answer on the practice screen. open-word-note: taps a word that has a note. */
-export type TourAction = 'reveal-answer' | 'open-word-note'
-
-/** What this browser has, which decides the stops that make sense. */
-export interface TourFacts {
-  cards: boolean
-  /** The story the tour opens: the first one in the list with word notes, else the first one. */
-  story?: string
-  recall: boolean
-  wide: boolean
 }
 
 /** The attribute a page puts on what a stop points at: <div data-tour="today-goals">. */
@@ -75,28 +52,12 @@ export const FORGETTING_CURVE = `<figure class="lz-tour-figure">
 
 const [AGAIN, HARD, GOOD] = [PRACTICE_RETURN[1], PRACTICE_RETURN[2], PRACTICE_RETURN[3]]
 
-/** How a story from your decks gets written, step by step. */
-const STORY_STEPS = `<ol class="lz-tour-steps">
-<li>Tick the decks: one, several or all of them.</li>
-<li>Pick a level and a length, and say what it is about, or take one of ${STORY_THEMES.length} theme ideas.</li>
-<li>Copy the prompt and paste it into Claude Desktop or Claude Code.</li>
-<li>Claude saves the story here through the AI connection.</li>
-</ol>`
-
-/** The reader's highlight colours, drawn with its own classes. */
-const WORD_COLOURS = `<div class="lz-tour-words">
-<span><span class="lz-tour-word lz-tour-word-new">Haus</span>in a deck, not studied yet</span>
-<span><span class="lz-tour-word lz-tour-word-learning">gehen</span>learning</span>
-<span><span class="lz-tour-word lz-tour-word-known">gut</span>known</span>
-<span><span class="lz-tour-word">Wald</span>not in a deck: tap to add</span>
-</div>`
-
 export const TOUR_STOPS: TourStop[] = [
   {
     id: 'welcome',
     title: 'Welcome to Lernzeit',
     body:
-      '<p>Take a few minutes to walk through the app. Each stop shows one part of it, how it works, and why it helps you learn faster and remember longer.</p>' +
+      '<p>Take two minutes to walk through the app. Each stop shows one part of it and why it helps you learn faster and remember longer.</p>' +
       hint('Use the buttons or the arrow keys. Esc ends the tour.'),
   },
   {
@@ -112,56 +73,17 @@ export const TOUR_STOPS: TourStop[] = [
       why('A little every day beats one long session a week. Short, regular practice is what your memory keeps.'),
   },
   {
-    id: 'decks',
-    feature: 'flashcards',
-    path: '/flashcards',
-    target: tourTarget('flashcards-decks'),
-    side: 'bottom',
-    align: 'start',
-    title: 'Flashcards: your decks',
-    body:
-      '<p>Each deck is a tab with its number of cards, and the decks that don’t fit wait behind <b>more</b>, with a search. Open one to see its cards: tap a card for its picture, examples and forms, or add your own with <b>Add card</b>.</p>',
-  },
-  {
     id: 'flashcards',
     feature: 'flashcards',
     path: '/flashcards',
     target: tourTarget('flashcards-practise'),
     side: 'bottom',
     align: 'end',
-    title: 'Practise: words that stay',
+    title: 'Flashcards: words that stay',
     body:
       '<p>You forget most of a new word within a few days. Each time you pull it back from memory, just as it starts to fade, it stays longer. This is spaced recall, the best-tested way to remember.</p>' +
       FORGETTING_CURVE +
-      '<p><b>Practise deck</b> asks every card of the open deck, and <b>Practise</b> on All asks every deck. First you pick the directions: picture → German, English → German or German → English.</p>',
-  },
-  {
-    id: 'practice-card',
-    feature: 'flashcards',
-    needs: ['cards', 'recall'],
-    path: '/flashcards/review?cards=all',
-    target: tourTarget('practice-card'),
-    side: 'bottom',
-    align: 'center',
-    title: 'Answer from memory first',
-    body:
-      '<p>A card shows one side. Say the answer in your head, or out loud, before you look. Then press <b>Show answer</b> or Space.</p>' +
-      why('Trying to remember, even when you get it wrong, teaches more than reading the answer again.'),
-  },
-  {
-    id: 'practice-rate',
-    feature: 'flashcards',
-    needs: ['cards', 'recall'],
-    path: '/flashcards/review?cards=all',
-    prepare: 'reveal-answer',
-    target: tourTarget('practice-rate'),
-    side: 'top',
-    align: 'center',
-    title: 'Rate how well you knew it',
-    body:
-      `<p>Be honest: the rating decides when the card comes back in this session. <b>Again</b> brings it back ${AGAIN} cards later, <b>Hard</b> after ${HARD}, <b>Good</b> after ${GOOD}, and <b>Easy</b> means you know it.</p>` +
-      '<p>The session ends when every card is Easy. Keys 1 to 4 rate too. Each session is saved in Practice history, the clock on Flashcards.</p>' +
-      why('Hard cards come back soon and easy ones step aside, so your time goes to the words you don’t know yet.'),
+      `<p>Open a deck and press <b>Practise deck</b>. Rate each card honestly: <b>Again</b> brings it back ${AGAIN} cards later, <b>Hard</b> after ${HARD}, <b>Good</b> after ${GOOD}, and <b>Easy</b> means you know it.</p>`,
   },
   {
     id: 'stories',
@@ -170,65 +92,11 @@ export const TOUR_STOPS: TourStop[] = [
     target: tourTarget('stories-ai'),
     side: 'bottom',
     align: 'end',
-    title: 'Stories: write one with AI',
+    title: 'Stories: words in context',
     body:
-      '<p><b>Write with AI</b> asks Claude for a story made of the words you are learning:</p>' +
-      STORY_STEPS +
-      why('Your brain keeps a story far better than a list. A word met inside a scene comes with a picture and the words around it, so it is easier to find again.'),
-  },
-  {
-    id: 'story-card',
-    feature: 'stories',
-    needs: ['story'],
-    path: '/stories',
-    target: 'a[href="/stories/:story"]',
-    side: 'right',
-    align: 'start',
-    title: 'Pick a story you can read',
-    body:
-      '<p>Each story shows its level and how much of it is in your decks. The bar fills with the words you know and are learning.</p>' +
-      why('You learn new words best when almost every other word is familiar, so start with stories that are mostly in your decks.'),
-  },
-  {
-    id: 'reader',
-    feature: 'stories',
-    needs: ['story'],
-    path: '/stories/:story',
-    target: tourTarget('reader-text'),
-    side: 'top',
-    align: 'start',
-    title: 'Read with your decks',
-    body:
-      '<p>Words from your decks light up by how well you know them, and nouns take the colour of <span class="lz-tour-der">der</span>, <span class="lz-tour-die">die</span> or <span class="lz-tour-das">das</span>.</p>' +
-      WORD_COLOURS +
-      '<p>The speaker next to each paragraph reads it out loud, and <b>Translation</b> shows it in English.</p>',
-  },
-  {
-    id: 'word-note',
-    feature: 'stories',
-    needs: ['story'],
-    path: '/stories/:story',
-    prepare: 'open-word-note',
-    target: tourTarget('word-note'),
-    side: 'bottom',
-    align: 'start',
-    title: 'Tap any word',
-    body:
-      '<p>A note pops up with what the word means here and why it has this form, such as a case ending or a past tense. The speaker says it for you.</p>' +
-      why('Seeing why a word changes teaches the grammar in passing, right where you need it.'),
-  },
-  {
-    id: 'word-card',
-    feature: 'stories',
-    needs: ['story', 'wide'],
-    path: '/stories/:story',
-    target: '[data-word-panel]',
-    side: 'left',
-    align: 'start',
-    title: 'Its card, or a new one',
-    body:
-      '<p>Beside the story you see the word’s card with its picture and translation. A word that is not in a deck yet gets <b>Add to a deck</b>, so a new word becomes a card in one click.</p>' +
-      why('Words you meet while reading are the ones worth learning, and they come with a sentence to remember them by.'),
+      '<p>Your brain keeps a story far better than a list. A word met inside a scene comes with a picture and the words around it, so it is easier to find again. Words from your decks light up while you read, and any word can become a card.</p>' +
+      `<p><b>Write with AI</b> asks Claude for a story with the words of the decks you pick: one, several or all of them. Choose a level and a length, and write what it should be about or take one of ${STORY_THEMES.length} theme ideas.</p>` +
+      why('The story Claude writes is saved here, so you read the very words you are practising, in a scene you chose.'),
   },
   {
     id: 'timer',
@@ -315,30 +183,19 @@ export const TOUR_STOPS: TourStop[] = [
     path: '/',
     title: 'You’re ready',
     body:
-      '<p>A good day in Lernzeit: start the timer, practise a deck, read a story and tap the words you don’t know. Ideas that pop up go on the board.</p>' +
+      '<p>A good day in Lernzeit: start the timer, practise a deck, read a story. Ideas that pop up go on the board.</p>' +
       hint('You can take this tour again any time from Settings.'),
   },
 ]
 
-/** What a stop needs that this browser has. */
-function hasNeed(need: TourNeed, facts: TourFacts): boolean {
-  return need === 'story' ? !!facts.story : facts[need]
-}
-
-/**
- * The stops to show: without those for features that are turned off or that
- * need what this browser lacks, with `:story` filled in.
- */
-export function tourStops(enabledFeatures: readonly string[], facts: TourFacts, stops: readonly TourStop[] = TOUR_STOPS): TourStop[] {
-  const fill = (text?: string) => (text && facts.story ? text.replaceAll(':story', facts.story) : text)
-  return stops
-    .filter((stop) => (!stop.feature || enabledFeatures.includes(stop.feature)) && (stop.needs ?? []).every((need) => hasNeed(need, facts)))
-    .map((stop) => ({ ...stop, path: fill(stop.path), target: fill(stop.target) }))
+/** The stops to show, without those for features that are turned off. */
+export function tourStops(enabledFeatures: readonly string[], stops: readonly TourStop[] = TOUR_STOPS): TourStop[] {
+  return stops.filter((stop) => !stop.feature || enabledFeatures.includes(stop.feature))
 }
 
 /** Where the tour has to go before it can show a stop, or undefined to stay on this page. */
 export function tourRoute(stop: TourStop, pathname: string): string | undefined {
   if (!stop.path) return undefined
   const here = pathname.replace(/\/+$/, '') || '/'
-  return here === stop.path.split('?')[0] ? undefined : stop.path
+  return here === stop.path ? undefined : stop.path
 }

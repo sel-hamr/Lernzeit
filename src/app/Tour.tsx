@@ -5,8 +5,8 @@ import { driver, type Driver, type DriveStep, type PopoverDOM } from 'driver.js'
 import 'driver.js/dist/driver.css'
 import './tour.css'
 import { useFeedback } from '@/components/ui/feedback'
-import { getTourFacts, getTourState, markTourSeen } from '@/data/tour'
-import { tourRoute, tourStops, tourTarget, type TourAction, type TourStop } from '@/lib/tour'
+import { getTourState, markTourSeen } from '@/data/tour'
+import { tourRoute, tourStops, type TourStop } from '@/lib/tour'
 import { useFeatures } from './plugins'
 
 /** Lets the welcome dialog close and its toast appear before the tour dims the page. */
@@ -15,8 +15,6 @@ const START_DELAY_MS = 450
 const WAIT_FOR_PAGE_MS = 4000
 /** Pages grow as their data loads; the highlight follows them for this long. */
 const SETTLE_MS = 1200
-/** Where the story reader puts the word panel beside the story (ReaderPage). */
-const WIDE_READER = '(min-width: 1100px)'
 
 interface TourContext {
   enabledFeatures: string[]
@@ -35,9 +33,7 @@ export function TourEngine() {
   const navigate = useNavigate()
   const { toast } = useFeedback()
   const context = useRef<TourContext>({ enabledFeatures: [], navigate, toast })
-  /** The running tour, or 'starting' while it reads what this browser has. */
-  const running = useRef<Driver | 'starting' | null>(null)
-  const mounted = useRef(true)
+  const running = useRef<Driver | null>(null)
 
   useEffect(() => {
     context.current = { enabledFeatures: features.map((f) => f.id), navigate, toast }
@@ -46,79 +42,37 @@ export function TourEngine() {
   useEffect(() => {
     if (state !== 'pending' || running.current) return
     const timer = setTimeout(() => {
-      running.current = 'starting'
-      void getTourFacts().then((facts) => {
-        if (!mounted.current) return
-        const stops = tourStops(context.current.enabledFeatures, { ...facts, wide: window.matchMedia(WIDE_READER).matches })
-        running.current = startTour(stops, context.current, () => {
-          running.current = null
-        })
+      running.current = startTour(context.current, () => {
+        running.current = null
       })
     }, START_DELAY_MS)
     return () => clearTimeout(timer)
   }, [state])
 
   // Signing out mid-tour takes the tour away with the app.
-  useEffect(() => {
-    mounted.current = true
-    return () => {
-      mounted.current = false
-      if (running.current && running.current !== 'starting') running.current.destroy()
-    }
-  }, [])
+  useEffect(() => () => running.current?.destroy(), [])
 
   return null
 }
 
-function startTour(stops: TourStop[], { navigate, toast }: TourContext, onEnd: () => void): Driver {
+function startTour({ enabledFeatures, navigate, toast }: TourContext, onEnd: () => void): Driver {
+  const stops = tourStops(enabledFeatures)
   const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const last = stops.length - 1
   let finished = false
-  let moving = false
   let shown: number | undefined
   let stopSettling: (() => void) | undefined
 
-  /** Opens the page of a stop if it is elsewhere. */
-  const open = (stop: TourStop) => {
-    const route = tourRoute(stop, window.location.pathname)
-    if (!route) return
-    navigate(route)
-    // A new page starts at the top, as it does from the menu.
-    window.scrollTo({ top: 0 })
-  }
-
-  /**
-   * Opens the page of a stop, does what it needs there (such as tapping a
-   * word), then shows it once its target is there. A stop whose action finds
-   * nothing to act on is skipped, in the direction you were going.
-   */
-  const go = async (index: number, step: 1 | -1) => {
-    if (moving) return
-    moving = true
-    try {
-      let i = index
-      for (; i > 0 && i < last; i += step) {
-        open(stops[i])
-        const action = stops[i].prepare
-        if (!action || (await prepare(action))) break
-      }
-      // Past the stops in between, only the welcome or the send-off is left; they need nothing.
-      if (i <= 0 || i >= last) {
-        i = step === 1 ? last : 0
-        open(stops[i])
-      }
-      if (tour.isActive()) tour.moveTo(i)
-    } finally {
-      moving = false
+  /** Opens the page of a stop first, then shows it once its target is there. */
+  const go = (index: number) => {
+    const route = tourRoute(stops[index], window.location.pathname)
+    if (route) {
+      navigate(route)
+      // A new page starts at the top, as it does from the menu.
+      window.scrollTo({ top: 0 })
     }
+    tour.moveTo(index)
   }
-
-  // The page under the tour must not act on keys: Enter would rate a card on
-  // the practice screen and Esc would leave it. driver.js reads its keys on keyup.
-  const holdKeys = (e: KeyboardEvent) => {
-    if (e.key !== 'Tab') e.stopImmediatePropagation()
-  }
-  window.addEventListener('keydown', holdKeys, { capture: true })
 
   const tour = driver({
     steps: stops.map((stop, index) => toStep(stop, index, last)),
@@ -148,12 +102,12 @@ function startTour(stops: TourStop[], { navigate, toast }: TourContext, onEnd: (
         finished = true
         tour.destroy()
       } else {
-        void go(index + 1, 1)
+        go(index + 1)
       }
     },
     onPrevClick: () => {
       const index = tour.getActiveIndex() ?? 0
-      if (index > 0) void go(index - 1, -1)
+      if (index > 0) go(index - 1)
     },
     onPopoverRender: (popover, { state }) => {
       const index = state.activeIndex ?? 0
@@ -166,7 +120,6 @@ function startTour(stops: TourStop[], { navigate, toast }: TourContext, onEnd: (
     },
     onDestroyed: () => {
       stopSettling?.()
-      window.removeEventListener('keydown', holdKeys, { capture: true })
       onEnd()
       void markTourSeen()
       if (!finished) toast('You can take the tour again any time from Settings')
@@ -174,62 +127,6 @@ function startTour(stops: TourStop[], { navigate, toast }: TourContext, onEnd: (
   })
   tour.drive()
   return tour
-}
-
-/** Does a stop's action on its page. False when there is nothing to act on, so the stop is skipped. */
-async function prepare(action: TourAction): Promise<boolean> {
-  switch (action) {
-    case 'reveal-answer': {
-      // Back from a later stop, the answer may already be showing.
-      if (document.querySelector(tourTarget('practice-rate'))) return true
-      const rate = tourTarget('practice-rate')
-      for (let attempt = 0; attempt < 2; attempt++) {
-        const show = await waitFor<HTMLButtonElement>(tourTarget('practice-show'))
-        if (!show) return false
-        // A new card resets the answer in an effect after it shows, so a click right away would be undone.
-        await settle()
-        show.click()
-        if (await waitFor(rate, 1000)) return true
-      }
-      return false
-    }
-    case 'open-word-note': {
-      const word = await waitFor<HTMLButtonElement>('[data-word][data-noted]')
-      if (!word) return false
-      await settle()
-      word.scrollIntoView({ block: 'center' })
-      word.click()
-      return true
-    }
-  }
-}
-
-/**
- * Gives the page a moment, so its effects run after what it just drew. A
- * timer rather than animation frames, which a hidden tab does not run.
- */
-function settle(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 80))
-}
-
-/** The first element matching `selector`, once the page shows one, or null after a while. */
-function waitFor<T extends Element>(selector: string, ms = WAIT_FOR_PAGE_MS): Promise<T | null> {
-  return new Promise((resolve) => {
-    const found = document.querySelector<T>(selector)
-    if (found) return resolve(found)
-    const observer = new MutationObserver(() => {
-      const el = document.querySelector<T>(selector)
-      if (!el) return
-      clearTimeout(timer)
-      observer.disconnect()
-      resolve(el)
-    })
-    const timer = setTimeout(() => {
-      observer.disconnect()
-      resolve(null)
-    }, ms)
-    observer.observe(document.body, { childList: true, subtree: true })
-  })
 }
 
 function toStep(stop: TourStop, index: number, last: number): DriveStep {
