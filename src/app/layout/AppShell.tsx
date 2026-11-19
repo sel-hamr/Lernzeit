@@ -1,7 +1,7 @@
-import { useState, type ReactNode } from 'react'
-import { Link, NavLink, useLocation } from 'react-router'
+import { useRef, useState, type ReactNode } from 'react'
+import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router'
 import clsx from 'clsx'
-import { Bot, Plus, Search, Settings } from 'lucide-react'
+import { Bot, ChevronRight, Plus, Search, Settings } from 'lucide-react'
 import { Logo, LogoMark } from '@/components/Logo'
 import { Dot, GroupLabel } from '@/components/ui/primitives'
 import { Dialog } from '@/components/ui/Dialog'
@@ -10,10 +10,12 @@ import { useCards, useDecks, usePracticeRuns, useTopics } from '@/data/hooks'
 import { useTodayProgress } from '@/data/progress'
 import { goalFor } from '@/lib/goals'
 import { formatPracticeTime, practiceTotals } from '@/lib/practice'
+import { capList } from '@/lib/tabs'
 import { formatHM } from '@/lib/time'
 import { useUI } from '@/app/ui'
 import { useFeatures } from '@/app/plugins'
 import { AI_CONNECTION_ID } from '@/features/settings/AiConnectionGroup'
+import { DeckMenu } from '@/features/flashcards/DeckMenu'
 import { SearchBox } from './Search'
 import { HeaderVoiceSelect, SidebarVoiceSelect } from './VoiceSelect'
 
@@ -42,26 +44,62 @@ function deckLine(cards: number, practisedMs: number): string {
   return practisedMs ? `${cards} cards · ${formatPracticeTime(practisedMs)} practised` : `${cards} cards`
 }
 
+/** How many decks the sidebar lists before the rest go behind "More decks". */
+const SIDEBAR_DECKS = 5
+
 function DecksList() {
   const decks = useDecks()
   const topics = useTopics(true)
   const cards = useCards()
   const runs = usePracticeRuns()
+  const [params] = useSearchParams()
+  const navigate = useNavigate()
+  const moreRef = useRef<HTMLButtonElement>(null)
+  const [moreOpen, setMoreOpen] = useState(false)
   const colorOf = (topicId?: string) => topics.find((t) => t.id === topicId)?.color
+  const cardCount = (deckId: string) => cards?.filter((c) => c.deckId === deckId).length ?? 0
+  // The open deck always shows, so the list never hides where you are.
+  const shown = capList(decks.length, SIDEBAR_DECKS, decks.findIndex((d) => d.id === params.get('deck')))
+  const hidden = decks.filter((_, i) => !shown.includes(i))
   return (
     <div className="flex flex-col gap-3 px-3">
       <GroupLabel aside={decks.length}>Decks</GroupLabel>
-      {decks.map((deck) => (
-        <Link key={deck.id} to={`/flashcards?deck=${deck.id}`} className="group flex gap-2.5">
-          <Dot color={colorOf(deck.topicId)} className="mt-1.25" />
-          <div className="flex flex-col gap-px">
-            <span className="text-small font-medium group-hover:underline">{deck.name}</span>
-            <span className="text-chip text-muted tabular-nums">
-              {deckLine(cards?.filter((c) => c.deckId === deck.id).length ?? 0, practiceTotals(runs ?? [], deck.id).ms)}
-            </span>
-          </div>
-        </Link>
-      ))}
+      {shown.map((i) => {
+        const deck = decks[i]
+        return (
+          <Link key={deck.id} to={`/flashcards?deck=${deck.id}`} title={deck.name} className="group flex min-w-0 gap-2.5">
+            <Dot color={colorOf(deck.topicId)} className="mt-1.25" />
+            <div className="flex min-w-0 flex-col gap-px">
+              <span className="truncate text-small font-medium group-hover:underline">{deck.name}</span>
+              <span className="text-chip text-muted tabular-nums">{deckLine(cardCount(deck.id), practiceTotals(runs ?? [], deck.id).ms)}</span>
+            </div>
+          </Link>
+        )
+      })}
+      {hidden.length > 0 && (
+        <button
+          ref={moreRef}
+          type="button"
+          aria-haspopup="dialog"
+          aria-expanded={moreOpen}
+          onClick={() => setMoreOpen(true)}
+          className="group flex items-center gap-1 self-start text-small text-muted transition-colors hover:text-ink"
+        >
+          {hidden.length} more decks
+          <ChevronRight size={14} strokeWidth={1.8} aria-hidden className="transition-transform group-hover:translate-x-0.5" />
+        </button>
+      )}
+      {moreOpen && hidden.length > 0 && (
+        <DeckMenu
+          decks={hidden.map((d) => ({ value: d.id, label: d.name, count: cardCount(d.id) }))}
+          anchor={moreRef}
+          onPick={(id) => {
+            setMoreOpen(false)
+            navigate(`/flashcards?deck=${id}`)
+          }}
+          onClose={() => setMoreOpen(false)}
+        />
+      )}
     </div>
   )
 }

@@ -7,7 +7,7 @@ import { Group } from './Group'
 export function FeaturesGroup() {
   const { hiddenFeatures } = useSettings()
   return (
-    <Group title="Features" description="Turn off what you don't use. It leaves the menu, and nothing you saved in it is deleted.">
+    <Group id="features" title="Features" description="Turn off what you don't use. It leaves the menu, and nothing you saved in it is deleted.">
       {PLUGINS.map((plugin) => (
         <Switch
           key={plugin.id}

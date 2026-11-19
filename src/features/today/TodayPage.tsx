@@ -67,7 +67,7 @@ function DailyGoals() {
   const startTimer = useStartTimer()
   const navigate = useNavigate()
   return (
-    <Section className="flex flex-col px-6 pt-5 pb-2 @container">
+    <Section data-tour="today-goals" className="flex flex-col px-6 pt-5 pb-2 @container">
       <SectionHeader title="Daily goals" action={<span className="text-small text-muted">Resets at midnight</span>} className="pb-2" />
       {progress.topics.length === 0 ? (
         <EmptyState title="No topics yet" action={<Button onClick={() => navigate('/settings')}>Add a topic</Button>}>

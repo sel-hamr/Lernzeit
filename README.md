@@ -27,7 +27,8 @@ Everything lives in your browser, works offline, and installs on your phone.
 
 ## At a glance
 
-- **Your own words.** Lernzeit opens empty and ready: add your words and start practising. Ready-made German levels are there if you want them.
+- **A guided start.** The first visit asks what you want to learn (German, AI or your own topic) and how long a day, then sets up your daily goals. German comes with 898 words and phrases, stories, speaking questions and grammar, ready to practise.
+- **A tour of the app.** Right after the welcome, a two-minute tour walks from page to page: Today, Flashcards, Stories, the focus timer, Board, History, Docs and the AI connection, audio and features in Settings. Each stop says why that part helps you remember. **Settings → Tour** runs it again.
 - **Local-first.** No account and no server. Your cards, sessions and tasks are stored in IndexedDB.
 - **Works offline.** A service worker caches the app, and the Geist font is bundled.
 - **Practise a whole deck.** Open a deck's tab, pick the practice directions and go through every card. Each session's time is saved, and Practice history shows them all.
@@ -47,7 +48,7 @@ Everything lives in your browser, works offline, and installs on your phone.
 | **Docs** | Paste Markdown into nested folders and read it like a README. Pinned and recent docs, tags, read status, search, and it reopens where you stopped |
 | **History** | Week calendar, 16-week heatmap, streaks, hours per topic and flashcard stats |
 | **Board** | Backlog, To do, Doing and Done, with drag and drop on desktop and touch |
-| **Settings** | Goals per weekday, decks, voice and speed, themes, reminders, backup and restore |
+| **Settings** | Goals per weekday, decks, voice and speed, themes, reminders, the tour of the app, backup and restore |
 
 <details>
 <summary><b>Today</b></summary>
@@ -73,7 +74,8 @@ Shows progress per topic with the time left, start buttons, today's sessions, ca
 <br />
 
 - Word, sentence and cloze cards (`Der Hund {{spielt}} im Garten.`), coloured by gender: <b>der</b> blue, <b>die</b> red, <b>das</b> green.
-- **Deck tabs on one line.** The decks that fit show as tabs, each with its number of cards; the rest go in a **More** menu at the end of the row, with a filter for long lists. The open deck always shows as a tab. There are no due counts.
+- **Deck tabs on one line.** The decks that fit show as tabs, each with its number of cards; the rest sit behind a **3 more** button at the end of the row, which opens a search menu in the middle of the screen: type to find a deck (case, accents and ß don't matter, and decks whose name starts with what you type come first), move with ↑ ↓, open with Enter, close with Esc or a click outside. The open deck always shows as a tab. There are no due counts.
+- **Decks in the sidebar.** On Flashcards the sidebar lists your first 5 decks, and always the open one; **9 more decks** opens the same search menu for the rest.
 - **Practise a deck.** On a deck's tab, **Practise deck** asks which practice directions to take: Image → German, English → German, German → English or Cloze, each with its number of cards. On **All**, **Practise** does the same for every deck. The session asks every card in those directions, and your rating says when a card comes back: **Again** 3 cards later, **Hard** 8 cards later, **Good** 15 cards later, and **Easy** not again. Each button shows it. The top of the session counts the cards at each rating and how many are left. A card counts once, under its latest rating: rated **Hard** and then **Easy**, it moves from Hard to Easy. The session ends once every card is rated **Easy**, and shows the same counts. Ratings are still kept with FSRS ([ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs)).
 - **Practice history.** Every session is saved after each rating, so one you leave half-way counts too: when it started and ended, the time spent on the cards (at most two minutes a card), the reviews and how many were right, the directions, and the time per deck. The clock button in Flashcards shows them day by day, with totals, the time per deck, and a filter for one deck. Today shows today's practice time, and History the last 30 days'. Sessions are part of backups.
 - **Practise the cards you pick.** **Select** in Flashcards turns on select mode: tap cards to tick them, or **Select all** the cards shown. Picks stay when you change the deck or filter, so one round can mix decks. **Practise** asks only those cards, in the order you picked them, in each direction their deck practises, and brings them back by your rating like a deck. **Practise again** at the end repeats the same cards.
@@ -114,7 +116,7 @@ Shows progress per topic with the time left, start buttons, today's sessions, ca
 - In stories written by AI, the words you need help with explain themselves, and hard words go further: the meaning, why the word has this form in this sentence, one more example, and a tip.
 - A bar shows how much of the story you know, are learning, have in a deck but not studied yet, or do not have. Reading is easy from about 95% known.
 - Listen to each paragraph, show the English translation under it, and mark the story as read. Active reading time can count toward the story's topic.
-- **Write with AI** builds a prompt with every word of the deck you pick, marking the ones you know or are learning, at your level and theme. Paste it into Claude Desktop or Claude Code: Claude writes the story and saves it here through the [AI connection](#ai-connection).
+- **Write with AI** builds a prompt with every word of the decks you tick (one, several, or all decks; search the list and see each deck's word count), marking the ones you know or are learning, at your level and theme. Write your own theme, or pick one of the ideas under the box (At the café, A trip to Berlin, …): it fills the box with a short scene, people, a place and what happens, that you can still change. One idea at a time; click it again to clear it. **More themes** opens all 45 ideas in eight groups (everyday life, food and shopping, travel, work and study, health, family and friends, free time, celebrations and seasons), with a search. Paste it into Claude Desktop or Claude Code: Claude writes the story and saves it here through the [AI connection](#ai-connection).
 - Write or paste your own stories, or let your AI app add them directly (see [AI connection](#ai-connection)). [docs/stories.md](docs/stories.md) explains how words are matched.
 
 </details>
@@ -173,7 +175,20 @@ Your German levels, topics and per-weekday goals, decks, Pomodoro lengths, end s
 
 ## German levels
 
-Lernzeit starts empty, so you can go straight to adding your own words. If you want ready-made content, **Settings → Starter content** adds a level, A1, A2 or B1: word and sentence decks, short stories, speaking questions and grammar topics, with a German topic for your study time.
+The first time you open Lernzeit in a browser with no data, a short welcome asks two things:
+
+1. **What do you want to learn?** German, AI, or your own topic (type a name and press Add). Pick one or more.
+2. **How much time a day?** A daily goal for each pick: 15, 30, 45, 60 or 90 minutes, or **Custom** for any time in hours and minutes. Today then shows how far you are; Settings changes it later.
+
+Each pick becomes a topic with that goal. Picking **German** also adds its content: 898 words and phrases in 52 decks, 107 short stories, 44 speaking questions and 27 grammar topics, all as new cards with no history. It is downloaded only then, from [public/starter/german.json](public/starter/german.json) (about 690 KB). **Start empty** skips it all. The welcome shows once; closing it without an answer shows it again next visit, and so does **Settings → Your data → Delete all data**.
+
+The German file is made from a backup, keeping only the learning content: decks, cards with their pictures, stories, questions and grammar topics. Study sessions, review progress, practice history, answers, scores, tasks, topics and settings are dropped. To refresh it from a newer backup (**Settings → Your data → Export backup**), run the command below, then update `GERMAN_SUMMARY` in [src/data/starter.ts](src/data/starter.ts) if the counts changed (a test checks they match):
+
+```bash
+node scripts/make-starter.ts path/to/lernzeit-backup.json
+```
+
+Start empty to go straight to adding your own words. If you want ready-made content later, **Settings → Starter content** adds a level, A1, A2 or B1: word and sentence decks, short stories, speaking questions and grammar topics, with a German topic for your study time.
 
 [docs/languages.md](docs/languages.md) explains the pack.
 
@@ -305,7 +320,7 @@ scripts/          `mcp:setup`: adds the MCP server to Claude Code and Claude Des
 mcp/              MCP server for AI apps (an npm workspace)
 ```
 
-The logic that decides correctness lives in `src/lib` and `src/data` as plain functions, covered by `src/lib/core.test.ts`, `src/lib/grammar.test.ts`, `src/lib/drills.test.ts`, `src/lib/conjugation.test.ts`, `src/lib/reader.test.ts`, `src/lib/questions.test.ts`, `src/data/data.test.ts` and `src/data/languages.test.ts`. The data tests run against an in-memory IndexedDB. `src/languages/languages.test.ts` checks the German pack.
+The logic that decides correctness lives in `src/lib` and `src/data` as plain functions, covered by `src/lib/core.test.ts`, `src/lib/tour.test.ts`, `src/lib/grammar.test.ts`, `src/lib/drills.test.ts`, `src/lib/conjugation.test.ts`, `src/lib/reader.test.ts`, `src/lib/questions.test.ts`, `src/data/data.test.ts`, `src/data/tour.test.ts` and `src/data/languages.test.ts`. The data tests run against an in-memory IndexedDB. `src/languages/languages.test.ts` checks the German pack.
 
 ## Tech stack
 

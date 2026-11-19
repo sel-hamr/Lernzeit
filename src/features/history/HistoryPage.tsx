@@ -126,13 +126,15 @@ export default function HistoryPage() {
     <>
       <PageHeader title="History" subtitle={`Week of ${formatDayMonth(monday)}`} inline actions={<WeekPicker monday={monday} thisMonday={thisMonday} onChange={setMonday} />} />
 
-      <StatStrip
-        items={[
-          { value: `${formatHours(summary.totalMinutes)} hrs`, label: isPast ? 'studied that week' : 'studied this week' },
-          { value: `${pct}%`, label: `of the ${formatHours(summary.totalGoal)} h weekly goal` },
-          { value: `${summary.allHitDays} of ${monday === thisMonday ? summary.countedDays || 7 : 7}`, label: 'days with every goal hit' },
-        ]}
-      />
+      <div data-tour="history-stats">
+        <StatStrip
+          items={[
+            { value: `${formatHours(summary.totalMinutes)} hrs`, label: isPast ? 'studied that week' : 'studied this week' },
+            { value: `${pct}%`, label: `of the ${formatHours(summary.totalGoal)} h weekly goal` },
+            { value: `${summary.allHitDays} of ${monday === thisMonday ? summary.countedDays || 7 : 7}`, label: 'days with every goal hit' },
+          ]}
+        />
+      </div>
 
       <Section className="flex flex-col gap-4 px-6 pt-5 pb-6">
         <div className="flex flex-wrap justify-between gap-3">

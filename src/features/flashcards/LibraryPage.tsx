@@ -270,7 +270,7 @@ export function LibraryPage() {
               Add card
             </Button>
             {/* Opens the directions popup for the open deck, or every deck on All. */}
-            <Button variant="primary" disabled={!cardsHere} onClick={() => setPractiseOpen(true)}>
+            <Button data-tour="flashcards-practise" variant="primary" disabled={!cardsHere} onClick={() => setPractiseOpen(true)}>
               {deck ? 'Practise deck' : 'Practise'}
             </Button>
           </>

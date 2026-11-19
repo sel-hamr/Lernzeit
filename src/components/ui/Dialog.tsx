@@ -35,6 +35,8 @@ export function Dialog({ open, onClose, title, description, children, footer, si
     <dialog
       ref={ref}
       onCancel={(e) => {
+        // React passes a nested dialog's cancel up to this one too: only Escape on this dialog closes it.
+        if (e.target !== e.currentTarget) return
         e.preventDefault()
         if (!locked) onClose()
       }}

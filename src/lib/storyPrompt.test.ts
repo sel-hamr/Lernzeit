@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Card } from '@/db/types'
 import type { Knowledge } from './reader'
-import { buildStoryPrompt, ENOUGH_FAMILIAR, pickPromptWords, storyWordCount } from './storyPrompt'
+import { buildStoryPrompt, ENOUGH_FAMILIAR, pickPromptWords, storyWordCount, themeLine } from './storyPrompt'
 
 let order = 0
 function card(german: string, extra: Partial<Card> = {}): Card {
@@ -92,5 +92,14 @@ describe('buildStoryPrompt', () => {
     const prompt = buildStoryPrompt({ level: 'A2', length: 'long', theme: '', words: many })
     expect(prompt).toContain('Wort0, Wort1')
     expect(prompt).toContain('Wort499.')
+  })
+})
+
+describe('themeLine', () => {
+  it('puts a theme written over several lines on one line', () => {
+    expect(themeLine('  a day\n\nat the   market.  ')).toBe('a day at the market')
+    expect(themeLine(' \n ')).toBe('')
+    const prompt = buildStoryPrompt({ level: 'A1', length: 'short', theme: 'Two friends\nat the lake.', words: { familiar: [], upcoming: [] } })
+    expect(prompt).toContain('- Topic: Two friends at the lake.\n')
   })
 })

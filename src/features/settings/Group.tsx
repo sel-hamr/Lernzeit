@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Section } from '@/components/ui/primitives'
 
 /** A Settings card: title, optional description and action, then its controls. */
-export function Group({ id, title, description, children, action }: { id?: string; title: string; description?: string; children: ReactNode; action?: ReactNode }) {
+export function Group({ id, title, description, children, action }: { id?: string; title: string; description?: string; children?: ReactNode; action?: ReactNode }) {
   return (
     <Section id={id} className="flex scroll-mt-20 flex-col gap-4 px-6 py-5">
       {/* The actions wrap below the description on narrow cards, still right-aligned. */}

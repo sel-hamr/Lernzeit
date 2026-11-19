@@ -90,7 +90,7 @@ export default function StoriesPage() {
                 Starter stories
               </Button>
             )}
-            <Button variant="outline" icon={<WandSparkles size={15} strokeWidth={1.8} />} onClick={() => setAiOpen(true)}>
+            <Button data-tour="stories-ai" variant="outline" icon={<WandSparkles size={15} strokeWidth={1.8} />} onClick={() => setAiOpen(true)}>
               Write with AI
             </Button>
             <Button variant="soft" icon={<Plus size={16} strokeWidth={1.8} />} onClick={() => setEditorOpen(true)}>
