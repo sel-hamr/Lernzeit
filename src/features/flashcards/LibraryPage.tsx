@@ -279,7 +279,7 @@ export function LibraryPage() {
 
       {/* The deck tabs fill a line of their own; below them the filter on the left, sort and select on the right. */}
       <div className="flex flex-col gap-3">
-        <div className="flex min-w-0 items-center gap-1.5">
+        <div data-tour="flashcards-decks" className="flex min-w-0 items-center gap-1.5">
           <DeckTabs value={deckFilter} onChange={setDeck} tabs={deckOptions} />
           <Button
             variant="ghost"
