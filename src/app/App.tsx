@@ -6,6 +6,8 @@ import { UIProvider } from './ui'
 import { AppShell } from './layout/AppShell'
 import { BridgeEngine, ReminderEngine, SessionNoteDialog, ThemeSync, TimerEngine } from './engines'
 import { useStarterUpdates } from './useStarterUpdates'
+import { StarterDialog } from './StarterDialog'
+import { TourEngine } from './Tour'
 import { useStoredToggle } from '@/lib/browser'
 import { LoginPage } from '@/features/login/LoginPage'
 import { SIGNED_IN_KEY } from '@/features/login/login'
@@ -46,6 +48,8 @@ function Root() {
             <ReminderEngine />
             <BridgeEngine />
             <SessionNoteDialog />
+            <StarterDialog />
+            <TourEngine />
             <AppShell>
               <Pages />
             </AppShell>

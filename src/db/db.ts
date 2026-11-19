@@ -118,6 +118,10 @@ export const KV_KEYS = {
   bridge: 'bridge',
   starterConjugations: 'starterConjugations',
   starterGrammar: 'starterGrammar',
+  /** What an empty browser chose at its first visit: the starter backup, or to start empty. */
+  starterOffer: 'starterOffer',
+  /** The tour of the app: 'pending' while it should run, 'seen' once it was finished or closed. */
+  tour: 'tour',
 } as const
 
 export async function getSettings(database: LernzeitDB = db): Promise<Settings> {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router'
-import { Bell, ChevronRight, Download, HardDriveDownload, LogOut, Plus, Smartphone, Trash2, Upload, Volume2 } from 'lucide-react'
+import { Bell, ChevronRight, Compass, Download, HardDriveDownload, LogOut, Plus, Smartphone, Trash2, Upload, Volume2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Chip, Dot, PageHeader } from '@/components/ui/primitives'
 import { Field, Input, Segmented, Select, Switch } from '@/components/ui/form'
@@ -9,6 +9,7 @@ import { updateSettings } from '@/db/db'
 import type { EndSound, ThemePref } from '@/db/types'
 import { useCards, useDecks, useLanguage, useSettings, useTopics } from '@/data/hooks'
 import { downloadFile, exportBackup, resetAllData, restoreBackup } from '@/data/io'
+import { queueTour } from '@/data/tour'
 import { DeckDialog } from '@/features/flashcards/DeckDialog'
 import { ImportCsvDialog } from '@/features/flashcards/ImportCsvDialog'
 import { signOut } from '@/features/login/login'
@@ -322,7 +323,7 @@ export default function SettingsPage() {
         </div>
 
         <div className="flex flex-col gap-5">
-          <Group title="Flashcards and audio">
+          <Group id="flashcards-audio" title="Flashcards and audio">
             <VoiceField />
             <Field label={`Speaking speed · ${settings.speechRate.toFixed(2)}×`} htmlFor="rate">
               <input
@@ -380,6 +381,17 @@ export default function SettingsPage() {
               </div>
             )}
           </Group>
+
+          <Group
+            id="tour"
+            title="Tour"
+            description="A two-minute walk through Lernzeit: each part, and why it helps you remember."
+            action={
+              <Button size="sm" icon={<Compass size={15} strokeWidth={1.8} />} onClick={() => void queueTour()}>
+                Take the tour
+              </Button>
+            }
+          />
 
           <Group title="Your data" description="Lernzeit works offline and keeps everything in this browser. Back it up now and then.">
             <div className="flex flex-wrap gap-2">

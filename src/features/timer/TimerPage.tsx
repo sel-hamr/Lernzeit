@@ -169,7 +169,7 @@ export function TimerPage() {
       <PageHeader title="Focus timer" subtitle={subtitle} actions={<StatusChip timer={timer} />} />
 
       <div className="flex flex-wrap items-start gap-5">
-        <Section className="flex min-w-0 flex-[3_1_420px] flex-col items-center gap-5.5 bg-soft px-6 pt-9 pb-7">
+        <Section data-tour="timer-clock" className="flex min-w-0 flex-[3_1_420px] flex-col items-center gap-5.5 bg-soft px-6 pt-9 pb-7">
           <StationClock
             elapsedMs={elapsed}
             remainingMs={timer ? remaining : mode === 'free' ? undefined : remaining}

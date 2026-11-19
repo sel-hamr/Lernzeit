@@ -3,8 +3,8 @@ import { db } from '@/db/db'
 import { updateStarterData } from '@/data/languages'
 
 /**
- * The app starts empty, for your own words. This only brings installs from
- * before packs up to date, in the background.
+ * Brings installs from before packs up to date, in the background. A new,
+ * empty browser goes through the welcome in StarterDialog instead.
  */
 export function useStarterUpdates() {
   useEffect(() => {

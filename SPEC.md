@@ -109,6 +109,8 @@ A small "+" button that is always visible.
 
 - Import from CSV with columns: `english, german, gender, plural, example_de, example_en, tags, deck`
 - Export all data (cards, images, history, tasks) to one JSON backup file, and import it back
+- First visit with no data: a two-step welcome. Step 1 picks topics (German, AI, or your own name); step 2 sets a daily goal for each (15/30/45/60/90 min, default 30, or Custom: hours and minutes up to 12 h). Each pick becomes a topic in its shown colour. German also installs `public/starter/german.json` (made by `scripts/make-starter.ts` from a backup, learning content only, fetched only when chosen): its decks and stories count toward the German topic, every card starts new. **Start empty** skips it. The answer is kept in the `starterOffer` key, so it shows once; closing it without answering shows it again next visit, and a reset shows it again
+- After the welcome (set up or **Start empty**) comes a tour of the app, built with driver.js (`src/app/Tour.tsx`, stops in `src/lib/tour.ts`). It dims the page and walks from page to page, pointing at one thing per stop: Today's daily goals, Practise on Flashcards (with a drawn forgetting curve and the real Again/Hard/Good gaps), Write with AI on Stories, the timer clock, Add task on the Board, the History stats, New doc on Docs, then Settings → AI connection, Flashcards and audio, and Features. Each stop has a "Why it helps" line. Stops of features you turned off are left out. Buttons or arrow keys move, Esc or × ends it, a click on the dimmed page does nothing. The `tour` key holds `pending` until the tour is finished or closed, then `seen`, so a reload mid-tour starts it again. **Settings → Tour → Take the tour** sets it back to `pending`
 
 ---
 
@@ -436,7 +438,7 @@ Each topic gets its own color set (dot, bar, soft block, border, text). New topi
    - a details list: English, Plural, Example, Translation, Next review, Reviews (for example "6 · 83% correct")
    - "Practice directions" chips: active ones in sage, inactive in grey
    - buttons: "Edit card" (outlined) and "Review now" (dark)
-6. **Sidebar**: on this page, the "Goals today" section is replaced by "Decks", each with its card count and due count.
+6. **Sidebar**: on this page, the "Goals today" section is replaced by "Decks", each name on one line with its card count and practice time. It lists the first 5 decks (the open deck always among them); the rest sit behind "9 more decks", which opens the same centred deck search menu as the tabs' **More** button.
 
 **Review session** (Phase 2), in the same style:
 - a big centered card with the image on top and the answer below, as described in section 3

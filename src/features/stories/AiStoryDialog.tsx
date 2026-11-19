@@ -1,10 +1,10 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router'
 import clsx from 'clsx'
-import { Check, Copy } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, Copy } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
-import { Field, Input, Segmented, Select, Textarea } from '@/components/ui/form'
+import { Field, Segmented, Select, Textarea } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
 import { AI_TAG } from '@/bridge/actions'
 import { useBridgeIndicator } from '@/bridge/status'
@@ -12,9 +12,12 @@ import { useDecks, useLearningText, useStories } from '@/data/hooks'
 import { STORY_LEVELS } from '@/data/stories'
 import type { StoryLevel } from '@/db/types'
 import { AI_CONNECTION_ID } from '@/features/settings/AiConnectionGroup'
+import { DeckPicker } from '@/features/flashcards/DeckPicker'
 import { storage } from '@/lib/browser'
-import { buildStoryPrompt, pickPromptWords, storyWordCount, type PromptWords, type StoryLength } from '@/lib/storyPrompt'
-import { count } from '@/lib/text'
+import { parseDeckIds } from '@/lib/deckPick'
+import { buildStoryPrompt, isPromptWord, pickPromptWords, storyWordCount, type StoryLength } from '@/lib/storyPrompt'
+import { FEATURED_THEMES, pickTheme, STORY_THEMES, themeOf } from '@/lib/storyThemes'
+import { ThemeIdeasDialog } from './ThemeIdeasDialog'
 import { useVocabulary } from './vocabulary'
 
 const LENGTHS: { value: StoryLength; label: string }[] = [
@@ -22,28 +25,57 @@ const LENGTHS: { value: StoryLength; label: string }[] = [
   { value: 'medium', label: 'Medium' },
   { value: 'long', label: 'Long' },
 ]
-const ALL_DECKS = 'all'
-const DECK_KEY = 'lernzeit-ai-story-deck'
+/** The chosen deck ids as a JSON list; before several decks could be chosen it held one id. */
+const DECKS_KEY = 'lernzeit-ai-story-deck'
 
 /**
- * Asks Claude Desktop or Claude Code for a story from a deck's words. The AI
+ * Asks Claude Desktop or Claude Code for a story from the words of the decks
+ * you choose, or all of them. The AI
  * connection cannot read cards, so the words go in a prompt you paste there;
  * Claude saves the story here with create_story.
  */
 export function AiStoryDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
-    <Dialog open={open} onClose={onClose} title="Write a story with AI" description="Claude writes a story with your deck's words and saves it here through the AI connection." size="lg">
+    <Dialog open={open} onClose={onClose} title="Write a story with AI" description="Claude writes a story with the words of the decks you choose and saves it here through the AI connection." size="lg">
       {open && <AiStoryForm onClose={onClose} />}
     </Dialog>
   )
 }
 
-function wordsSummary(words: PromptWords, deckName: string): string {
-  const total = words.familiar.length + words.upcoming.length
-  if (!total) return `${deckName} has no words yet, so Claude uses everyday words.`
-  const all = `The prompt has all ${count(total, 'word')} of ${deckName}`
-  if (!words.familiar.length) return `${all}. None are studied yet; study a few to make the stories easier.`
-  return `${all}: ${words.familiar.length} you know or are learning, and ${words.upcoming.length} new.`
+const ideaClass = (on: boolean) =>
+  clsx(
+    'h-7 rounded-full border px-2.5 text-chip font-medium transition-colors',
+    on ? 'border-sage-border bg-sage text-sage-ink' : 'border-line bg-main text-ink-2 hover:border-line-strong hover:text-ink',
+  )
+
+/**
+ * Theme ideas under the theme box, and "More themes" for all of them. An idea
+ * puts its scene in the box (one idea at a time, and you can still edit it); a
+ * second click clears it. An idea picked from the popup shows here too.
+ */
+function ThemeIdeas({ theme, onChange }: { theme: string; onChange: (theme: string) => void }) {
+  const [moreOpen, setMoreOpen] = useState(false)
+  const picked = themeOf(theme)
+  const ideas = picked && !FEATURED_THEMES.includes(picked) ? [...FEATURED_THEMES, picked] : FEATURED_THEMES
+  return (
+    <div role="group" aria-label="Theme ideas" className="flex flex-wrap gap-1.5 pt-1">
+      {ideas.map((idea) => (
+        <button key={idea.name} type="button" aria-pressed={idea === picked} title={idea.scene} onClick={() => onChange(pickTheme(theme, idea.scene))} className={ideaClass(idea === picked)}>
+          {idea.name}
+        </button>
+      ))}
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        onClick={() => setMoreOpen(true)}
+        className="flex h-7 items-center gap-0.5 rounded-full px-2 text-chip font-medium text-sage-ink transition-colors hover:bg-sage/60"
+      >
+        {STORY_THEMES.length - FEATURED_THEMES.length} more themes
+        <ChevronRight size={13} strokeWidth={2} aria-hidden />
+      </button>
+      <ThemeIdeasDialog open={moreOpen} onClose={() => setMoreOpen(false)} theme={theme} onPick={onChange} />
+    </div>
+  )
 }
 
 /** Whether Claude can reach this browser; the story cannot arrive otherwise. */
@@ -96,24 +128,32 @@ function AiStoryForm({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
   const { toast } = useFeedback()
   const [openedAt] = useState(() => Date.now())
-  const [deckId, setDeckId] = useState(() => storage.get(DECK_KEY) ?? ALL_DECKS)
+  const [deckIds, setDeckIds] = useState(() => parseDeckIds(storage.get(DECKS_KEY)))
   const [level, setLevel] = useState<StoryLevel>('A1')
   const [length, setLength] = useState<StoryLength>('short')
   const [theme, setTheme] = useState('')
   const [copied, setCopied] = useState(false)
+  const [showPrompt, setShowPrompt] = useState(false)
 
-  const deck = decks.find((d) => d.id === deckId)
+  // Decks deleted since they were chosen drop out; none left means all decks.
+  const chosen = useMemo(() => decks.filter((d) => deckIds.includes(d.id)), [decks, deckIds])
   const words = useMemo(() => {
-    const cards = [...vocabulary.cards.values()].filter((c) => !deck || c.deckId === deck.id)
+    const ids = new Set(chosen.map((d) => d.id))
+    const cards = [...vocabulary.cards.values()].filter((c) => !ids.size || ids.has(c.deckId))
     return pickPromptWords(cards, (id) => vocabulary.knowledge.get(id))
-  }, [vocabulary, deck])
+  }, [vocabulary, chosen])
+  const deckOptions = useMemo(() => {
+    const perDeck = new Map<string, number>()
+    for (const card of vocabulary.cards.values()) if (isPromptWord(card)) perDeck.set(card.deckId, (perDeck.get(card.deckId) ?? 0) + 1)
+    return decks.map((d) => ({ value: d.id, label: d.name, count: perDeck.get(d.id) ?? 0 }))
+  }, [vocabulary, decks])
   const prompt = buildStoryPrompt({ level, length, theme, words })
   // The story Claude saved while this dialog was open.
   const arrived = stories?.find((s) => s.createdAt >= openedAt && s.tags.includes(AI_TAG))
 
-  const pickDeck = (id: string) => {
-    setDeckId(id)
-    storage.set(DECK_KEY, id)
+  const pickDecks = (ids: string[]) => {
+    setDeckIds(ids)
+    storage.set(DECKS_KEY, JSON.stringify(ids))
   }
 
   const copyPrompt = async () => {
@@ -131,15 +171,8 @@ function AiStoryForm({ onClose }: { onClose: () => void }) {
       <ConnectionNote />
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Words from" htmlFor="ai-deck">
-          <Select id="ai-deck" value={deck ? deck.id : ALL_DECKS} onChange={(e) => pickDeck(e.target.value)}>
-            <option value={ALL_DECKS}>All decks</option>
-            {decks.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </Select>
+        <Field label="Words from" htmlFor="ai-deck" className="sm:col-span-2">
+          <DeckPicker id="ai-deck" decks={deckOptions} value={chosen.map((d) => d.id)} onChange={pickDecks} unit="word" />
         </Field>
         <Field label="Level" htmlFor="ai-level">
           <Select id="ai-level" value={level} onChange={(e) => setLevel(e.target.value as StoryLevel)}>
@@ -150,16 +183,23 @@ function AiStoryForm({ onClose }: { onClose: () => void }) {
             ))}
           </Select>
         </Field>
-        <Field label="Theme (optional)" htmlFor="ai-theme">
-          <Input id="ai-theme" value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="a day at the market" autoComplete="off" />
-        </Field>
         <div className="flex flex-col gap-1.5">
           <span className="text-small font-medium text-ink-2">Length in words</span>
           {/* The level sets how long each length is: a short A1 story has 60 words, a short B1 story 150. */}
           <Segmented label="Length" options={LENGTHS.map((l) => ({ ...l, count: storyWordCount(level, l.value) }))} value={length} onChange={setLength} />
         </div>
+        <Field label="Theme (optional)" htmlFor="ai-theme" className="sm:col-span-2">
+          <Textarea
+            id="ai-theme"
+            rows={3}
+            maxLength={400}
+            value={theme}
+            onChange={(e) => setTheme(e.target.value)}
+            placeholder="What the story is about, such as two friends who get lost on a hike"
+          />
+          <ThemeIdeas theme={theme} onChange={setTheme} />
+        </Field>
       </div>
-      <p className="text-small text-muted">{vocabulary.loaded ? wordsSummary(words, deck?.name ?? 'your decks') : null}</p>
 
       <ol className="flex flex-col gap-4 border-t border-line pt-5">
         <Step n={1} done={copied}>
@@ -168,11 +208,28 @@ function AiStoryForm({ onClose }: { onClose: () => void }) {
             <Button variant="primary" icon={<Copy size={15} strokeWidth={1.8} />} onClick={() => void copyPrompt()}>
               Copy prompt
             </Button>
-            <details className="min-w-0 flex-1">
-              <summary className="cursor-pointer text-small text-sage-ink hover:text-ink">See the prompt</summary>
-              <Textarea readOnly rows={10} value={prompt} aria-label="Prompt" className="mt-2 text-small" />
-            </details>
+            <button
+              type="button"
+              aria-expanded={showPrompt}
+              aria-controls="ai-prompt"
+              onClick={() => setShowPrompt((v) => !v)}
+              className="flex items-center gap-1 text-small text-sage-ink transition-colors hover:text-ink"
+            >
+              {showPrompt ? 'Hide the prompt' : 'See the prompt'}
+              <ChevronDown size={14} strokeWidth={2} aria-hidden className={clsx('transition-transform', showPrompt && 'rotate-180')} />
+            </button>
           </div>
+          {/* Under the buttons and as wide as the step, so the prompt reads like a page. */}
+          {showPrompt && (
+            <Textarea
+              id="ai-prompt"
+              readOnly
+              rows={12}
+              value={prompt}
+              aria-label="Prompt"
+              className="animate-fade-in border-line bg-soft text-small leading-relaxed text-ink-2 [scrollbar-width:thin] focus:bg-main"
+            />
+          )}
         </Step>
         <Step n={2}>Paste it into Claude Desktop or Claude Code, and send it.</Step>
         <Step n={3} done={!!arrived}>

@@ -260,7 +260,7 @@ export default function BoardPage() {
         title="Board"
         subtitle={`${open} open ${open === 1 ? 'task' : 'tasks'}${overdue ? ` · ${overdue} overdue` : ''}`}
         actions={
-          <Button variant="primary" icon={<Plus size={16} strokeWidth={1.8} />} onClick={() => openTaskEditor({ status: 'todo' })}>
+          <Button data-tour="board-add" variant="primary" icon={<Plus size={16} strokeWidth={1.8} />} onClick={() => openTaskEditor({ status: 'todo' })}>
             Add task
           </Button>
         }

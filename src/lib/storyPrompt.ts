@@ -9,7 +9,7 @@ import type { Knowledge } from './reader'
  * Claude Desktop or Claude Code then saves the story with create_story.
  */
 
-/** Every word of the chosen deck, split by whether you can already read it. */
+/** Every word of the chosen decks, split by whether you can already read it. */
 export interface PromptWords {
   /** Known or being learned, learning first. */
   familiar: string[]
@@ -19,14 +19,17 @@ export interface PromptWords {
 
 const KNOWLEDGE_ORDER: Record<Knowledge, number> = { learning: 0, known: 1, new: 2 }
 
+/** Whether a card is a word for the prompt: not a sentence, cloze card or article list such as "der / die / das". */
+export const isPromptWord = (card: Card): boolean => card.type === 'word' && !card.german.includes('/')
+
 /**
- * All the words in `cards` (one deck, or all) for the prompt. Only word
+ * All the words in `cards` (some decks, or all) for the prompt. Only word
  * cards count; sentences, cloze cards and article lists such as
  * "der / die / das" are left out.
  */
 export function pickPromptWords(cards: Card[], knowledgeOf: (cardId: string) => Knowledge | undefined): PromptWords {
   const words = cards
-    .filter((c) => c.type === 'word' && !c.german.includes('/'))
+    .filter(isPromptWord)
     .sort((a, b) => a.createdAt - b.createdAt)
     .map((card) => ({ text: germanText(card), knowledge: knowledgeOf(card.id) ?? 'new' }))
   const familiar = words
@@ -146,6 +149,11 @@ export function storyWordCount(level: StoryLevel, length: StoryLength): number {
   return LEVEL_GUIDE[level].words[length]
 }
 
+/** The theme as one line for the prompt: spaces and line breaks squeezed, no full stop at the end. */
+export function themeLine(theme: string): string {
+  return theme.replace(/\s+/g, ' ').replace(/[\s.]+$/, '').trim()
+}
+
 export interface StoryPromptInput {
   level: StoryLevel
   length: StoryLength
@@ -164,7 +172,7 @@ export function buildStoryPrompt({ level, length, theme, words }: StoryPromptInp
     `I am learning German at level ${level} (${guide.name}). Please write a story for me to read.`,
     '',
     'THE STORY',
-    `- Topic: ${theme.trim() || 'something from everyday life'}.`,
+    `- Topic: ${themeLine(theme) || 'something from everyday life'}.`,
     `- About ${guide.words[length]} words, in ${guide.paragraphs}.`,
     `- ${guide.plot}`,
     `- A short German title.`,

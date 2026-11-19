@@ -1,13 +1,9 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
-import { ChevronDown, Search } from 'lucide-react'
 import { fitTabs } from '@/lib/tabs'
+import { DeckMenu, type DeckTab } from './DeckMenu'
 
-export interface DeckTab {
-  value: string
-  label: string
-  count: number
-}
+export type { DeckTab }
 
 const TAB_GAP = 2 // gap-0.5
 const PILL_PADDING = 8 // p-1 on both sides
@@ -27,11 +23,10 @@ function TabContent({ tab }: { tab: DeckTab }) {
   )
 }
 
-const fold = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ß/g, 'ss')
-
 /**
  * The Flashcards deck tabs. The bar fills its row; the decks that fit show as
- * tabs and the rest go in a "3 more" menu at its end, so any number of decks
+ * tabs and the rest go in a "3 more" button at its end, which opens them in a
+ * centred search menu, so any number of decks
  * keeps to one line. The open deck always shows as a tab.
  */
 export function DeckTabs({ tabs, value, onChange }: { tabs: DeckTab[]; value: string; onChange: (value: string) => void }) {
@@ -89,13 +84,12 @@ export function DeckTabs({ tabs, value, onChange }: { tabs: DeckTab[]; value: st
           <button
             ref={moreRef}
             type="button"
-            aria-haspopup="listbox"
+            aria-haspopup="dialog"
             aria-expanded={open}
-            onClick={() => setOpen((o) => !o)}
+            onClick={() => setOpen(true)}
             className={clsx(tabClass(false), 'ml-auto', open && 'text-ink')}
           >
             {hidden.length} more
-            <ChevronDown size={14} strokeWidth={2} aria-hidden className={clsx('transition-transform', open && 'rotate-180')} />
           </button>
         )}
       </div>
@@ -107,120 +101,11 @@ export function DeckTabs({ tabs, value, onChange }: { tabs: DeckTab[]; value: st
               <TabContent tab={tab} />
             </span>
           ))}
-          <span className={tabClass(false)}>
-            {tabs.length} more
-            <ChevronDown size={14} strokeWidth={2} />
-          </span>
+          <span className={tabClass(false)}>{tabs.length} more</span>
         </div>
       </div>
 
-      {open && hidden.length > 0 && <DeckMenu tabs={hidden} anchor={moreRef} onPick={pick} onClose={() => setOpen(false)} />}
-    </div>
-  )
-}
-
-/** The decks that did not fit, with a filter for long lists. Arrow keys move, Enter opens, Escape closes. */
-function DeckMenu({ tabs, anchor, onPick, onClose }: { tabs: DeckTab[]; anchor: React.RefObject<HTMLButtonElement | null>; onPick: (value: string) => void; onClose: () => void }) {
-  const [query, setQuery] = useState('')
-  const [active, setActive] = useState(0)
-  const ref = useRef<HTMLDivElement>(null)
-  const listRef = useRef<HTMLDivElement>(null)
-  const listId = useId()
-  const q = fold(query.trim())
-  const matches = q ? tabs.filter((t) => fold(t.label).includes(q)) : tabs
-  const activeIndex = Math.min(active, Math.max(0, matches.length - 1))
-  const searchable = tabs.length > 6
-
-  useEffect(() => {
-    const onDown = (e: PointerEvent) => {
-      const target = e.target as Node
-      if (!ref.current?.contains(target) && !anchor.current?.contains(target)) onClose()
-    }
-    document.addEventListener('pointerdown', onDown)
-    return () => document.removeEventListener('pointerdown', onDown)
-  }, [anchor, onClose])
-
-  useEffect(() => {
-    listRef.current?.children[activeIndex]?.scrollIntoView({ block: 'nearest' })
-  }, [activeIndex])
-
-  // Without the filter the list takes the keys itself.
-  useEffect(() => {
-    if (!searchable) listRef.current?.focus()
-  }, [searchable])
-
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setActive(Math.min(activeIndex + 1, matches.length - 1))
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setActive(Math.max(activeIndex - 1, 0))
-    } else if (e.key === 'Enter' && matches[activeIndex]) {
-      e.preventDefault()
-      onPick(matches[activeIndex].value)
-    } else if (e.key === 'Escape') {
-      e.preventDefault()
-      onClose()
-      anchor.current?.focus()
-    }
-  }
-
-  return (
-    <div ref={ref} className="absolute top-[calc(100%+6px)] right-0 z-40 flex w-72 max-w-[calc(100vw-32px)] animate-fade-in flex-col rounded-section border border-line bg-main p-1.5 shadow-popup">
-      {searchable && (
-        <label className="mb-1 flex h-9 shrink-0 items-center gap-2 rounded-img bg-field px-2.5 text-muted">
-          <Search size={14} strokeWidth={1.8} aria-hidden />
-          <input
-            type="search"
-            role="combobox"
-            aria-expanded
-            aria-controls={listId}
-            aria-activedescendant={matches.length ? `${listId}-${activeIndex}` : undefined}
-            aria-label="Find a deck"
-            placeholder="Find a deck"
-            autoFocus
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value)
-              setActive(0)
-            }}
-            onKeyDown={onKeyDown}
-            className="w-full min-w-0 bg-transparent text-small text-ink outline-none"
-          />
-        </label>
-      )}
-      <div
-        ref={listRef}
-        id={listId}
-        role="listbox"
-        aria-label="More decks"
-        tabIndex={searchable ? undefined : -1}
-        aria-activedescendant={!searchable && matches.length ? `${listId}-${activeIndex}` : undefined}
-        onKeyDown={searchable ? undefined : onKeyDown}
-        className="flex max-h-80 flex-col overflow-y-auto outline-none"
-      >
-        {matches.length === 0 ? (
-          <div className="px-2.5 py-3 text-small text-muted">No deck matches “{query.trim()}”.</div>
-        ) : (
-          matches.map((tab, i) => (
-            <button
-              key={tab.value}
-              id={`${listId}-${i}`}
-              type="button"
-              role="option"
-              tabIndex={-1}
-              aria-selected={i === activeIndex}
-              onMouseEnter={() => setActive(i)}
-              onClick={() => onPick(tab.value)}
-              className={clsx('flex min-h-9 w-full shrink-0 items-center gap-2.5 rounded-img px-2.5 py-1.5 text-left text-small transition-colors', i === activeIndex && 'bg-field')}
-            >
-              <span className="min-w-0 flex-1 truncate">{tab.label}</span>
-              <span className="w-9 text-right text-chip text-muted tabular-nums">{tab.count}</span>
-            </button>
-          ))
-        )}
-      </div>
+      {open && hidden.length > 0 && <DeckMenu decks={hidden} anchor={moreRef} onPick={pick} onClose={() => setOpen(false)} />}
     </div>
   )
 }

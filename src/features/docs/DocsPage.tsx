@@ -147,7 +147,7 @@ export function DocsPage() {
           <Button variant="outline" icon={<FolderPlus size={15} strokeWidth={1.8} />} onClick={() => setDialog('newFolder')}>
             New folder
           </Button>
-          <Button variant="soft" icon={<Plus size={16} strokeWidth={1.8} />} onClick={() => navigate(folderId ? `/docs/new?folder=${folderId}` : '/docs/new')}>
+          <Button data-tour="docs-new" variant="soft" icon={<Plus size={16} strokeWidth={1.8} />} onClick={() => navigate(folderId ? `/docs/new?folder=${folderId}` : '/docs/new')}>
             New doc
           </Button>
         </>
