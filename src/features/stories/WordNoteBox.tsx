@@ -89,6 +89,7 @@ export function WordNoteBox({
         transformOrigin: place && `${place.originX}px ${place.originY}px`,
         visibility: place ? undefined : 'hidden',
       }}
+      data-tour="word-note"
       className={clsx(
         'fixed z-40 max-w-[calc(100vw-24px)] scrollbar-none overflow-y-auto rounded-section border border-line bg-main shadow-float',
         closing ? 'animate-note-out' : 'animate-note-in',

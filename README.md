@@ -28,7 +28,7 @@ Everything lives in your browser, works offline, and installs on your phone.
 ## At a glance
 
 - **A guided start.** The first visit asks what you want to learn (German, AI or your own topic) and how long a day, then sets up your daily goals. German comes with 898 words and phrases, stories, speaking questions and grammar, ready to practise.
-- **A tour of the app.** Right after the welcome, a two-minute tour walks from page to page: Today, Flashcards, Stories, the focus timer, Board, History, Docs and the AI connection, audio and features in Settings. Each stop says why that part helps you remember. **Settings → Tour** runs it again.
+- **A tour of the app.** Right after the welcome, a tour walks from page to page and shows how each part works and why it helps you remember. It opens a real practice round, shows a card and its answer, and explains the ratings; it opens a story, explains the highlight colours, taps a word to show its note, and shows the word's card beside the story. Then the focus timer, Board, History, Docs and the AI connection, audio and features in Settings. **Settings → Tour** runs it again.
 - **Local-first.** No account and no server. Your cards, sessions and tasks are stored in IndexedDB.
 - **Works offline.** A service worker caches the app, and the Geist font is bundled.
 - **Practise a whole deck.** Open a deck's tab, pick the practice directions and go through every card. Each session's time is saved, and Practice history shows them all.
