@@ -4,11 +4,11 @@
 
 # Lernzeit
 
-**Learn German with Claude as your teacher.**
+### With AI, learning a language becomes fast and easy.
 
-Show Claude a photo of your words or just name a topic, and it makes the flashcards.<br />
-It writes stories from the words you already know, and turns any grammar rule into exercises.<br />
-Lernzeit keeps it all, makes you practise it, and tracks your time. It runs in your browser, offline, with no account.
+Give Claude a picture of words, a word list, or just a topic, and you get flashcards.<br />
+Lernzeit gives Claude your whole word base and your level, so every story is written with the words and grammar you already know.<br />
+You use your words in real reading, and any grammar rule you ask for comes back as a lesson with exercises.
 
 ![React](https://img.shields.io/badge/React-19-22302A?style=flat-square&logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-22302A?style=flat-square&logo=typescript&logoColor=white)
@@ -17,7 +17,7 @@ Lernzeit keeps it all, makes you practise it, and tracks your time. It runs in y
 ![PWA](https://img.shields.io/badge/PWA-offline_ready-22302A?style=flat-square&logo=pwa&logoColor=white)
 ![MCP](https://img.shields.io/badge/MCP-Claude_ready-22302A?style=flat-square)
 
-[How it works](#how-it-works) · [What you can ask](#what-you-can-ask-claude) · [Get started](#get-started) · [The app](#everything-in-the-app) · [German content](#german-content) · [Privacy](#what-the-ai-can-see) · [Deploy](#deploy-and-install-on-your-phone) · [Shortcuts](#keyboard-shortcuts) · [Project structure](#project-structure)
+[The method](#the-lernzeit-method) · [Step by step](#how-it-works) · [What you can ask](#what-you-can-ask-claude) · [Get started](#get-started) · [The app](#everything-in-the-app) · [German content](#german-content) · [Privacy](#what-the-ai-can-see) · [Deploy](#deploy-and-install-on-your-phone) · [Shortcuts](#keyboard-shortcuts) · [Project structure](#project-structure)
 
 <br />
 
@@ -27,9 +27,28 @@ Lernzeit keeps it all, makes you practise it, and tracks your time. It runs in y
 
 <br />
 
+## The Lernzeit method
+
+> [!TIP]
+> **The most important idea in Lernzeit:** you don't learn from a book's word list. You learn from **your own words**, and the AI builds everything around them.
+
+| You give | Lernzeit and Claude give you back |
+|---|---|
+| 📷 **A picture** of words: a textbook page, a menu, a sign | Flashcards for every word, with article, plural, verb forms, an example sentence and audio |
+| 📝 **A word list**, or just **a topic** like *at the doctor* | A full deck on that topic, at your level |
+| 📚 **Your whole word base and your level** (Lernzeit sends them for you) | Stories written with the words you know, the grammar you know, and only a few new words |
+| ❓ **Any grammar rule**, in plain words: *"Explain the Dativ"* | A lesson with the rule, tables, examples and exercises, each answer explained |
+
+**Why this works**
+
+- **You read real German from day one.** A story you understand almost word for word is easy to read, and reading it is how words stay. Lernzeit shows how much of a story you know, and reading is easy from about 95%.
+- **Every new word lands in context.** Each story brings in only a few new words (3 at A1, 5 at A2, 8 at B1), so you meet them in sentences you already understand. Tap one and it becomes a card.
+- **Grammar on demand.** No fixed course to wait for: ask about the rule you just met, and practise it on your own nouns and verbs.
+- **Nothing is forgotten.** Every card comes back by spaced repetition until you know it, and your time counts toward a daily goal.
+
 ## How it works
 
-Most apps give you the same word list as everyone else. In Lernzeit, Claude builds the material from **your** words, at **your** level, and the app makes sure you practise it. Claude Desktop or Claude Code connects to Lernzeit through a small [MCP](https://modelcontextprotocol.io) server, so Claude can read your decks and save what it makes straight into the app.
+Claude Desktop or Claude Code connects to Lernzeit through a small [MCP](https://modelcontextprotocol.io) server, so Claude can read your decks and save what it makes straight into the app. The loop:
 
 ```mermaid
 flowchart LR
