@@ -54,6 +54,7 @@ export function StoryText({
   selectedRef,
   onSelect,
   onSpeak,
+  hasNote,
 }: {
   story: AnnotatedStory
   vocabulary: Vocabulary
@@ -64,6 +65,8 @@ export function StoryText({
   selectedRef: RefObject<HTMLButtonElement | null>
   onSelect: (ref: WordRef) => void
   onSpeak: (text: string) => void
+  /** Whether a word has a note on why it has its form; marked on the word, so the tour can tap one. */
+  hasNote?: (paragraph: number, piece: Piece) => boolean
 }) {
   const learning = useLearningText()
   const nativeText = useNativeText()
@@ -89,6 +92,7 @@ export function StoryText({
                   ref={key === selectedKey ? selectedRef : undefined}
                   type="button"
                   data-word
+                  data-noted={hasNote?.(index, piece) || undefined}
                   tabIndex={key === tabStop ? 0 : -1}
                   aria-current={key === selectedKey ? 'true' : undefined}
                   onFocus={() => setFocused(key)}
