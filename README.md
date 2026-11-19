@@ -56,6 +56,8 @@ Everything lives in your browser, works offline, and installs on your phone.
 
 Shows progress per topic with the time left, start buttons, today's sessions, cards due, the word of the day and tasks due today. **Log time** adds study you did away from the timer.
 
+On every page but Flashcards, **Goals today** in the sidebar lists each topic's time against its goal and ends with **Worked today**: all the time you studied today, the running timer and topics without a goal included, against the day's total goal.
+
 </details>
 
 <details>
