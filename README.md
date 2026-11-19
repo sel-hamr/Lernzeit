@@ -4,18 +4,20 @@
 
 # Lernzeit
 
-**A quiet study companion for learning German, explained in English.**
+**Learn German with Claude as your teacher.**
 
-Flashcards with spaced repetition, daily goals per topic, a focus timer, streaks and charts, and a to-do board.<br />
-Everything lives in your browser, works offline, and installs on your phone.
+Show Claude a photo of your words or just name a topic, and it makes the flashcards.<br />
+It writes stories from the words you already know, and turns any grammar rule into exercises.<br />
+Lernzeit keeps it all, makes you practise it, and tracks your time. It runs in your browser, offline, with no account.
 
 ![React](https://img.shields.io/badge/React-19-22302A?style=flat-square&logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-22302A?style=flat-square&logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-8-22302A?style=flat-square&logo=vite&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-22302A?style=flat-square&logo=tailwindcss&logoColor=white)
 ![PWA](https://img.shields.io/badge/PWA-offline_ready-22302A?style=flat-square&logo=pwa&logoColor=white)
+![MCP](https://img.shields.io/badge/MCP-Claude_ready-22302A?style=flat-square)
 
-[Features](#features) · [German levels](#german-levels) · [Quick start](#quick-start) · [Install on your phone](#install-on-your-phone) · [AI connection](#ai-connection) · [Shortcuts](#keyboard-shortcuts) · [Project structure](#project-structure)
+[How it works](#how-it-works) · [What you can ask](#what-you-can-ask-claude) · [Get started](#get-started) · [The app](#everything-in-the-app) · [German content](#german-content) · [Privacy](#what-the-ai-can-see) · [Deploy](#deploy-and-install-on-your-phone) · [Shortcuts](#keyboard-shortcuts) · [Project structure](#project-structure)
 
 <br />
 
@@ -25,17 +27,88 @@ Everything lives in your browser, works offline, and installs on your phone.
 
 <br />
 
-## At a glance
+## How it works
 
-- **A guided start.** The first visit asks what you want to learn (German, AI or your own topic) and how long a day, then sets up your daily goals. German comes with 898 words and phrases, stories, speaking questions and grammar, ready to practise.
-- **A tour of the app.** Right after the welcome, a tour walks from page to page and shows how each part works and why it helps you remember. It opens a real practice round, shows a card and its answer, and explains the ratings; it opens a story, explains the highlight colours, taps a word to show its note, and shows the word's card beside the story. Then the focus timer, Board, History, Docs and the AI connection, audio and features in Settings. **Settings → Tour** runs it again.
-- **Local-first.** No account and no server. Your cards, sessions and tasks are stored in IndexedDB.
-- **Works offline.** A service worker caches the app, and the Geist font is bundled.
-- **Practise a whole deck.** Open a deck's tab, pick the practice directions and go through every card. Each session's time is saved, and Practice history shows them all.
-- **Always in sync.** Every view reads live queries, so a change shows up instantly, even in other tabs.
+Most apps give you the same word list as everyone else. In Lernzeit, Claude builds the material from **your** words, at **your** level, and the app makes sure you practise it. Claude Desktop or Claude Code connects to Lernzeit through a small [MCP](https://modelcontextprotocol.io) server, so Claude can read your decks and save what it makes straight into the app.
+
+```mermaid
+flowchart LR
+  IN["A photo, a topic<br/>or a word list"] --> C(("Claude"))
+  C --> CARDS["Cards in your decks"]
+  CARDS --> PRACTISE["Practise with<br/>spaced repetition"]
+  PRACTISE --> KNOWN["Words you know"]
+  KNOWN -->|Write with AI| C
+  C --> STORY["Stories from<br/>your words"]
+  STORY -->|tap a new word| CARDS
+  C --> GRAMMAR["Grammar rules<br/>and exercises"]
+```
+
+**1. Words in, from anything.** Paste a photo of a textbook page, a menu or a sign into Claude, give it a list, or just name a topic like *at the doctor*. Claude makes real cards: the article and gender colour, the plural, the verb forms, all six forms of each tense, an example sentence with its English, and an emoji. A word that is already in the deck is skipped.
+
+**2. Practise until it sticks.** Lernzeit asks every card in the directions you pick (picture, English, German or a gap sentence), by typing or by ear, and brings each one back by how well you knew it. A natural German voice reads everything, offline.
+
+**3. Read with the words you know.** In **Stories → Write with AI** you tick your decks and pick a level and a theme. Lernzeit writes a prompt with every word you know or are learning, and only a few new ones (3 at A1, 5 at A2, 8 at B1). Claude writes the story and saves it with a note on every word you may need help with: what it means, why it has this form in this sentence, one more example and a tip. In the reader, your words light up by how well you know them, and a new word becomes a card in one tap.
+
+**4. Ask for any grammar rule.** Say *"Explain the Dativ and give me 12 exercises"*. Claude adds a grammar topic with the rule, tables, examples you can listen to, and exercises of four kinds, each with a one-line *why*. The grammar drills also ask your own words: the genders and plurals of your nouns and the tenses of your verbs, from the cards Claude made.
+
+**5. Speak about your life.** Claude adds speaking questions like the ones in an exam, with a suggested answer. You write your own answer once, then answer from memory and compare.
+
+Everything also works without AI: you can type your own cards, stories, questions and grammar, and the German starter gives you 898 words, 107 stories, 44 questions and 27 grammar topics on day one.
+
+## What you can ask Claude
+
+Once the [AI connection](#get-started) is on, talk to Claude in plain words. Some examples:
+
+| You say | Claude does |
+|---|---|
+| *(a photo of a textbook page)* "Make cards for the new words in a deck *Kapitel 3*" | Reads the photo, makes the deck and the cards |
+| "Make 15 A1 cards about the kitchen" | Nouns with gender and plural, verbs with their forms, a few phrases |
+| *(the prompt from Stories → Write with AI)* | Writes a story from your known words and saves it with word notes |
+| "Write a short A2 story about a trip to Berlin" | A story with its English translation, paragraph by paragraph |
+| "Explain *weil* and *dass* and give me exercises" | A new grammar topic, or more exercises in the one you have |
+| "Give me 10 speaking questions about work" | A question set to practise in Questions |
+| "Which of my nouns have no plural? Move all food words to a *Food* deck" | Reads your cards and moves them, with their progress kept |
+| "Plan my next month for the A2 exam" | Small tasks on the Board, with due dates |
+| "Save this explanation as a doc" | A page on Docs to read later |
+| "I studied 40 minutes with my teacher today" | Logs the time toward today's goal |
+
+Claude Desktop and Claude Code also offer ready prompts from the server: `make_cards`, `write_story`, `make_questions`, `make_grammar`, `plan_tasks` and `help`. In Grammar, **Ask Claude why** opens a chat with the exercise, your answer and the rule.
+
+## Get started
+
+You need Node 22.18 or newer (the app alone runs on Node 20, but the AI connection and `lz` need 22.18).
+
+```bash
+git clone https://github.com/sel-hamr/Lernzeit.git
+cd Lernzeit
+npm install
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173). The first visit asks what you want to learn (German, AI or your own topic) and how long a day, then a tour shows each page.
+
+**Connect Claude** in two steps:
+
+1. Run `npm run mcp:setup` (or `lz mcp` once you have [linked `lz`](#the-lz-command)). It adds the Lernzeit server to Claude Code and Claude Desktop and prints a token. If you host Lernzeit, give it the address too:
+
+   ```bash
+   npm run mcp:setup -- https://lernzeit.example.workers.dev
+   ```
+
+2. In Lernzeit, open **Settings → AI connection**, turn it on and paste the token.
+
+Keep the Lernzeit tab open while you talk to Claude: the server passes each request to that tab, which saves it. An **AI** row in the sidebar shows whether Claude can reach this browser. [docs/mcp-bridge.md](docs/mcp-bridge.md#setup) has the details.
+
+## Everything in the app
+
+- **Daily goals.** A goal in minutes per topic and weekday. The focus timer counts toward it, and so can card reviews, story reading and grammar and question practice (switches in Settings).
+- **Local-first.** No account and no server. Your cards, sessions and tasks are stored in IndexedDB, and a JSON backup takes one click.
+- **Works offline** and installs on your phone as an app.
+- **Always in sync.** Every view reads live queries, so a change shows up at once, even one Claude just made, and in other tabs.
+- **Search everything.** Press <kbd>/</kbd> to search your cards, tasks and docs from any page.
+- **Turn off what you don't use.** Every page but Today can be switched off in **Settings → Features**. Nothing you saved in it is deleted.
+- **A guided start.** A welcome sets up your goals, and a tour shows how each page works and why it helps you remember. **Settings → Tour** runs it again.
 - **Light and dark.** Follows your system theme, or pick one.
-
-## Features
 
 | Page | What it does |
 |---|---|
@@ -48,7 +121,7 @@ Everything lives in your browser, works offline, and installs on your phone.
 | **Docs** | Paste Markdown into nested folders and read it like a README. Pinned and recent docs, tags, read status, search, and it reopens where you stopped |
 | **History** | Week calendar, 16-week heatmap, streaks, hours per topic and flashcard stats |
 | **Board** | Backlog, To do, Doing and Done, with drag and drop on desktop and touch |
-| **Settings** | Goals per weekday, decks, voice and speed, themes, reminders, the tour of the app, backup and restore |
+| **Settings** | Goals per weekday, decks, starter content, voice and speed, the AI connection, features on and off, themes, reminders, the tour of the app, backup and restore, sign out |
 
 <details>
 <summary><b>Today</b></summary>
@@ -103,7 +176,7 @@ On every page but Flashcards, **Goals today** in the sidebar lists each topic's 
 - **A path to follow.** Topics are ordered by level with a ring that fills as you learn them; **Continue** takes you to the next one. A topic is mastered when you know 80% of its exercises.
 - **Review that keeps it learned.** A wrong answer comes back in the same round and again minutes later; right answers come back after 1, 3, 7, 16, 35 and 75 days. **Start review** mixes everything due from every topic.
 - Topics that fit your cards also ask about **your own words**: *Der, die, das* your nouns' genders, *Plural* their plurals, *Präsens*, *Präteritum* and *Perfekt* your verbs in that tense, from the card's **conjugation** (six forms per tense, never built by rules; all 139 starter verbs have one).
-- **Add your own** topics and exercises in the editor, in plain text, or let your AI app write them with `add_grammar` (see [AI connection](#ai-connection)). Starter topics can be edited too.
+- **Add your own** topics and exercises in the editor, in plain text, or let your AI app write them with `add_grammar` (see [AI connection](#get-started)). Starter topics can be edited too.
 - `ue` for `ü` and lowercase are accepted, but a missing umlaut is wrong, because *Äpfel* and *fährst* are the point. Active practice time can count toward German. [docs/grammar.md](docs/grammar.md) has the details.
 
 </details>
@@ -118,8 +191,8 @@ On every page but Flashcards, **Goals today** in the sidebar lists each topic's 
 - In stories written by AI, the words you need help with explain themselves, and hard words go further: the meaning, why the word has this form in this sentence, one more example, and a tip.
 - A bar shows how much of the story you know, are learning, have in a deck but not studied yet, or do not have. Reading is easy from about 95% known.
 - Listen to each paragraph, show the English translation under it, and mark the story as read. Active reading time can count toward the story's topic.
-- **Write with AI** builds a prompt with every word of the decks you tick (one, several, or all decks; search the list and see each deck's word count), marking the ones you know or are learning, at your level and theme. Write your own theme, or pick one of the ideas under the box (At the café, A trip to Berlin, …): it fills the box with a short scene, people, a place and what happens, that you can still change. One idea at a time; click it again to clear it. **More themes** opens all 45 ideas in eight groups (everyday life, food and shopping, travel, work and study, health, family and friends, free time, celebrations and seasons), with a search. Paste it into Claude Desktop or Claude Code: Claude writes the story and saves it here through the [AI connection](#ai-connection).
-- Write or paste your own stories, or let your AI app add them directly (see [AI connection](#ai-connection)). [docs/stories.md](docs/stories.md) explains how words are matched.
+- **Write with AI** builds a prompt with every word of the decks you tick (one, several, or all decks; search the list and see each deck's word count), marking the ones you know or are learning, at your level and theme. Write your own theme, or pick one of the ideas under the box (At the café, A trip to Berlin, …): it fills the box with a short scene, people, a place and what happens, that you can still change. One idea at a time; click it again to clear it. **More themes** opens all 45 ideas in eight groups (everyday life, food and shopping, travel, work and study, health, family and friends, free time, celebrations and seasons), with a search. Paste it into Claude Desktop or Claude Code: Claude writes the story and saves it here through the [AI connection](#get-started).
+- Write or paste your own stories, or let your AI app add them directly (see [AI connection](#get-started)). [docs/stories.md](docs/stories.md) explains how words are matched.
 
 </details>
 
@@ -133,7 +206,7 @@ On every page but Flashcards, **Goals today** in the sidebar lists each topic's 
 - Every answer you type is kept. Under the answers, **Old responses** lists the last three with their date, and **Show all** the rest, so you can see how your answer improved.
 - There is no grading. Questions you have not answered come first, then the ones you answered longest ago.
 - Listen to the question and the answers. Active practice time can count toward German.
-- Your AI app can add questions with a suggested answer, never your own (see [AI connection](#ai-connection)). [docs/questions.md](docs/questions.md) has the details.
+- Your AI app can add questions with a suggested answer, never your own (see [AI connection](#get-started)). [docs/questions.md](docs/questions.md) has the details.
 
 </details>
 
@@ -153,7 +226,7 @@ On every page but Flashcards, **Goals today** in the sidebar lists each topic's 
 <summary><b>History</b></summary>
 <br />
 
-A week calendar with every session, a day view (goal hit or missed, notes), a 16-week heatmap you can filter by topic, streaks, hours per topic per week or month, and flashcard stats: total, learned, practice time over 30 days, retention and reviews per day.
+A week calendar with every session (zoom with <kbd>Ctrl</kbd> + wheel or a trackpad pinch, and drag to scroll; the zoom is remembered), a day view (goal hit or missed, notes), a 16-week heatmap you can filter by topic, streaks, hours per topic per week or month, and flashcard stats: total, learned, practice time over 30 days, retention and reviews per day.
 
 When you change a goal, the new value applies from that day on, so past days keep the goal they had.
 
@@ -171,11 +244,28 @@ Four columns: Backlog, To do, Doing and Done. Drag cards between columns and reo
 <summary><b>Settings</b></summary>
 <br />
 
-Your German levels, topics and per-weekday goals, decks, Pomodoro lengths, end sound, the voice (browser, or the offline Thorsten voice) and speed, typing and listening modes, which study time counts automatically (reviews, reading, question practice, grammar practice), light/dark/system theme, goal reminders, JSON backup and restore, "protect storage" and reset.
+| Group | What you set |
+|---|---|
+| **Starter content** | Add a German level (A1, A2 or B1) of ready-made content |
+| **Topics and daily goals** | Topics and a goal for each weekday |
+| **Decks** | New decks, their topic, and **Import** for CSV files and card packs |
+| **Focus timer** | Pomodoro lengths, the end sound, and which study time counts automatically (reviews, reading, question practice, grammar practice) |
+| **AI connection** | Turn it on, name this browser, set the port, paste or generate a token, and copy the setup for Claude Desktop or Claude Code |
+| **Flashcards and audio** | The voice (browser, or the offline Thorsten voice), speaking speed, playing audio with the answer, typing and listening modes |
+| **Features** | Turn off Focus timer, Flashcards, Grammar, Stories, Questions, Docs, History or Board. Today is always on |
+| **Appearance** | Light, dark or system theme |
+| **Reminders** | Goal reminders at the times you pick |
+| **Tour** | Run the tour of the app again |
+| **Your data** | JSON backup and restore, **Install app** where the browser offers it, storage use and "protect storage", and delete all data |
+| **Account** | Sign out. Your data stays in the browser |
 
 </details>
 
-## German levels
+## German content
+
+You can start with ready-made German, start empty and let Claude build your decks, or both. Nothing is added until you ask for it.
+
+### The welcome's German starter
 
 The first time you open Lernzeit in a browser with no data, a short welcome asks two things:
 
@@ -190,22 +280,49 @@ The German file is made from a backup, keeping only the learning content: decks,
 node scripts/make-starter.ts path/to/lernzeit-backup.json
 ```
 
-Start empty to go straight to adding your own words. If you want ready-made content later, **Settings → Starter content** adds a level, A1, A2 or B1: word and sentence decks, short stories, speaking questions and grammar topics, with a German topic for your study time.
+### Levels in Settings
 
-[docs/languages.md](docs/languages.md) explains the pack.
+**Settings → Starter content** adds a level of the German pack in `src/languages/de/`: A1, A2 or B1, with word and sentence decks, short stories, speaking questions and grammar topics, and a German topic for your study time. [docs/languages.md](docs/languages.md) lists what each level holds.
 
-## Quick start
+| Deck | Cards | Source |
+|---|---:|---|
+| My Words | 53 | Your personal word list, kept in its order. Words that were also in the top words were moved here, so nothing is learned twice |
+| German Top Words | 562 | `src/languages/de/words.json` |
+| German Everyday Sentences | 54 | `src/languages/de/words.json` |
 
-You need Node 20 or newer.
+Each card uses its emoji as its picture. Nine German words use the illustrations from the design mockups instead, and cards without a picture show their first letter. Image → word is only asked for nouns, because an emoji for a verb or adjective could mean several words. A **Show a hint** link helps when a picture is ambiguous.
 
-```bash
-git clone https://github.com/sel-hamr/Lernzeit.git
-cd Lernzeit
-npm install
-npm run dev
-```
+The pack also has 103 short stories written with these words, 45 questions in six sets (*Sich vorstellen*, *Familie und Freunde*, *Freizeit*, *Arbeit und Schule*, *Wohnen und Alltag*, *Beim Arzt und auf dem Amt*) and the 27 grammar topics. Deleted some? **Stories → Starter stories**, **Questions → Starter questions** and **Grammar → Starter topics** add back the missing ones of the levels you have; installing a level again adds back its cards.
 
-Then open [http://localhost:5173](http://localhost:5173).
+### Bring your own cards
+
+- **Ask Claude**, as in [What you can ask Claude](#what-you-can-ask-claude).
+- **CSV** with the columns `english, german, gender, plural, example_de, example_en, tags, deck`, plus optional `emoji`, `verb_forms` and `present`, `past`, `perfect` columns. Each tense column holds six forms separated by commas, for verb questions in Grammar.
+- **Card pack**: a JSON file with `"format": "lernzeit-cards"`, shaped like the starter file. Importing a pack again only adds the cards you don't have yet.
+- **By hand** in the card editor, or with the **+** quick-add.
+
+Import both kinds of file in **Settings → Decks → Import**.
+
+## What the AI can see
+
+Your data stays in your browser. The MCP server in [`mcp/`](mcp) runs on your computer and only passes each request to the open Lernzeit tab, which saves it.
+
+- Claude **can** add decks, cards, stories, questions, grammar topics and exercises, docs, tasks and study time. It can read your cards and docs, move cards to another deck with their progress, and delete the cards or the deck you name, after telling you what and how many.
+- Claude **cannot** see your review history, your answers or your notes, and cannot edit or delete anything else. It does not know which words you know: **Write with AI** puts that into the prompt you paste, so you see what it gets.
+- Several browsers can be connected at once. Each keeps its own data, and Claude asks which one to use.
+
+| Tools | What they do |
+|---|---|
+| `list_browsers`, `list_topics`, `list_decks`, `list_grammar_topics` | Look before adding |
+| `create_deck`, `create_cards` | Add decks and cards (tagged `ai`; a German word already in the deck is skipped) |
+| `list_cards`, `move_cards`, `delete_cards`, `delete_deck` | Read cards, move them with their progress, delete the ones you name |
+| `create_story`, `create_questions`, `add_grammar` | Add stories with word notes, speaking questions, grammar topics and exercises |
+| `list_docs`, `read_doc`, `create_doc` | Read and save Markdown on the Docs page |
+| `create_task`, `log_study_time` | Add a task to the Board, log study time done away from the timer |
+
+The server also has a `lernzeit://guide` resource that teaches Claude how to write good German cards and stories.
+
+## Commands
 
 | Command | What it does |
 |---|---|
@@ -213,7 +330,8 @@ Then open [http://localhost:5173](http://localhost:5173).
 | `npm run build` | Type-checks and builds to `dist/`, including the service worker |
 | `npm run preview` | Serves the production build on http://localhost:4173 |
 | `npm start` | Builds if the code changed, then serves and opens the production build (the same as `lz`) |
-| `npm test` | Runs the unit tests (Vitest) |
+| `npm run mcp:setup` | Adds the MCP server to Claude Code and Claude Desktop and prints a token |
+| `npm test` | Runs the unit tests (Vitest), the app's and the MCP server's |
 | `npm run lint` | Runs ESLint |
 | `npm run typecheck` | Runs the TypeScript compiler only |
 
@@ -229,66 +347,42 @@ npm link
 |---|---|
 | `lz` | Builds when the code changed since the last build, then serves the production build on http://localhost:5173 and opens it. Stop it with <kbd>Ctrl</kbd>+<kbd>C</kbd> |
 | `lz --build` | Builds again even when nothing changed |
-| `lz mcp [url]` | Connects Claude Code and Claude Desktop to Lernzeit. Give it your hosted address to allow that site too. See [AI connection](#ai-connection) |
+| `lz mcp [url]` | Connects Claude Code and Claude Desktop to Lernzeit. Give it your hosted address to allow that site too. See [AI connection](#get-started) |
 | `lz <script>` | Runs any npm script of the project, such as `lz dev` or `lz test`. Extra words go to the script |
 
-If Lernzeit is already running, `lz` only opens it. `lz` runs the TypeScript file directly, so it needs Node 22.18 or newer, like the [MCP server](#ai-connection). `npm unlink -g lernzeit` removes it.
+If Lernzeit is already running, `lz` only opens it. `lz` runs the TypeScript file directly, so it needs Node 22.18 or newer, like the [MCP server](#get-started). `npm unlink -g lernzeit` removes it.
 
 > [!NOTE]
 > `lz` uses the dev server's port on purpose: the browser keeps data per address, so the build and `npm run dev` see the same cards and history. Only one of them can run at a time, and `lz` says so when the dev server is running. The build installs a service worker for offline use; the next time the dev server runs, it replaces that worker with one that removes itself, and the page reloads once.
 
-## Install on your phone
+## Deploy and install on your phone
 
-1. Run `npm run build`.
-2. Deploy `dist/` to any static host with HTTPS, such as Netlify, Vercel, Cloudflare Pages or GitHub Pages.
-3. Open the site on your phone and choose **Add to Home screen**.
+The build is static files with no server code, so any static host with HTTPS works. [wrangler.jsonc](wrangler.jsonc) is set up for Cloudflare: it serves `dist/` and sends client-side routes such as `/flashcards` to `index.html`.
+
+```bash
+npm run build
+npx wrangler deploy
+```
+
+Then open the site on your phone and choose **Add to Home screen**.
 
 > [!NOTE]
-> The app uses client-side routing, so the host must serve `index.html` for every unknown path.
+> On another host (Netlify, Vercel, GitHub Pages), deploy `dist/` and make the host serve `index.html` for every unknown path.
+
+## Sign in
+
+The app opens on a sign-in page with full-screen photos of German places (Bremen, Dresden, Bamberg, Neuschwanstein) that crossfade under a German proverb and its English. Once you sign in, this browser remembers it until **Settings → Account → Sign out**, which keeps your data.
 
 > [!WARNING]
-> The login is hardcoded in [src/features/login/login.ts](src/features/login/login.ts) and ships in the JavaScript, so anyone who reads the site's code can see it. Change it before you deploy, and don't use a real password.
-
-## AI connection
-
-An AI app such as Claude Code can add decks, cards, stories, practice questions, grammar topics and exercises, tasks and study time to Lernzeit through the MCP server in [`mcp/`](mcp). It can also read your cards, move them to another deck, and delete the ones you name, or a whole deck, with their progress. It never sees your review history, answers or notes, and cannot edit or delete anything else. Your data stays in the browser: the server passes each request to the open Lernzeit tab, which saves it.
-
-Set it up in two steps:
-
-1. Run `lz mcp`, or `npm run mcp:setup` if you have not linked `lz`. It adds the server to Claude Code and Claude Desktop and prints a token. If you host Lernzeit, give it the address:
-
-   ```bash
-   lz mcp https://lernzeit.example.workers.dev
-   ```
-
-2. In the browser you want, open **Settings → AI connection**, turn it on and paste the token.
-
-[docs/mcp-bridge.md](docs/mcp-bridge.md#setup) has the details.
-
-## Starter content
-
-The German pack is the starter content: nothing is added until you ask for it. [docs/languages.md](docs/languages.md) lists what each level holds.
-
-| Deck | Cards | Source |
-|---|---:|---|
-| My Words | 53 | Your personal word list, kept in its order. Words that were also in the top words were moved here, so nothing is learned twice |
-| German Top Words | 562 | `src/languages/de/words.json` |
-| German Everyday Sentences | 54 | `src/languages/de/words.json` |
-
-Each card uses its emoji as its picture. Nine German words use the illustrations from the design mockups instead, and cards without a picture show their first letter. Image → word is only asked for nouns, because an emoji for a verb or adjective could mean several words. A **Show a hint** link helps when a picture is ambiguous.
-
-The pack also has 103 short stories written with these words, 45 questions in six sets (*Sich vorstellen*, *Familie und Freunde*, *Freizeit*, *Arbeit und Schule*, *Wohnen und Alltag*, *Beim Arzt und auf dem Amt*) and the 27 grammar topics. Deleted some? **Stories → Starter stories**, **Questions → Starter questions** and **Grammar → Starter topics** add back the missing ones of the levels you have; installing a level again adds back its cards.
-
-### Bring your own cards
-
-- **CSV** with the columns `english, german, gender, plural, example_de, example_en, tags, deck`, plus optional `emoji`, `verb_forms` and `present`, `past`, `perfect` columns. Each tense column holds six forms separated by commas, for verb questions in Grammar.
-- **Card pack**: a JSON file with `"format": "lernzeit-cards"`, shaped like the starter file. Importing a pack again only adds the cards you don't have yet.
+> The login is hardcoded in [src/features/login/login.ts](src/features/login/login.ts) and ships in the JavaScript, so anyone who reads the site's code can see it. It only keeps out people who don't look. Change it before you deploy, and don't use a real password.
 
 ## Keyboard shortcuts
 
 | Key | Where | Action |
 |---|---|---|
-| <kbd>/</kbd> | Anywhere | Search cards and tasks |
+| <kbd>/</kbd> | Anywhere | Search cards, tasks and docs |
+| <kbd>↑</kbd> <kbd>↓</kbd> · <kbd>Enter</kbd> · <kbd>Esc</kbd> | Deck search | Move, open the deck, close |
+| <kbd>Ctrl</kbd> + wheel | History week | Zoom the calendar |
 | <kbd>Space</kbd> | Focus timer | Start or pause |
 | <kbd>Space</kbd> | Review | Show the answer, then press again to rate it Good |
 | <kbd>1</kbd> – <kbd>4</kbd> | Review | Rate Again, Hard, Good or Easy |
@@ -306,34 +400,40 @@ The pack also has 103 short stories written with these words, 45 questions in si
 
 ```
 src/
-├── app/          App shell, routing, global dialogs, background engines (timer, reminders, theme, AI bridge)
+├── app/          App shell, routing, the feature plugins, welcome and tour, global dialogs,
+│                 background engines (timer, reminders, theme, AI bridge)
 ├── bridge/       The AI connection: messages shared with mcp/, actions, WebSocket client
 ├── components/   Shared UI: buttons, dialogs, form controls, chips, station clock, card image
 ├── data/         Database actions (timer, cards, topics, tasks, import/export), speaking with saved clips, and React hooks
 ├── db/           Dexie schema and types
-├── features/     One folder per page: today, timer, flashcards, grammar, stories, questions, docs, history, board, settings
+├── features/     One folder per page: today, timer, flashcards, grammar, stories, questions, docs, history, board,
+│                 settings, login. Each page's plugin.ts gives its menu entry, routes and Settings switch
 ├── languages/    The German pack
 ├── lib/          Pure logic: time maths, goals and streaks, FSRS wrapper, review queue,
 │                 answer checking, German helpers, grammar topics and practice rounds, story word matching,
 │                 question practice order, image resizing, browser speech, the Thorsten voice worker, sounds
 └── index.css     Design tokens (colours, type scale, radii) for light and dark themes
 bin/              The `lz` command: builds when needed and serves the production build
-scripts/          `mcp:setup`: adds the MCP server to Claude Code and Claude Desktop
+scripts/          `mcp:setup` adds the MCP server to Claude Code and Claude Desktop; `make-starter` builds the German starter
 mcp/              MCP server for AI apps (an npm workspace)
+public/starter/   The German starter the welcome downloads
+wrangler.jsonc    Cloudflare static hosting
 ```
 
-The logic that decides correctness lives in `src/lib` and `src/data` as plain functions, covered by `src/lib/core.test.ts`, `src/lib/tour.test.ts`, `src/lib/grammar.test.ts`, `src/lib/drills.test.ts`, `src/lib/conjugation.test.ts`, `src/lib/reader.test.ts`, `src/lib/questions.test.ts`, `src/data/data.test.ts`, `src/data/tour.test.ts` and `src/data/languages.test.ts`. The data tests run against an in-memory IndexedDB. `src/languages/languages.test.ts` checks the German pack.
+The logic that decides correctness lives in `src/lib`, `src/data` and `src/bridge` as plain functions, each with a `*.test.ts` beside it (practice queue, grammar, drills, conjugation, story words and prompts, questions, docs, progress, tour, starter, the AI bridge). The data tests run against an in-memory IndexedDB, `src/languages/languages.test.ts` checks the German pack, and `mcp/src` has its own tests. `npm test` runs them all.
 
 ## Tech stack
 
 | Area | Tools |
 |---|---|
-| UI | React 19, TypeScript, Tailwind CSS 4, lucide-react, Geist font |
-| Build | Vite, vite-plugin-pwa |
-| Data | Dexie (IndexedDB), dexie-react-hooks |
+| UI | React 19, TypeScript, React Router, Tailwind CSS 4, lucide-react, Geist font |
+| Build and hosting | Vite, vite-plugin-pwa, Cloudflare (wrangler) |
+| Data | Dexie (IndexedDB), dexie-react-hooks, Papa Parse (CSV import) |
 | Learning | ts-fsrs |
 | Voice | Piper through @mintplex-labs/piper-tts-web and onnxruntime-web, Thorsten voice |
-| Interaction | dnd-kit, Recharts |
+| Docs | react-markdown, remark-gfm, rehype-highlight |
+| Interaction | dnd-kit, Recharts, driver.js (the tour) |
+| AI connection | MCP server (`@modelcontextprotocol/server`, zod) talking to the app over a local WebSocket (`ws`) |
 | Quality | Vitest, ESLint, fake-indexeddb |
 
 ## Good to know
@@ -345,4 +445,5 @@ The Thorsten voice keeps its model in the browser's private file storage and its
 ## More
 
 - [SPEC.md](SPEC.md): the full product spec
+- [docs/](docs/): how each part works ([grammar](docs/grammar.md), [stories](docs/stories.md), [questions](docs/questions.md), [docs](docs/docs.md), [German levels](docs/languages.md), [voice](docs/voice.md), [AI connection](docs/mcp-bridge.md)), and two planned features, [journal](docs/journal.md) and [speaking](docs/speaking.md)
 - [design/](design/): the original design mockups for Today, Timer, Flashcards and History
