@@ -1,8 +1,8 @@
 import { db, newId, type LernzeitDB } from '@/db/db'
-import type { Session, Topic, TopicColor, WeekGoals } from '@lernzeit/core/types'
+import type { Topic, TopicColor, WeekGoals } from '@lernzeit/core/types'
 import { withGoalChange } from '@lernzeit/core/goals'
-import { splitAtMidnight } from '@lernzeit/core/sessions'
-import { dateKey, MINUTE } from '@lernzeit/core/time'
+import { manualSessions } from '@lernzeit/core/sessions'
+import { dateKey } from '@lernzeit/core/time'
 
 export async function createTopic(input: { name: string; color: TopicColor; goals: WeekGoals }, database: LernzeitDB = db) {
   const now = Date.now()
@@ -53,19 +53,5 @@ export async function logManualSession(
   input: { topicId: string; start: number; minutes: number; note?: string },
   database: LernzeitDB = db,
 ) {
-  const runId = newId()
-  const end = input.start + input.minutes * MINUTE
-  const parts = splitAtMidnight(input.start, end, input.minutes)
-  const sessions: Session[] = parts.map((p, i) => ({
-    id: `${runId}:${i}`,
-    topicId: input.topicId,
-    start: p.start,
-    end: p.end,
-    minutes: p.minutes,
-    date: p.date,
-    note: input.note?.trim() || undefined,
-    source: 'timer',
-    runId,
-  }))
-  await database.sessions.bulkAdd(sessions)
+  await database.sessions.bulkAdd(manualSessions(input, newId()))
 }

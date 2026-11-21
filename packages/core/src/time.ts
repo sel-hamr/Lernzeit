@@ -176,18 +176,42 @@ export function dateKeyIn(ms: number, timeZone: string): string {
   return `${p.year}-${pad(p.month)}-${pad(p.day)}`
 }
 
-/** The instant of the next 00:00 in `timeZone` after `ms`. Right across daylight saving changes. */
-export function nextMidnightIn(ms: number, timeZone: string): number {
-  const p = zoneParts(ms, timeZone)
-  const wanted = Date.UTC(p.year, p.month - 1, p.day + 1) // the next midnight, as a wall clock read as UTC
-  let guess = wanted
+/** The instant whose wall clock in `timeZone` is `wall` (a wall clock read as UTC). Settles daylight saving changes. */
+function fromWallClock(wall: number, timeZone: string): number {
+  let guess = wall
   // The zone's offset at the guess is only known from the guess itself, so settle it.
   for (let i = 0; i < 4; i++) {
     const g = zoneParts(guess, timeZone)
     const offset = Date.UTC(g.year, g.month - 1, g.day, g.hour, g.minute, g.second) - guess
-    const next = wanted - offset
+    const next = wall - offset
     if (next === guess) break
     guess = next
   }
   return guess
+}
+
+/** The instant of the next 00:00 in `timeZone` after `ms`. Right across daylight saving changes. */
+export function nextMidnightIn(ms: number, timeZone: string): number {
+  const p = zoneParts(ms, timeZone)
+  return fromWallClock(Date.UTC(p.year, p.month - 1, p.day + 1), timeZone)
+}
+
+/** "2026-10-15T08:30": the wall clock of `ms` in `timeZone`, the way people say it. */
+export function localDateTimeIn(ms: number, timeZone: string): string {
+  const p = zoneParts(ms, timeZone)
+  return `${p.year}-${pad(p.month)}-${pad(p.day)}T${pad(p.hour)}:${pad(p.minute)}`
+}
+
+const WALL_CLOCK_RE = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?)$/
+
+/**
+ * Reads a date and time like "2026-10-15T08:30" as the wall clock in
+ * `timeZone`. Text with its own offset ("…Z", "…+02:00"), and any other text,
+ * is read as `Date.parse` reads it. NaN when it is not a time.
+ */
+export function parseLocalDateTimeIn(text: string, timeZone: string): number {
+  const match = WALL_CLOCK_RE.exec(text.trim())
+  if (!match) return Date.parse(text)
+  const wall = Date.parse(`${match[1]}T${match[2]}Z`)
+  return Number.isNaN(wall) ? NaN : fromWallClock(wall, timeZone)
 }
