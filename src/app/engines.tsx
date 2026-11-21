@@ -7,10 +7,6 @@ import { Dialog } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
-import { handleRequest } from '@/bridge/actions'
-import { browserKind, useBridgeConfig } from '@/bridge/config'
-import { connectBridge } from '@/bridge/connection'
-import { setBridgeStatus } from '@/bridge/status'
 import { useActiveTimer, usePendingNote, useSettings, useTopics } from '@/data/hooks'
 import { useTodayProgress } from '@/data/progress'
 import { completePhase, resolvePendingNote } from '@/data/timer'
@@ -132,31 +128,6 @@ export function ReminderEngine() {
     const id = setInterval(check, 30_000)
     return () => clearInterval(id)
   }, [settings.remindersEnabled, settings.reminderTimes, fired])
-
-  return null
-}
-
-/** Keeps this tab connected to the Lernzeit MCP server while Settings → AI connection is on. */
-export function BridgeEngine() {
-  const { enabled, name, token, port } = useBridgeConfig()
-
-  useEffect(() => {
-    if (!enabled || !token.trim()) {
-      setBridgeStatus(enabled ? 'no_token' : 'off')
-      return
-    }
-    setBridgeStatus('waiting')
-    let disconnect: (() => void) | undefined
-    // The settings fields save on every key, so reconnect only once typing pauses.
-    const start = setTimeout(() => {
-      const kind = browserKind()
-      disconnect = connectBridge({ port, token: token.trim(), name: name.trim() || kind, kind, onRequest: handleRequest, onStatus: setBridgeStatus })
-    }, 400)
-    return () => {
-      clearTimeout(start)
-      disconnect?.()
-    }
-  }, [enabled, name, token, port])
 
   return null
 }

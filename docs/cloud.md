@@ -65,7 +65,7 @@ When both browsers were used before signing in, the merge decides record by reco
 | Stories, questions, grammar topics and your answers | Voice engine and voice choice, speaking speed |
 | Docs and their images | Theme |
 | Tasks, topics, goals and study sessions | Reminders and their times |
-| The other settings (features on and off, timer lengths) | The tour state, the AI connection settings |
+| The other settings (features on and off, timer lengths) | The tour state |
 
 Only the device that started a timer rings when it ends, so two open browsers do not both play the bell.
 
@@ -153,6 +153,6 @@ Each time after:
 
 The Worker answers only `/api/*`. Every other request is served from `dist/` straight away, and client-side routes such as `/flashcards` get `index.html`. Open the address on your phone and choose **Add to Home screen**.
 
-## The AI connection
+## Claude
 
-The local [MCP bridge](mcp-bridge.md) still works, and what it saves syncs like anything else. A remote MCP server, so Claude on your phone can reach your library without a computer, is planned.
+The Worker also serves an MCP endpoint at `/mcp`, behind an OAuth sign-in with your Lernzeit password, so Claude on your phone, on the web, in Claude Desktop or in Claude Code can add to your library without a computer running. What it saves goes to the same database and reaches your devices on the next sync. [mcp.md](mcp.md) has the setup.

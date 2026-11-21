@@ -19,7 +19,7 @@ import { END_SOUND_LABEL, playEndSound, unlockAudio } from '@/lib/sound'
 import { dateKey, formatHM } from '@lernzeit/core/time'
 import { count } from '@lernzeit/core/text'
 import { AccountGroup } from './AccountGroup'
-import { AiConnectionGroup } from './AiConnectionGroup'
+import { ClaudeGroup } from './ClaudeGroup'
 import { FeaturesGroup } from './FeaturesGroup'
 import { Group } from './Group'
 import { LevelGroup } from './LevelGroup'
@@ -184,7 +184,7 @@ export default function SettingsPage() {
   const [busy, setBusy] = useState<'restore' | 'reset' | null>(null)
   const { hash } = useLocation()
 
-  // Links such as /settings#ai-connection open on that card. The cards above it grow as
+  // Links such as /settings#claude open on that card. The cards above it grow as
   // their data loads, so it is kept in view until the layout settles.
   useEffect(() => {
     const target = hash ? document.getElementById(hash.slice(1)) : null
@@ -332,7 +332,7 @@ export default function SettingsPage() {
             />
           </Group>
 
-          <AiConnectionGroup />
+          <ClaudeGroup />
         </div>
 
         <div className="flex flex-col gap-5">

@@ -208,7 +208,7 @@ export async function signOut({ force = false }: { force?: boolean } = {}, datab
       database.meta.where('key').notEqual(DEVICE_ID_KEY).delete(),
     ])
   })
-  // Reloading stops the engines that run while signed in (timer, reminders, AI connection).
+  // Reloading stops the engines that run while signed in (timer, reminders).
   if (typeof window !== 'undefined') window.location.reload()
   return 'done'
 }

@@ -150,7 +150,6 @@ export const KV_KEYS = {
   /** Set by the first-launch German seed from before language packs, and by restoring a backup. */
   seeded: 'seeded',
   remindersFired: 'remindersFired',
-  bridge: 'bridge',
   starterConjugations: 'starterConjugations',
   starterGrammar: 'starterGrammar',
   /** What an empty browser chose at its first visit: the starter backup, or to start empty. */

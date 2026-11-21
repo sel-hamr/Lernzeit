@@ -1,8 +1,7 @@
 /*
  * The AI tools' actions, run against the owner's library. Each call reads
  * the library, stages its writes and commits them in one go at the end, so a
- * call that fails writes nothing. Rules and messages match what the tools did
- * in the browser (src/bridge), with local dates in the owner's time zone.
+ * call that fails writes nothing. Local dates are in the owner's time zone.
  */
 import { stageWrites, type LibraryStore } from '../library'
 import type { ActionName, ActionParams, ActionResult } from '../protocol'

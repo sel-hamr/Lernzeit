@@ -1,8 +1,10 @@
 /* How sync is doing, in plain words, for the sidebar row, the phone's Settings dot and Settings → Account. */
-import type { StatusLevel } from '@/bridge/status'
 import { docDateLabel } from '@lernzeit/core/docs'
 import { count } from '@lernzeit/core/text'
 import type { StuckChange, SyncStatus } from './status'
+
+/** How a status reads: a dot colour and a chip tone. */
+export type StatusLevel = 'ok' | 'idle' | 'waiting' | 'error'
 
 export interface SyncIndicator {
   label: string

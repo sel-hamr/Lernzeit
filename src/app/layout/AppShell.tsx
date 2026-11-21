@@ -1,11 +1,10 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router'
 import clsx from 'clsx'
-import { Bot, ChevronRight, Cloud, CloudOff, Plus, Search, Settings } from 'lucide-react'
+import { ChevronRight, Cloud, CloudOff, Plus, Search, Settings } from 'lucide-react'
 import { Logo, LogoMark } from '@/components/Logo'
 import { Dot, GroupLabel } from '@/components/ui/primitives'
 import { Dialog } from '@/components/ui/Dialog'
-import { useBridgeIndicator, type StatusLevel } from '@/bridge/status'
 import { useCards, useDecks, usePracticeRuns, useTopics } from '@/data/hooks'
 import { useTodayProgress } from '@/data/progress'
 import { goalFor } from '@lernzeit/core/goals'
@@ -14,10 +13,9 @@ import { capList } from '@lernzeit/core/tabs'
 import { formatHM } from '@lernzeit/core/time'
 import { useUI } from '@/app/ui'
 import { useFeatures } from '@/app/plugins'
-import { AI_CONNECTION_ID } from '@/features/settings/AiConnectionGroup'
 import { ACCOUNT_ID } from '@/features/settings/AccountGroup'
 import { useSyncStatus } from '@/sync/status'
-import { syncIndicator, type SyncIndicator } from '@/sync/indicator'
+import { syncIndicator, type StatusLevel, type SyncIndicator } from '@/sync/indicator'
 import { DeckMenu } from '@/features/flashcards/DeckMenu'
 import { SearchBox } from './Search'
 import { HeaderVoiceSelect, SidebarVoiceSelect } from './VoiceSelect'
@@ -116,24 +114,6 @@ function DecksList() {
 
 const LEVEL_DOT: Record<StatusLevel, string> = { ok: 'bg-sage-dot', idle: 'bg-line-strong', waiting: 'bg-muted', error: 'bg-red-ink' }
 
-const AI_SETTINGS = `/settings#${AI_CONNECTION_ID}`
-
-/** Shown only while AI connection is on, so a glance tells whether the AI can reach this browser. */
-function AiStatus() {
-  const ai = useBridgeIndicator()
-  if (!ai) return null
-  return (
-    <Link to={AI_SETTINGS} title={ai.hint ?? ai.label} className="flex h-9 items-center gap-2.5 rounded-img px-3 text-small text-ink-2 transition-colors hover:bg-main/60 hover:text-ink">
-      <Bot size={16} strokeWidth={1.7} aria-hidden />
-      <span className="flex-1">AI</span>
-      <span className="flex min-w-0 items-center gap-1.5 text-chip text-muted">
-        <span className={clsx('size-1.5 shrink-0 rounded-full', LEVEL_DOT[ai.level])} />
-        <span className="truncate">{ai.label}</span>
-      </span>
-    </Link>
-  )
-}
-
 const ACCOUNT_SETTINGS = `/settings#${ACCOUNT_ID}`
 
 function useSyncIndicator(): SyncIndicator {
@@ -155,8 +135,6 @@ function SyncRow() {
     </Link>
   )
 }
-
-const LEVEL_RANK: Record<StatusLevel, number> = { ok: 0, idle: 0, waiting: 1, error: 2 }
 
 function DailyPlan() {
   const topics = useTopics()
@@ -228,7 +206,6 @@ function Sidebar() {
       {onFlashcards ? <DecksList /> : <GoalsToday />}
       <div className="mt-auto flex flex-col gap-2">
         <SidebarVoiceSelect />
-        <AiStatus />
         <SyncRow />
         <DailyPlan />
       </div>
@@ -238,13 +215,11 @@ function Sidebar() {
 
 function MobileHeader() {
   const [searchOpen, setSearchOpen] = useState(false)
-  const ai = useBridgeIndicator()
   const sync = useSyncIndicator()
   const inHeader = useFeatures().filter((f) => f.header)
-  // The dot shows the AI connection while it is on, and sync while it needs a look; the worse of the two.
+  // The dot shows sync while it needs a look.
   const syncNeedsLook = sync.level !== 'ok' && !sync.passing
-  const dot = syncNeedsLook && (!ai || LEVEL_RANK[sync.level] >= LEVEL_RANK[ai.level]) ? sync.level : ai?.level
-  const settingsLabel = ['Settings', ai && `AI: ${ai.label}`, syncNeedsLook && `Sync: ${sync.label}`].filter(Boolean).join(', ')
+  const settingsLabel = syncNeedsLook ? `Settings, Sync: ${sync.label}` : 'Settings'
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-sidebar/90 px-4 backdrop-blur-md md:hidden">
       <Link to="/" className="flex items-center gap-2" aria-label="Lernzeit home">
@@ -272,13 +247,13 @@ function MobileHeader() {
           </NavLink>
         ))}
         <NavLink
-          to={syncNeedsLook && dot === sync.level ? ACCOUNT_SETTINGS : ai ? AI_SETTINGS : '/settings'}
+          to={syncNeedsLook ? ACCOUNT_SETTINGS : '/settings'}
           aria-label={settingsLabel}
           title={settingsLabel}
           className="relative flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-field"
         >
           <Settings size={19} strokeWidth={1.7} />
-          {dot && <span className={clsx('absolute top-2 right-2 size-2 rounded-full ring-2 ring-sidebar', LEVEL_DOT[dot])} />}
+          {syncNeedsLook && <span className={clsx('absolute top-2 right-2 size-2 rounded-full ring-2 ring-sidebar', LEVEL_DOT[sync.level])} />}
         </NavLink>
       </div>
       <Dialog open={searchOpen} onClose={() => setSearchOpen(false)} title="Search">

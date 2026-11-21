@@ -13,7 +13,7 @@ Read short German stories with your decks. Every word that is in a deck is highl
 | Starter stories | [src/languages/de/stories/](../src/languages/de/stories) | The German pack's 103 stories by theme. |
 | Pages | [src/features/stories/](../src/features/stories) | Stories list, reader, word panel, note box, editor, Write with AI |
 | Prompt | [src/lib/storyPrompt.ts](../src/lib/storyPrompt.ts) | Picks a deck's words and builds the prompt for Claude |
-| AI | [src/bridge/actions.ts](../src/bridge/actions.ts), [mcp/src/tools.ts](../mcp/src/tools.ts) | The `create_story` tool and the `write_story` prompt |
+| AI | [packages/core/src/actions/](../packages/core/src/actions), [worker/src/mcp/tools.ts](../worker/src/mcp/tools.ts) | The `create_story` tool and the `write_story` prompt |
 
 Stories are a Dexie table (`stories`, schema version 2), included in backups. Backups made before stories still restore. Teaching notes are the story's `words` field, so they need no schema change and go into backups with it.
 
@@ -77,12 +77,12 @@ The speaker plays the word as it stands in the story, and the two parts of a spl
 
 ## Write with AI
 
-Claude Desktop or Claude Code writes the story and saves it through the AI connection ([mcp-bridge.md](mcp-bridge.md)). That connection cannot read your cards, so Lernzeit puts your deck's words into the prompt:
+Claude writes the story and saves it to your library through the connector ([mcp.md](mcp.md)). It cannot read your cards, so Lernzeit puts your deck's words into the prompt:
 
 1. Pick a deck (or all), a level, a length and a theme. The level drives the prompt: what Short, Medium and Long mean (60 to 130 words at A1, 150 to 350 at B1, up to 1,000 at C2), the sentence length and grammar, how strictly to keep to my words, and how many new words may come in (3 at A1, 8 at B1). The prompt lists every word of the deck: first the words you know or are learning (learning first), then the new words in deck order. With 30 or more studied words, the story keeps to them and brings in only as many new words as the level allows; with fewer, a story cannot be built from them alone, so it uses the whole deck and the studied words as often as it can.
-2. **Copy prompt**, paste it into Claude Desktop or Claude Code, and send it. **See the prompt** shows exactly what is sent.
+2. **Copy prompt**, paste it into Claude, and send it. **See the prompt** shows exactly what is sent.
 3. The prompt ends by asking Claude to save the story with `create_story` (title, level, German text, English translation, teaching notes). It asks for a note on every word you need help with. The story gets the tag `ai`.
-4. The dialog shows whether the AI connection is on. When the story arrives, step 3 shows its title and **Read it** opens it.
+4. The dialog links to **Settings → Claude** if you have not connected it yet. When the story has synced here, step 3 shows its title and **Read it** opens it.
 
 ## Reading time
 

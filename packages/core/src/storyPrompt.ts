@@ -6,7 +6,7 @@ import type { Knowledge } from './reader'
 /*
  * A prompt that asks Claude for a story built from a deck's words. The AI
  * connection cannot read cards, so the app writes the words into the prompt;
- * Claude Desktop or Claude Code then saves the story with create_story.
+ * Claude then saves the story with create_story.
  */
 
 /** Every word of the chosen decks, split by whether you can already read it. */
@@ -208,7 +208,7 @@ export function buildStoryPrompt({ level, length, theme, words }: StoryPromptInp
     `- text: the German story, with an empty line between paragraphs`,
     `- translation: the English translation, with the same paragraphs`,
     '- words: the teaching notes',
-    'Then show me the story and tell me it is saved. If the tool is not available, tell me to turn on Settings → AI connection in Lernzeit.',
+    'Then show me the story and tell me it is saved. If the tool is not available, tell me to connect Lernzeit to Claude under Settings → Claude in Lernzeit.',
   )
   return lines.join('\n')
 }

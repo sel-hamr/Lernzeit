@@ -8,8 +8,8 @@ Write a few German sentences every day. Claude corrects them, and your own mista
 
 1. Open **Journal** and write 3 to 5 sentences about your day.
 2. Press **Get correction**. The app builds a prompt with your text and copies it.
-3. Paste it into Claude Desktop or Claude Code.
-4. Claude sends the corrected text back to Lernzeit through the [AI connection](mcp-bridge.md).
+3. Paste it into Claude.
+4. Claude sends the corrected text back to Lernzeit through the [Claude connector](mcp.md).
 5. You see your text and the corrected text side by side, with each change marked.
 6. Tap a mistake to turn it into a card.
 
@@ -47,7 +47,7 @@ The prompt only has the text you wrote that day. Nothing else is sent.
 
 ## AI
 
-A new tool on the AI connection:
+A new tool on the Claude connector:
 
 | Tool | What it does |
 |---|---|
@@ -72,5 +72,5 @@ One new table:
 
 ## Known limits
 
-- You need an AI app with the AI connection set up. Without it, you can still write and read your entries.
+- You need an AI app with [Claude connected](mcp.md). Without it, you can still write and read your entries.
 - Claude can be wrong. The notes help you check the changes.

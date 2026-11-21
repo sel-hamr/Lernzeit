@@ -79,8 +79,8 @@ const [AGAIN, HARD, GOOD] = [PRACTICE_RETURN[1], PRACTICE_RETURN[2], PRACTICE_RE
 const STORY_STEPS = `<ol class="lz-tour-steps">
 <li>Tick the decks: one, several or all of them.</li>
 <li>Pick a level and a length, and say what it is about, or take one of ${STORY_THEMES.length} theme ideas.</li>
-<li>Copy the prompt and paste it into Claude Desktop or Claude Code.</li>
-<li>Claude saves the story here through the AI connection.</li>
+<li>Copy the prompt and paste it into Claude.</li>
+<li>Claude saves the story to your library, and it syncs here.</li>
 </ol>`
 
 /** The reader's highlight colours, drawn with its own classes. */
@@ -281,14 +281,14 @@ export const TOUR_STOPS: TourStop[] = [
   {
     id: 'ai',
     path: '/settings',
-    target: '#ai-connection',
+    target: '#claude',
     side: 'top',
     align: 'start',
-    title: 'Connect your AI',
+    title: 'Connect Claude',
     body:
-      '<p>Turn on <b>AI connection</b> and an AI app such as Claude works in Lernzeit through MCP: it adds cards and decks, writes stories from your decks, saves docs and logs study time.</p>' +
+      '<p>Connect Claude under <b>Settings → Claude</b> and it works in Lernzeit through MCP, also from your phone: it adds cards and decks, writes stories from your decks, saves docs and logs study time.</p>' +
       hint('Try asking: “Make 20 cards for ordering food, and a short story that uses them.”') +
-      why('Making cards takes minutes, not an evening, so your time goes into practice. It works only while Lernzeit is open here.'),
+      why('Making cards takes minutes, not an evening, so your time goes into practice. What Claude saves reaches every device on the next sync.'),
   },
   {
     id: 'audio',

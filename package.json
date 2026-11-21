@@ -7,7 +7,6 @@
     "lz": "bin/lz.ts"
   },
   "workspaces": [
-    "mcp",
     "packages/core",
     "worker"
   ],
@@ -16,11 +15,10 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "start": "node bin/lz.ts",
-    "mcp:setup": "node scripts/setup-mcp.ts",
     "cloud:owner": "node scripts/cloud-owner.ts",
     "worker:dev": "node -e \"require('node:fs').mkdirSync('dist', { recursive: true })\" && wrangler d1 migrations apply lernzeit --local && wrangler dev --port 8787 --ip 127.0.0.1",
-    "typecheck": "tsc -b && npm run typecheck -w mcp && npm run typecheck -w @lernzeit/core && npm run typecheck -w lernzeit-worker",
-    "test": "vitest run && npm test -w mcp && npm test -w lernzeit-worker",
+    "typecheck": "tsc -b && npm run typecheck -w @lernzeit/core && npm run typecheck -w lernzeit-worker",
+    "test": "vitest run && npm test -w lernzeit-worker",
     "lint": "eslint ."
   },
   "dependencies": {

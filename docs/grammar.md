@@ -13,7 +13,7 @@ A grammar course inside Lernzeit, from A1 to B1. Each topic teaches the **rule**
 | Starter topics | [src/languages/de/grammar.ts](../src/languages/de/grammar.ts) | The German pack's 27 topics and their 384 exercises, loaded on demand. ([languages.md](languages.md)) |
 | Starter verb tables | [src/languages/de/words.json](../src/languages/de/words.json), [src/data/languages.ts](../src/data/languages.ts) | The conjugation of all 139 starter verbs, and the one-time step that adds it to starter verbs saved before |
 | Pages | [src/features/grammar/](../src/features/grammar) | The Grammar page, a topic, practice and review (one shared round), the topic editor |
-| AI | [src/bridge/actions.ts](../src/bridge/actions.ts), [mcp/src/tools.ts](../mcp/src/tools.ts) | `list_grammar_topics`, `add_grammar` and the `make_grammar` prompt |
+| AI | [packages/core/src/actions/](../packages/core/src/actions), [worker/src/mcp/tools.ts](../worker/src/mcp/tools.ts) | `list_grammar_topics`, `add_grammar` and the `make_grammar` prompt |
 
 ## The starter topics
 
@@ -137,7 +137,7 @@ A line the app cannot use stops the save and says which line and why. An exercis
 Two ways, both through Claude:
 
 - **Ask Claude why**, after any exercise, opens claude.ai in a new tab with the question filled in. Nothing is sent until you send it there.
-- **The AI connection** ([docs/mcp-bridge.md](mcp-bridge.md)) lets Claude Desktop or Claude Code write grammar into the app. The `make_grammar` prompt asks for exercises on a topic at your level; Claude calls `list_grammar_topics`, then `add_grammar` to add them to the topic that fits, or to start a new one with a rule. Exercises the app cannot use are refused before anything is saved, and ones a topic has already are skipped. Claude sees topic names only, never your answers or scores.
+- **Claude** ([docs/mcp.md](mcp.md)) writes grammar into the app. The `make_grammar` prompt asks for exercises on a topic at your level; Claude calls `list_grammar_topics`, then `add_grammar` to add them to the topic that fits, or to start a new one with a rule. Exercises the app cannot use are refused before anything is saved, and ones a topic has already are skipped. Claude sees topic names only, never your answers or scores.
 
 ## Your cards in grammar
 
@@ -159,7 +159,7 @@ Card questions come from the card's own fields, never from rules:
 
 - `–` marks a form that is not asked (*regnen*: `–, –, regnet, –, –, –`, shown with *es*), and `/` gives two right spellings.
 - A tense is asked only when its line has exactly six forms. A verb without a conjugation is not asked.
-- All 139 starter verbs have one. For your own verbs, write it in the card editor (**Conjugation**: Present, Past, Perfect), a card pack, a CSV (`present`, `past`, `perfect` columns), or let the AI connection fill it (`create_cards` takes `conjugation`).
+- All 139 starter verbs have one. For your own verbs, write it in the card editor (**Conjugation**: Present, Past, Perfect), a card pack, a CSV (`present`, `past`, `perfect` columns), or let Claude fill it (`create_cards` takes `conjugation`).
 - Starter verbs saved before conjugations existed get the pack's table once, unless you changed their verb forms or gave them a table yourself.
 
 Card scores are kept per card and drill, and shared between topics: a noun you got wrong in *Der, die, das* comes first in any topic that asks about genders. Grammar never changes the flashcard schedule.

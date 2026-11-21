@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LernzeitDB } from '@/db/db'
-import { OfflineError, getImage, pull, push, putImage, setFetch } from './api'
+import { OfflineError, disconnectApp, getImage, listConnectedApps, pull, push, putImage, setFetch } from './api'
 import { stopSync, syncNow, withLock } from './engine'
 import { getSyncStatus } from './status'
 
@@ -82,5 +82,18 @@ describe('requests that get no answer', () => {
     expect(getSyncStatus().state).toBe('offline')
     expect(await withLock(async () => 'free')).toBe('free')
     await database.delete()
+  })
+})
+
+describe('connected apps', () => {
+  it('lists them and disconnects one by id', async () => {
+    const calls: string[] = []
+    setFetch(async (input, init) => {
+      calls.push(`${init?.method ?? 'GET'} ${String(input)}`)
+      return init?.method === 'DELETE' ? new Response(null, { status: 204 }) : Response.json([{ id: 'a/b', clientName: 'Claude', createdAt: 1 }])
+    })
+    expect(await listConnectedApps()).toEqual([{ id: 'a/b', clientName: 'Claude', createdAt: 1 }])
+    await disconnectApp('a/b')
+    expect(calls).toEqual(['GET /api/mcp/grants', 'DELETE /api/mcp/grants/a%2Fb'])
   })
 })

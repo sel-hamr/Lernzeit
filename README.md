@@ -48,7 +48,7 @@ You use your words in real reading, and any grammar rule you ask for comes back 
 
 ## How it works
 
-Claude Desktop or Claude Code connects to Lernzeit through a small [MCP](https://modelcontextprotocol.io) server, so Claude can read your decks and save what it makes straight into the app. The loop:
+Claude connects to your Lernzeit cloud through an [MCP](https://modelcontextprotocol.io) connector that runs on your own Cloudflare Worker, so Claude can read your decks and save what it makes straight into your library, from your phone, claude.ai, Claude Desktop or Claude Code. The loop:
 
 ```mermaid
 flowchart LR
@@ -76,7 +76,7 @@ Everything also works without AI: you can type your own cards, stories, question
 
 ## What you can ask Claude
 
-Once the [AI connection](#get-started) is on, talk to Claude in plain words. Some examples:
+Once [Claude is connected](#get-started), talk to it in plain words. Some examples:
 
 | You say | Claude does |
 |---|---|
@@ -95,7 +95,7 @@ Claude Desktop and Claude Code also offer ready prompts from the server: `make_c
 
 ## Get started
 
-You need Node 22.18 or newer (the app alone runs on Node 20, but the AI connection and `lz` need 22.18).
+You need Node 22.18 or newer (the app alone runs on Node 20, but `lz` and the owner script need 22.18).
 
 ```bash
 git clone https://github.com/sel-hamr/Lernzeit.git
@@ -108,17 +108,12 @@ Open [http://localhost:5173](http://localhost:5173). You sign in with the owner 
 
 `npm run dev` sends `/api` to the Worker named in [.env](.env). To try it without deploying, run `npm run worker:dev` and `npm run cloud:owner -- --local`, and point `.env.local` at `http://127.0.0.1:8787` ([details](docs/cloud.md#local-development)).
 
-**Connect Claude** in two steps:
+**Connect Claude** once your Lernzeit is deployed ([Deploy](#deploy-and-install-on-your-phone)):
 
-1. Run `npm run mcp:setup` (or `lz mcp` once you have [linked `lz`](#the-lz-command)). It adds the Lernzeit server to Claude Code and Claude Desktop and prints a token. If you host Lernzeit, give it the address too:
+1. In Lernzeit, open **Settings → Claude** and copy the connector address (your site's address plus `/mcp`, such as `https://lernzeit.example.workers.dev/mcp`).
+2. In Claude on your phone, on claude.ai or in Claude Desktop, open **Settings → Connectors → Add custom connector**, paste the address and sign in with your Lernzeit password. In Claude Code, run `claude mcp add --transport http lernzeit <address>`.
 
-   ```bash
-   npm run mcp:setup -- https://lernzeit.example.workers.dev
-   ```
-
-2. In Lernzeit, open **Settings → AI connection**, turn it on and paste the token.
-
-Keep the Lernzeit tab open while you talk to Claude: the server passes each request to that tab, which saves it, and sync sends it to your other devices. An **AI** row in the sidebar shows whether Claude can reach this browser. [docs/mcp-bridge.md](docs/mcp-bridge.md#setup) has the details.
+Nothing has to stay open: Claude saves into your cloud, and your devices pick it up on the next sync (**Settings → Account → Sync now** does it at once). **Settings → Claude** lists the connected apps and disconnects them. [docs/mcp.md](docs/mcp.md) has the details.
 
 ## Everything in the app
 
@@ -142,7 +137,7 @@ Keep the Lernzeit tab open while you talk to Claude: the server passes each requ
 | **Docs** | Paste Markdown into nested folders and read it like a README. Pinned and recent docs, tags, read status, search, and it reopens where you stopped |
 | **History** | Week calendar, 16-week heatmap, streaks, hours per topic and flashcard stats |
 | **Board** | Backlog, To do, Doing and Done, with drag and drop on desktop and touch |
-| **Settings** | Goals per weekday, decks, starter content, voice and speed, the AI connection, features on and off, themes, reminders, the tour of the app, backup and restore, sign out |
+| **Settings** | Goals per weekday, decks, starter content, voice and speed, the Claude connection, features on and off, themes, reminders, the tour of the app, backup and restore, sign out |
 
 <details>
 <summary><b>Today</b></summary>
@@ -197,7 +192,7 @@ On every page but Flashcards, **Goals today** in the sidebar lists each topic's 
 - **A path to follow.** Topics are ordered by level with a ring that fills as you learn them; **Continue** takes you to the next one. A topic is mastered when you know 80% of its exercises.
 - **Review that keeps it learned.** A wrong answer comes back in the same round and again minutes later; right answers come back after 1, 3, 7, 16, 35 and 75 days. **Start review** mixes everything due from every topic.
 - Topics that fit your cards also ask about **your own words**: *Der, die, das* your nouns' genders, *Plural* their plurals, *Präsens*, *Präteritum* and *Perfekt* your verbs in that tense, from the card's **conjugation** (six forms per tense, never built by rules; all 139 starter verbs have one).
-- **Add your own** topics and exercises in the editor, in plain text, or let your AI app write them with `add_grammar` (see [AI connection](#get-started)). Starter topics can be edited too.
+- **Add your own** topics and exercises in the editor, in plain text, or let your AI app write them with `add_grammar` (see [Connect Claude](#get-started)). Starter topics can be edited too.
 - `ue` for `ü` and lowercase are accepted, but a missing umlaut is wrong, because *Äpfel* and *fährst* are the point. Active practice time can count toward German. [docs/grammar.md](docs/grammar.md) has the details.
 
 </details>
@@ -212,8 +207,8 @@ On every page but Flashcards, **Goals today** in the sidebar lists each topic's 
 - In stories written by AI, the words you need help with explain themselves, and hard words go further: the meaning, why the word has this form in this sentence, one more example, and a tip.
 - A bar shows how much of the story you know, are learning, have in a deck but not studied yet, or do not have. Reading is easy from about 95% known.
 - Listen to each paragraph, show the English translation under it, and mark the story as read. Active reading time can count toward the story's topic.
-- **Write with AI** builds a prompt with every word of the decks you tick (one, several, or all decks; search the list and see each deck's word count), marking the ones you know or are learning, at your level and theme. Write your own theme, or pick one of the ideas under the box (At the café, A trip to Berlin, …): it fills the box with a short scene, people, a place and what happens, that you can still change. One idea at a time; click it again to clear it. **More themes** opens all 45 ideas in eight groups (everyday life, food and shopping, travel, work and study, health, family and friends, free time, celebrations and seasons), with a search. Paste it into Claude Desktop or Claude Code: Claude writes the story and saves it here through the [AI connection](#get-started).
-- Write or paste your own stories, or let your AI app add them directly (see [AI connection](#get-started)). [docs/stories.md](docs/stories.md) explains how words are matched.
+- **Write with AI** builds a prompt with every word of the decks you tick (one, several, or all decks; search the list and see each deck's word count), marking the ones you know or are learning, at your level and theme. Write your own theme, or pick one of the ideas under the box (At the café, A trip to Berlin, …): it fills the box with a short scene, people, a place and what happens, that you can still change. One idea at a time; click it again to clear it. **More themes** opens all 45 ideas in eight groups (everyday life, food and shopping, travel, work and study, health, family and friends, free time, celebrations and seasons), with a search. Paste it into Claude: Claude writes the story and saves it here to your library ([Connect Claude](#get-started)).
+- Write or paste your own stories, or let your AI app add them directly (see [Connect Claude](#get-started)). [docs/stories.md](docs/stories.md) explains how words are matched.
 
 </details>
 
@@ -227,7 +222,7 @@ On every page but Flashcards, **Goals today** in the sidebar lists each topic's 
 - Every answer you type is kept. Under the answers, **Old responses** lists the last three with their date, and **Show all** the rest, so you can see how your answer improved.
 - There is no grading. Questions you have not answered come first, then the ones you answered longest ago.
 - Listen to the question and the answers. Active practice time can count toward German.
-- Your AI app can add questions with a suggested answer, never your own (see [AI connection](#get-started)). [docs/questions.md](docs/questions.md) has the details.
+- Your AI app can add questions with a suggested answer, never your own (see [Connect Claude](#get-started)). [docs/questions.md](docs/questions.md) has the details.
 
 </details>
 
@@ -271,7 +266,7 @@ Four columns: Backlog, To do, Doing and Done. Drag cards between columns and reo
 | **Topics and daily goals** | Topics and a goal for each weekday |
 | **Decks** | New decks, their topic, and **Import** for CSV files and card packs |
 | **Focus timer** | Pomodoro lengths, the end sound, and which study time counts automatically (reviews, reading, question practice, grammar practice) |
-| **AI connection** | Turn it on, name this browser, set the port, paste or generate a token, and copy the setup for Claude Desktop or Claude Code |
+| **Claude** | The connector address with Copy, how to add it to Claude, and the connected apps with Disconnect |
 | **Flashcards and audio** | The voice (browser, or the offline Thorsten voice), speaking speed, playing audio with the answer, typing and listening modes |
 | **Features** | Turn off Focus timer, Flashcards, Grammar, Stories, Questions, Docs, History or Board. Today is always on |
 | **Appearance** | Light, dark or system theme |
@@ -326,22 +321,22 @@ Import both kinds of file in **Settings → Decks → Import**.
 
 ## What the AI can see
 
-Your library is in your own Cloudflare account, and only you can sign in. The MCP server in [`mcp/`](mcp) runs on your computer and only passes each request to the open Lernzeit tab, which saves it and syncs it. Nothing is sent to an AI unless you paste it or ask Claude to read it.
+Your library is in your own Cloudflare account, and only you can sign in. Claude reaches your library only through the connector on your own Worker, and only after you sign in with your Lernzeit password on its page. Nothing is sent to an AI unless you paste it or ask Claude to read it. Disconnect an app in **Settings → Claude**, or change the owner password to disconnect all of them.
 
 - Claude **can** add decks, cards, stories, questions, grammar topics and exercises, docs, tasks and study time. It can read your cards and docs, move cards to another deck with their progress, and delete the cards or the deck you name, after telling you what and how many.
 - Claude **cannot** see your review history, your answers or your notes, and cannot edit or delete anything else. It does not know which words you know: **Write with AI** puts that into the prompt you paste, so you see what it gets.
-- Several browsers can be connected at once. Claude asks which one to use; what it saves reaches the others by sync.
+- What Claude saves goes to your cloud and reaches your devices on the next sync.
 
 | Tools | What they do |
 |---|---|
-| `list_browsers`, `list_topics`, `list_decks`, `list_grammar_topics` | Look before adding |
+| `list_topics`, `list_decks`, `list_grammar_topics` | Look before adding |
 | `create_deck`, `create_cards` | Add decks and cards (tagged `ai`; a German word already in the deck is skipped) |
 | `list_cards`, `move_cards`, `delete_cards`, `delete_deck` | Read cards, move them with their progress, delete the ones you name |
 | `create_story`, `create_questions`, `add_grammar` | Add stories with word notes, speaking questions, grammar topics and exercises |
 | `list_docs`, `read_doc`, `create_doc` | Read and save Markdown on the Docs page |
 | `create_task`, `log_study_time` | Add a task to the Board, log study time done away from the timer |
 
-The server also has a `lernzeit://guide` resource that teaches Claude how to write good German cards and stories.
+The connector also has a `lernzeit://guide` resource that teaches Claude how to write good German cards and stories.
 
 ## Commands
 
@@ -353,8 +348,7 @@ The server also has a `lernzeit://guide` resource that teaches Claude how to wri
 | `npm start` | Builds if the code changed, then serves and opens the production build (the same as `lz`) |
 | `npm run worker:dev` | Runs the Worker locally on http://127.0.0.1:8787 with a local database |
 | `npm run cloud:owner` | Sets the email and password of your cloud account (`--local` for the local database) |
-| `npm run mcp:setup` | Adds the MCP server to Claude Code and Claude Desktop and prints a token |
-| `npm test` | Runs the unit tests (Vitest), the app's and the MCP server's |
+| `npm test` | Runs the unit tests (Vitest), the app's, the shared code's and the Worker's, MCP connector included |
 | `npm run lint` | Runs ESLint |
 | `npm run typecheck` | Runs the TypeScript compiler only |
 
@@ -370,10 +364,9 @@ npm link
 |---|---|
 | `lz` | Builds when the code changed since the last build, then serves the production build on http://localhost:5173 and opens it. Stop it with <kbd>Ctrl</kbd>+<kbd>C</kbd> |
 | `lz --build` | Builds again even when nothing changed |
-| `lz mcp [url]` | Connects Claude Code and Claude Desktop to Lernzeit. Give it your hosted address to allow that site too. See [AI connection](#get-started) |
 | `lz <script>` | Runs any npm script of the project, such as `lz dev` or `lz test`. Extra words go to the script |
 
-If Lernzeit is already running, `lz` only opens it. `lz` runs the TypeScript file directly, so it needs Node 22.18 or newer, like the [MCP server](#get-started). `npm unlink -g lernzeit` removes it.
+If Lernzeit is already running, `lz` only opens it. `lz` runs the TypeScript file directly, so it needs Node 22.18 or newer. `npm unlink -g lernzeit` removes it.
 
 > [!NOTE]
 > `lz` uses the dev server's port on purpose: the browser keeps data per address, so the build and `npm run dev` see the same cards and history. Only one of them can run at a time, and `lz` says so when the dev server is running. The build installs a service worker for offline use; the next time the dev server runs, it replaces that worker with one that removes itself, and the page reloads once.
@@ -429,8 +422,7 @@ The app opens on a sign-in page with full-screen photos of German places (Bremen
 ```
 src/
 ├── app/          App shell, routing, the feature plugins, welcome and tour, global dialogs,
-│                 background engines (timer, reminders, theme, AI bridge)
-├── bridge/       The AI connection: messages shared with mcp/, actions, WebSocket client
+│                 background engines (timer, reminders, theme)
 ├── components/   Shared UI: buttons, dialogs, form controls, chips, station clock, card image
 ├── data/         Database actions (timer, cards, topics, tasks, import/export), speaking with saved clips, and React hooks
 ├── db/           Dexie schema and types
@@ -442,16 +434,15 @@ src/
 │                 question practice order, image resizing, browser speech, the Thorsten voice worker, sounds
 └── index.css     Design tokens (colours, type scale, radii) for light and dark themes
 bin/              The `lz` command: builds when needed and serves the production build
-scripts/          `mcp:setup` adds the MCP server to Claude Code and Claude Desktop; `make-starter` builds the German starter
-mcp/              MCP server for AI apps (an npm workspace)
+scripts/          `cloud-owner` sets the cloud account; `make-starter` builds the German starter
 public/starter/   The German starter the welcome downloads
-worker/           The Cloudflare Worker: sign-in, sync and images over D1 (an npm workspace)
-packages/core/    Code shared by the app and the Worker: sync rules and the first-sign-in merge
+worker/           The Cloudflare Worker: sign-in, sync and images over D1, and the MCP connector with its OAuth sign-in (an npm workspace)
+packages/core/    Code shared by the app and the Worker: sync rules, the first-sign-in merge and the actions the AI tools run
 src/sync/         The app's side of sync: outbox, engine, account, first-sign-in merge
 wrangler.jsonc    The Worker's setup: static files, the /api routes and the D1 database
 ```
 
-The logic that decides correctness lives in `src/lib`, `src/data` and `src/bridge` as plain functions, each with a `*.test.ts` beside it (practice queue, grammar, drills, conjugation, story words and prompts, questions, docs, progress, tour, starter, the AI bridge). The data tests run against an in-memory IndexedDB, `src/languages/languages.test.ts` checks the German pack, and `mcp/src` has its own tests. `npm test` runs them all.
+The logic that decides correctness lives in `src/lib`, `src/data` and `packages/core` as plain functions, each with a `*.test.ts` beside it (practice queue, grammar, drills, conjugation, story words and prompts, questions, docs, progress, tour, starter, the AI actions). The data tests run against an in-memory IndexedDB, `src/languages/languages.test.ts` checks the German pack, and the Worker's tests run on the real runtime with a local D1. `npm test` runs them all.
 
 ## Tech stack
 
@@ -465,7 +456,7 @@ The logic that decides correctness lives in `src/lib`, `src/data` and `src/bridg
 | Voice | Piper through @mintplex-labs/piper-tts-web and onnxruntime-web, Thorsten voice |
 | Docs | react-markdown, remark-gfm, rehype-highlight |
 | Interaction | dnd-kit, Recharts, driver.js (the tour) |
-| AI connection | MCP server (`@modelcontextprotocol/server`, zod) talking to the app over a local WebSocket (`ws`) |
+| AI connection | A remote MCP server on the Worker (`@modelcontextprotocol/server`, zod) behind OAuth (`@cloudflare/workers-oauth-provider`) |
 | Quality | Vitest, ESLint, fake-indexeddb |
 
 ## Good to know
@@ -477,5 +468,5 @@ The Thorsten voice keeps its model in the browser's private file storage and its
 ## More
 
 - [SPEC.md](SPEC.md): the full product spec
-- [docs/](docs/): how each part works ([grammar](docs/grammar.md), [stories](docs/stories.md), [questions](docs/questions.md), [docs](docs/docs.md), [German levels](docs/languages.md), [voice](docs/voice.md), [AI connection](docs/mcp-bridge.md), [cloud and sync](docs/cloud.md)), and two planned features, [journal](docs/journal.md) and [speaking](docs/speaking.md)
+- [docs/](docs/): how each part works ([grammar](docs/grammar.md), [stories](docs/stories.md), [questions](docs/questions.md), [docs](docs/docs.md), [German levels](docs/languages.md), [voice](docs/voice.md), [Connect Claude](docs/mcp.md), [cloud and sync](docs/cloud.md)), and two planned features, [journal](docs/journal.md) and [speaking](docs/speaking.md)
 - [design/](design/): the original design mockups for Today, Timer, Flashcards and History

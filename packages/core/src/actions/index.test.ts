@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LibraryStore } from '../library'
-import type { ActionName, ActionParams } from '../protocol'
+import type { ActionName } from '../protocol'
 import type { Card } from '../types'
 import { expectCode, makeStore } from './fixture.test-utils'
 import { runAction } from './index'
@@ -21,14 +21,8 @@ describe('runAction', () => {
     expect(error.message).toBe('A task needs a title.')
   })
 
-  it('refuses an unknown action, list_browsers among them', async () => {
+  it('refuses an unknown action', async () => {
     await expectCode(runAction(store, 'delete_everything' as ActionName, {} as never), 'invalid_input')
-    await expectCode(runAction(store, 'list_browsers' as ActionName, {} as never), 'invalid_input')
-  })
-
-  it('ignores a browser field left over from the local server', async () => {
-    const params = { name: 'Food', browser: 'Chrome' } as ActionParams<'create_deck'>
-    expect((await runAction(store, 'create_deck', params)).created).toBe(true)
   })
 
   it('commits once per call, after every write is staged', async () => {

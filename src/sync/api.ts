@@ -172,3 +172,20 @@ export async function listDevices(): Promise<SignedInDevice[]> {
 export async function removeDevice(id: string): Promise<void> {
   await request(`/auth/devices/${encodeURIComponent(id)}`, { method: 'DELETE' }, nothing)
 }
+
+/** An AI app (Claude, say) the owner allowed to use the library through /mcp. */
+export interface ConnectedApp {
+  id: string
+  clientName: string
+  /** When it was connected, in ms. */
+  createdAt: number
+}
+
+export function listConnectedApps(): Promise<ConnectedApp[]> {
+  return request('/mcp/grants', {}, json<ConnectedApp[]>)
+}
+
+/** Disconnects the app: its tokens stop working. */
+export async function disconnectApp(id: string): Promise<void> {
+  await request(`/mcp/grants/${encodeURIComponent(id)}`, { method: 'DELETE' }, nothing)
+}

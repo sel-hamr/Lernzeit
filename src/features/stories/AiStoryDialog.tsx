@@ -6,12 +6,11 @@ import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { Field, Segmented, Select, Textarea } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
-import { AI_TAG } from '@/bridge/actions'
-import { useBridgeIndicator } from '@/bridge/status'
+import { AI_TAG } from '@lernzeit/core/actions'
 import { useDecks, useLearningText, useStories } from '@/data/hooks'
 import { STORY_LEVELS } from '@/data/stories'
 import type { StoryLevel } from '@lernzeit/core/types'
-import { AI_CONNECTION_ID } from '@/features/settings/AiConnectionGroup'
+import { CLAUDE_ID } from '@/features/settings/ClaudeGroup'
 import { DeckPicker } from '@/features/flashcards/DeckPicker'
 import { storage } from '@/lib/browser'
 import { parseDeckIds } from '@lernzeit/core/deckPick'
@@ -29,14 +28,13 @@ const LENGTHS: { value: StoryLength; label: string }[] = [
 const DECKS_KEY = 'lernzeit-ai-story-deck'
 
 /**
- * Asks Claude Desktop or Claude Code for a story from the words of the decks
- * you choose, or all of them. The AI
- * connection cannot read cards, so the words go in a prompt you paste there;
- * Claude saves the story here with create_story.
+ * Asks Claude for a story from the words of the decks you choose, or all of
+ * them. Claude cannot read cards, so the words go in a prompt you paste there;
+ * Claude saves the story with create_story and it syncs here.
  */
 export function AiStoryDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
-    <Dialog open={open} onClose={onClose} title="Write a story with AI" description="Claude writes a story with the words of the decks you choose and saves it here through the AI connection." size="lg">
+    <Dialog open={open} onClose={onClose} title="Write a story with AI" description="Claude writes a story with the words of the decks you choose and saves it to your library." size="lg">
       {open && <AiStoryForm onClose={onClose} />}
     </Dialog>
   )
@@ -78,28 +76,15 @@ function ThemeIdeas({ theme, onChange }: { theme: string; onChange: (theme: stri
   )
 }
 
-/** Whether Claude can reach this browser; the story cannot arrive otherwise. */
+/** Where the story comes from: Claude, through the connector in Settings. */
 function ConnectionNote() {
-  const ai = useBridgeIndicator()
-  const ready = ai?.status === 'connected' || ai?.status === 'standby'
-  if (ready) {
-    return (
-      <p className="flex items-center gap-2 text-small text-sage-ink">
-        <span className="size-2 rounded-full bg-sage-dot" aria-hidden />
-        The AI connection is on. Claude can save the story here.
-      </p>
-    )
-  }
   return (
-    <div className="flex flex-col gap-1 rounded-row border border-line bg-soft px-4 py-3 text-small">
-      <span className="font-medium">{ai ? `AI connection: ${ai.label}` : 'Turn on the AI connection first'}</span>
-      <span className="text-muted">
-        {ai?.hint ?? 'It lets Claude Desktop or Claude Code save the story in this browser.'}{' '}
-        <Link to={`/settings#${AI_CONNECTION_ID}`} className="text-sage-ink underline-offset-2 hover:underline">
-          Open AI connection settings
-        </Link>
-      </span>
-    </div>
+    <p className="text-small text-muted">
+      Claude saves the story to your library through the Lernzeit connector, and it shows up here after the next sync.{' '}
+      <Link to={`/settings#${CLAUDE_ID}`} className="text-sage-ink underline-offset-2 hover:underline">
+        Connect Claude
+      </Link>
+    </p>
   )
 }
 
@@ -160,7 +145,7 @@ function AiStoryForm({ onClose }: { onClose: () => void }) {
     try {
       await navigator.clipboard.writeText(prompt)
       setCopied(true)
-      toast('Prompt copied. Paste it into Claude Desktop.')
+      toast('Prompt copied. Paste it into Claude.')
     } catch {
       toast('Could not copy. Open “See the prompt” and copy it from there.', { tone: 'error' })
     }
@@ -231,7 +216,7 @@ function AiStoryForm({ onClose }: { onClose: () => void }) {
             />
           )}
         </Step>
-        <Step n={2}>Paste it into Claude Desktop or Claude Code, and send it.</Step>
+        <Step n={2}>Paste it into Claude, and send it.</Step>
         <Step n={3} done={!!arrived}>
           {arrived ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -252,7 +237,7 @@ function AiStoryForm({ onClose }: { onClose: () => void }) {
               </Button>
             </div>
           ) : (
-            <span className="text-muted">Claude writes the story and saves it here. You see it in this step as soon as it is saved.</span>
+            <span className="text-muted">Claude writes the story and saves it to your library. You see it in this step once it has synced here.</span>
           )}
         </Step>
       </ol>

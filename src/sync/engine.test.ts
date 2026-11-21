@@ -533,7 +533,7 @@ describe('restore and reset across devices', () => {
     await a.cards.put(card('c1'))
     await a.kv.bulkPut([
       { key: 'deviceSettings', value: { speechRate: 0.7 } },
-      { key: 'bridge', value: { key: 'bridge', value: 'x' } },
+      { key: 'remindersFired', value: { key: 'remindersFired', value: 'x' } },
       { key: 'settings', value: { dailyGoal: 1 } },
     ])
     await syncNow(a)
@@ -545,7 +545,7 @@ describe('restore and reset across devices', () => {
     expect((await a.meta.get('merged'))?.value).toBe(true)
     expect((await cursorOf(a)) ?? '').not.toBe('')
     expect(cursor).toBeTruthy()
-    expect((await a.kv.toArray()).map((row) => row.key).sort()).toEqual(['bridge', 'deviceSettings'])
+    expect((await a.kv.toArray()).map((row) => row.key).sort()).toEqual(['deviceSettings', 'remindersFired'])
     expect((await a.kv.get('deviceSettings'))?.value).toEqual({ speechRate: 0.7 })
   })
 

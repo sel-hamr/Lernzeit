@@ -42,14 +42,9 @@ function cloudProxy(mode: string) {
   return { '/api': { target, changeOrigin: true } }
 }
 
-export default defineConfig(({ command, mode }) => ({
+export default defineConfig(({ mode }) => ({
   server: { proxy: cloudProxy(mode) },
   preview: { proxy: cloudProxy(mode) },
-  define: {
-    // Settings → AI connection shows the MCP server's path in its setup snippets.
-    // Only the dev server knows it; a build should not carry a local path.
-    __MCP_SERVER_PATH__: JSON.stringify(command === 'serve' ? fileURLToPath(new URL('./mcp/src/index.ts', import.meta.url)).replaceAll('\\', '/') : ''),
-  },
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },

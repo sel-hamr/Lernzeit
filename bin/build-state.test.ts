@@ -80,7 +80,7 @@ describe('needsBuild', () => {
   it('ignores files a build does not read', () => {
     file('dist/index.html', 2000)
     file('README.md', 3000)
-    file('mcp/src/index.ts', 3000)
+    file('docs/mcp.md', 3000)
     expect(needsBuild(root)).toBe(false)
   })
 })
