@@ -1,0 +1,21 @@
+{
+  "name": "lernzeit-worker",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@lernzeit/core": "*",
+    "hono": "^4.13.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.23.0",
+    "@cloudflare/workers-types": "^5.20261121.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.0",
+    "wrangler": "^4.166.0"
+  }
+}

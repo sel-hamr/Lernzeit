@@ -22,6 +22,11 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
+    // The Worker runs on Cloudflare: service-worker globals (fetch, Request, crypto), no DOM.
+    files: ['worker/**/*.ts'],
+    languageOptions: { globals: globals.serviceworker },
+  },
+  {
     // The shared core must run in the browser, in Node and in React Native: no browser globals.
     files: ['packages/core/**/*.ts'],
     languageOptions: { globals: Object.fromEntries(Object.keys(globals.browser).map((name) => [name, 'off'])) },

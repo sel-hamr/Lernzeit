@@ -8,7 +8,8 @@
   },
   "workspaces": [
     "mcp",
-    "packages/core"
+    "packages/core",
+    "worker"
   ],
   "scripts": {
     "dev": "vite",
@@ -16,8 +17,8 @@
     "preview": "vite preview",
     "start": "node bin/lz.ts",
     "mcp:setup": "node scripts/setup-mcp.ts",
-    "typecheck": "tsc -b && npm run typecheck -w mcp && npm run typecheck -w @lernzeit/core",
-    "test": "vitest run && npm test -w mcp",
+    "typecheck": "tsc -b && npm run typecheck -w mcp && npm run typecheck -w @lernzeit/core && npm run typecheck -w lernzeit-worker",
+    "test": "vitest run && npm test -w mcp && npm test -w lernzeit-worker",
     "lint": "eslint ."
   },
   "dependencies": {
