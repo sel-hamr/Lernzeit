@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import type { Plugin } from 'vite'
+import { loadEnv, type Plugin } from 'vite'
 
 /**
  * `lz` serves the build on the dev server's port, so the build's service worker stays registered
@@ -33,7 +33,18 @@ const removeBuildServiceWorker: Plugin = {
   },
 }
 
-export default defineConfig(({ command }) => ({
+/**
+ * The app calls its cloud on its own origin, under /api, as it does when the Worker serves it. While
+ * you work, /api goes on to LERNZEIT_CLOUD_URL (from .env), or to `npm run worker:dev` on port 8787.
+ */
+function cloudProxy(mode: string) {
+  const target = loadEnv(mode, fileURLToPath(new URL('.', import.meta.url)), 'LERNZEIT_').LERNZEIT_CLOUD_URL || 'http://127.0.0.1:8787'
+  return { '/api': { target, changeOrigin: true } }
+}
+
+export default defineConfig(({ command, mode }) => ({
+  server: { proxy: cloudProxy(mode) },
+  preview: { proxy: cloudProxy(mode) },
   define: {
     // Settings → AI connection shows the MCP server's path in its setup snippets.
     // Only the dev server knows it; a build should not carry a local path.
@@ -68,6 +79,8 @@ export default defineConfig(({ command }) => ({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallback: '/index.html',
+        // The cloud's API is never answered with the app page.
+        navigateFallbackDenylist: [/^\/api\//],
         // The Thorsten voice runtime (about 33 MB) is cached on first use, not at install,
         // so only people who turn the voice on download it. File names are hashed.
         runtimeCaching: [

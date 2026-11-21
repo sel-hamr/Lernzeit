@@ -102,3 +102,22 @@ export async function login(email: string, password: string): Promise<{ email: s
 export async function logout(): Promise<void> {
   await request('/auth/logout', { method: 'POST' })
 }
+
+/** A browser or device signed in to the account. `current` is this browser. */
+export interface SignedInDevice {
+  id: string
+  kind: 'web' | 'device'
+  name: string
+  createdAt: number
+  lastUsedAt: number
+  current: boolean
+}
+
+export async function listDevices(): Promise<SignedInDevice[]> {
+  return (await request('/auth/devices')).json()
+}
+
+/** Signs that browser or device out. */
+export async function removeDevice(id: string): Promise<void> {
+  await request(`/auth/devices/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}

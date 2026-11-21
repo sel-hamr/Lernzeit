@@ -194,6 +194,16 @@ describe('sign-in', () => {
     expect((await SELF.fetch('https://x/api/auth/devices', { headers: { Cookie: cookie } })).status).toBe(200)
   })
 
+  it('the devices list marks the one asking as current', async () => {
+    const cookie = sessionCookie(await login({ email: EMAIL, password: PASSWORD }))
+    const token = (await (await login({ email: EMAIL, password: PASSWORD, device: { name: 'Pixel 8' } })).json<{ token: string }>()).token
+    const list = async (headers: HeadersInit) =>
+      (await (await SELF.fetch('https://x/api/auth/devices', { headers })).json<{ kind: string; current: boolean }[]>()).map(({ kind, current }) => ({ kind, current }))
+
+    expect(await list({ Cookie: cookie })).toEqual(expect.arrayContaining([{ kind: 'web', current: true }, { kind: 'device', current: false }]))
+    expect(await list({ Authorization: `Bearer ${token}` })).toEqual(expect.arrayContaining([{ kind: 'web', current: false }, { kind: 'device', current: true }]))
+  })
+
   it('revoking an unknown device is a 404', async () => {
     const cookie = sessionCookie(await login({ email: EMAIL, password: PASSWORD }))
     const response = await SELF.fetch('https://x/api/auth/devices/000000000000', { method: 'DELETE', headers: { Cookie: cookie } })

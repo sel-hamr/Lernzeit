@@ -35,9 +35,10 @@ export interface SyncResult {
 }
 
 const LOCK = 'lernzeit-sync'
-const CURSOR_KEY = 'cursor'
+/** `meta` key of the position in the server's changes this device has pulled up to. */
+export const CURSOR_KEY = 'cursor'
 /** Ids of pulled image records whose bytes the server no longer has, so they could not be shown here. */
-const MISSING_IMAGES_KEY = 'missingImages'
+export const MISSING_IMAGES_KEY = 'missingImages'
 /** A sync starts this long after the last local change, so a burst of edits goes up together. */
 const LOCAL_CHANGE_DELAY = 2_000
 /** How often a visible tab syncs to pick up other devices' changes. */
@@ -66,17 +67,17 @@ interface Refused {
 }
 
 /** Server answers that refuse what was sent, not the request: 400 names a bad change, 413 is too large, 415 not an image. */
-const PUSH_REFUSALS = [400, 413]
-const IMAGE_REFUSALS = [400, 413, 415]
+export const PUSH_REFUSALS = [400, 413]
+export const IMAGE_REFUSALS = [400, 413, 415]
 
-function refusedBy(error: unknown, statuses: number[]): error is ApiError {
+export function refusedBy(error: unknown, statuses: number[]): error is ApiError {
   return error instanceof ApiError && statuses.includes(error.status)
 }
 
 const megabytes = (bytes: number) => `${(bytes / 1_000_000).toFixed(1)} MB`
 
 /** Why the cloud would refuse this change, checked here so it is not sent at all. */
-function refusal(change: SyncChange, blob: Blob | undefined): string | undefined {
+export function refusal(change: SyncChange, blob: Blob | undefined): string | undefined {
   if (blob && !blob.type.startsWith('image/')) return `This file is not an image (${blob.type || 'it has no type'}), so it cannot sync.`
   if (blob && blob.size > MAX_IMAGE_BYTES) {
     return `This image is too large to sync: ${megabytes(blob.size)}, and the most is ${megabytes(MAX_IMAGE_BYTES)}.`
@@ -276,7 +277,7 @@ async function downloadImages(database: LernzeitDB, page: PullResponse): Promise
 }
 
 /** Only what this app syncs, whose data names its own id, so a bad answer cannot touch this device's own kv rows. */
-function acceptable(change: PulledChange): boolean {
+export function acceptable(change: PulledChange): boolean {
   if (!syncTables.has(change.tbl) || !isSynced(change.tbl, change.id)) return false
   return change.deleted || (typeof change.data === 'object' && change.data !== null && recordId(change.tbl, change.data) === change.id)
 }
@@ -338,7 +339,7 @@ function applyPage(database: LernzeitDB, page: PullResponse, blobs: Map<string, 
 let localTail: Promise<unknown> = Promise.resolve()
 
 /** Runs `fn` holding the sync lock: the Web Lock across tabs, or a queue in this tab where there is none. */
-function withLock<T>(fn: () => Promise<T>): Promise<T> {
+export function withLock<T>(fn: () => Promise<T>): Promise<T> {
   const locks = typeof navigator === 'undefined' ? undefined : navigator.locks
   if (locks) return locks.request(LOCK, fn)
   const result = localTail.then(fn)

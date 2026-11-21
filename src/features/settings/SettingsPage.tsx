@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router'
-import { Bell, ChevronRight, Compass, Download, HardDriveDownload, LogOut, Plus, Smartphone, Trash2, Upload, Volume2 } from 'lucide-react'
+import { Bell, ChevronRight, Compass, Download, HardDriveDownload, Plus, Smartphone, Trash2, Upload, Volume2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Chip, Dot, PageHeader } from '@/components/ui/primitives'
 import { Field, Input, Segmented, Select, Switch } from '@/components/ui/form'
@@ -12,13 +12,13 @@ import { downloadFile, exportBackup, resetAllData, restoreBackup } from '@/data/
 import { queueTour } from '@/data/tour'
 import { DeckDialog } from '@/features/flashcards/DeckDialog'
 import { ImportCsvDialog } from '@/features/flashcards/ImportCsvDialog'
-import { signOut } from '@/features/login/login'
 import { describeGoals } from '@lernzeit/core/goals'
 import { isStandalone, useInstallPrompt } from '@/lib/install'
 import { notificationPermission, requestNotificationPermission, showNotification } from '@/lib/notify'
 import { END_SOUND_LABEL, playEndSound, unlockAudio } from '@/lib/sound'
 import { dateKey, formatHM } from '@lernzeit/core/time'
 import { count } from '@lernzeit/core/text'
+import { AccountGroup } from './AccountGroup'
 import { AiConnectionGroup } from './AiConnectionGroup'
 import { FeaturesGroup } from './FeaturesGroup'
 import { Group } from './Group'
@@ -253,7 +253,7 @@ export default function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Settings" subtitle="Goals, decks, timer, audio and your data. Everything stays on this device." />
+      <PageHeader title="Settings" subtitle="Goals, decks, timer, audio, your data and your account." />
 
       <div className="grid items-start gap-5 xl:grid-cols-2">
         <div className="flex flex-col gap-5">
@@ -393,7 +393,7 @@ export default function SettingsPage() {
             }
           />
 
-          <Group title="Your data" description="Lernzeit works offline and keeps everything in this browser. Back it up now and then.">
+          <Group title="Your data" description="Lernzeit works offline and keeps a copy of your library in this browser. Back it up now and then.">
             <div className="flex flex-wrap gap-2">
               <Button variant="primary" icon={<Download size={15} strokeWidth={1.8} />} onClick={() => void exportData()}>
                 Export backup
@@ -427,13 +427,7 @@ export default function SettingsPage() {
             </div>
           </Group>
 
-          <Group title="Account" description="Your data stays in this browser when you sign out.">
-            <div>
-              <Button variant="outline" icon={<LogOut size={15} strokeWidth={1.8} />} onClick={signOut}>
-                Sign out
-              </Button>
-            </div>
-          </Group>
+          <AccountGroup />
         </div>
       </div>
     </>

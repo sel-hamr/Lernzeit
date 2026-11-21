@@ -5,19 +5,33 @@ import { Logo } from '@/components/Logo'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/form'
 import { useMediaQuery } from '@/lib/browser'
-import { checkLogin } from './login'
+import { failureMessage, signIn } from '@/sync/account'
 import { LoginSlides } from './LoginSlides'
 
 /* 16px on phones, because iPhones zoom the page into any smaller field. */
 const fieldSize = 'h-12! text-[16px]! lg:text-body!'
 
-export function LoginPage({ onSignIn }: { onSignIn: () => void }) {
+/** Signs in to the Lernzeit cloud. Once signed in, the app takes over from here (see App.tsx). */
+export function LoginPage() {
   // A focused field on a phone opens the keyboard over the page straight away.
   const wide = useMediaQuery('(min-width: 1024px)')
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [failed, setFailed] = useState(false)
+  const [error, setError] = useState<string>()
+  const [busy, setBusy] = useState(false)
+
+  const submit = async () => {
+    setBusy(true)
+    setError(undefined)
+    try {
+      await signIn(email, password)
+    } catch (err) {
+      setError(failureMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   return (
     <main className="relative isolate flex min-h-dvh animate-fade-in flex-col bg-button-dark lg:flex-row">
@@ -31,31 +45,31 @@ export function LoginPage({ onSignIn }: { onSignIn: () => void }) {
             className="flex w-full max-w-90 flex-col gap-4"
             onSubmit={(e) => {
               e.preventDefault()
-              if (checkLogin(username, password)) onSignIn()
-              else setFailed(true)
+              if (!busy) void submit()
             }}
           >
             <div className="flex flex-col gap-1.5 pb-2">
               <h1 className="text-[24px] leading-tight font-semibold tracking-[-0.025em] lg:text-[28px]">Willkommen zurück</h1>
               <p className="text-body text-muted">Sign in to carry on with your German.</p>
             </div>
-            <Field label="Username" htmlFor="login-username">
+            <Field label="Email" htmlFor="login-email">
               <Input
-                id="login-username"
-                name="username"
+                id="login-email"
+                name="email"
+                type="email"
                 autoComplete="username"
                 autoCapitalize="none"
                 autoFocus={wide}
                 required
                 className={fieldSize}
-                value={username}
+                value={email}
                 onChange={(e) => {
-                  setUsername(e.target.value)
-                  setFailed(false)
+                  setEmail(e.target.value)
+                  setError(undefined)
                 }}
               />
             </Field>
-            <Field label="Password" htmlFor="login-password" error={failed ? <span role="alert">That username or password isn't right.</span> : undefined}>
+            <Field label="Password" htmlFor="login-password" error={error ? <span role="alert">{error}</span> : undefined}>
               <div className="relative">
                 <Input
                   id="login-password"
@@ -63,12 +77,12 @@ export function LoginPage({ onSignIn }: { onSignIn: () => void }) {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   required
-                  aria-invalid={failed}
+                  aria-invalid={Boolean(error)}
                   className={clsx(fieldSize, 'pr-12')}
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value)
-                    setFailed(false)
+                    setError(undefined)
                   }}
                 />
                 <button
@@ -82,12 +96,12 @@ export function LoginPage({ onSignIn }: { onSignIn: () => void }) {
                 </button>
               </div>
             </Field>
-            <Button type="submit" variant="primary" size="lg" className="mt-2 h-12 w-full">
-              Sign in
+            <Button type="submit" variant="primary" size="lg" className="mt-2 h-12 w-full" disabled={busy}>
+              {busy ? 'Signing in…' : 'Sign in'}
             </Button>
           </form>
         </div>
-        <p className="hidden text-chip text-muted lg:block">Your data stays in this browser.</p>
+        <p className="hidden text-chip text-muted lg:block">Your library syncs with your own Lernzeit cloud.</p>
       </div>
     </main>
   )

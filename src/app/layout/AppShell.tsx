@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router'
 import clsx from 'clsx'
-import { Bot, ChevronRight, Plus, Search, Settings } from 'lucide-react'
+import { Bot, ChevronRight, Cloud, CloudOff, Plus, Search, Settings } from 'lucide-react'
 import { Logo, LogoMark } from '@/components/Logo'
 import { Dot, GroupLabel } from '@/components/ui/primitives'
 import { Dialog } from '@/components/ui/Dialog'
@@ -15,6 +15,9 @@ import { formatHM } from '@lernzeit/core/time'
 import { useUI } from '@/app/ui'
 import { useFeatures } from '@/app/plugins'
 import { AI_CONNECTION_ID } from '@/features/settings/AiConnectionGroup'
+import { ACCOUNT_ID } from '@/features/settings/AccountGroup'
+import { useSyncStatus } from '@/sync/status'
+import { syncIndicator, type SyncIndicator } from '@/sync/indicator'
 import { DeckMenu } from '@/features/flashcards/DeckMenu'
 import { SearchBox } from './Search'
 import { HeaderVoiceSelect, SidebarVoiceSelect } from './VoiceSelect'
@@ -131,6 +134,30 @@ function AiStatus() {
   )
 }
 
+const ACCOUNT_SETTINGS = `/settings#${ACCOUNT_ID}`
+
+function useSyncIndicator(): SyncIndicator {
+  return syncIndicator(useSyncStatus())
+}
+
+/** Whether the library is in step with the cloud, and what waits; the reason on hover. */
+function SyncRow() {
+  const sync = useSyncIndicator()
+  const Icon = sync.level === 'ok' ? Cloud : CloudOff
+  return (
+    <Link to={ACCOUNT_SETTINGS} title={sync.hint ?? sync.label} className="flex h-9 items-center gap-2.5 rounded-img px-3 text-small text-ink-2 transition-colors hover:bg-main/60 hover:text-ink">
+      <Icon size={16} strokeWidth={1.7} aria-hidden />
+      <span className="flex-1">Sync</span>
+      <span className="flex min-w-0 items-center gap-1.5 text-chip text-muted">
+        <span className={clsx('size-1.5 shrink-0 rounded-full', LEVEL_DOT[sync.level])} />
+        <span className="truncate">{sync.label}</span>
+      </span>
+    </Link>
+  )
+}
+
+const LEVEL_RANK: Record<StatusLevel, number> = { ok: 0, idle: 0, waiting: 1, error: 2 }
+
 function DailyPlan() {
   const topics = useTopics()
   const { today } = useTodayProgress()
@@ -202,6 +229,7 @@ function Sidebar() {
       <div className="mt-auto flex flex-col gap-2">
         <SidebarVoiceSelect />
         <AiStatus />
+        <SyncRow />
         <DailyPlan />
       </div>
     </aside>
@@ -211,7 +239,12 @@ function Sidebar() {
 function MobileHeader() {
   const [searchOpen, setSearchOpen] = useState(false)
   const ai = useBridgeIndicator()
+  const sync = useSyncIndicator()
   const inHeader = useFeatures().filter((f) => f.header)
+  // The dot shows the AI connection while it is on, and sync while it needs a look; the worse of the two.
+  const syncNeedsLook = sync.level !== 'ok' && !sync.passing
+  const dot = syncNeedsLook && (!ai || LEVEL_RANK[sync.level] >= LEVEL_RANK[ai.level]) ? sync.level : ai?.level
+  const settingsLabel = ['Settings', ai && `AI: ${ai.label}`, syncNeedsLook && `Sync: ${sync.label}`].filter(Boolean).join(', ')
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-sidebar/90 px-4 backdrop-blur-md md:hidden">
       <Link to="/" className="flex items-center gap-2" aria-label="Lernzeit home">
@@ -239,12 +272,13 @@ function MobileHeader() {
           </NavLink>
         ))}
         <NavLink
-          to={ai ? AI_SETTINGS : '/settings'}
-          aria-label={ai ? `Settings, AI: ${ai.label}` : 'Settings'}
+          to={syncNeedsLook && dot === sync.level ? ACCOUNT_SETTINGS : ai ? AI_SETTINGS : '/settings'}
+          aria-label={settingsLabel}
+          title={settingsLabel}
           className="relative flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-field"
         >
           <Settings size={19} strokeWidth={1.7} />
-          {ai && <span className={clsx('absolute top-2 right-2 size-2 rounded-full ring-2 ring-sidebar', LEVEL_DOT[ai.level])} />}
+          {dot && <span className={clsx('absolute top-2 right-2 size-2 rounded-full ring-2 ring-sidebar', LEVEL_DOT[dot])} />}
         </NavLink>
       </div>
       <Dialog open={searchOpen} onClose={() => setSearchOpen(false)} title="Search">

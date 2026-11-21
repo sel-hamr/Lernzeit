@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { hashPassword, verifyPassword } from '../worker/src/password.ts'
-import { checkEmail, checkPassword, ownerSql, wranglerArgs } from './cloud-owner.ts'
+import { checkEmail, checkPassword, ownerFromEnv, ownerSql, wranglerArgs } from './cloud-owner.ts'
 
 const FIXED_SALT = 'AAECAwQFBgcICQoLDA0ODw==' // the bytes 0..15
 // The same constant is asserted in worker/test/auth.test.ts inside Workers, so both runtimes agree.
@@ -57,5 +57,16 @@ describe('cloud:owner', () => {
   it('runs wrangler on the remote database unless --local is passed', () => {
     expect(wranglerArgs('/tmp/owner.sql', false)).toEqual(['d1', 'execute', 'lernzeit', '--remote', '--file', '/tmp/owner.sql'])
     expect(wranglerArgs('/tmp/owner.sql', true)).toEqual(['d1', 'execute', 'lernzeit', '--local', '--file', '/tmp/owner.sql'])
+  })
+
+  it('takes the owner from LERNZEIT_OWNER_EMAIL and LERNZEIT_OWNER_PASSWORD, only with --local', () => {
+    const env = { LERNZEIT_OWNER_EMAIL: ' Owner@Example.com ', LERNZEIT_OWNER_PASSWORD: 'long enough' }
+    expect(ownerFromEnv(env, true)).toEqual({ email: 'owner@example.com', password: 'long enough' })
+    // The real cloud's password is only ever typed, never read from the environment.
+    expect(ownerFromEnv(env, false)).toBeUndefined()
+    expect(ownerFromEnv({}, true)).toBeUndefined()
+    expect(ownerFromEnv({ LERNZEIT_OWNER_EMAIL: 'owner@example.com' }, true)).toBeUndefined()
+    expect(() => ownerFromEnv({ ...env, LERNZEIT_OWNER_PASSWORD: 'short' }, true)).toThrow(/10 characters/)
+    expect(() => ownerFromEnv({ ...env, LERNZEIT_OWNER_EMAIL: 'owner' }, true)).toThrow(/not an email/)
   })
 })

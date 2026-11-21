@@ -165,14 +165,19 @@ auth.post('/logout', async (c) => {
   return c.json({ ok: true })
 })
 
-/** The browsers and devices signed in. A device's id is the start of its token's hash. */
+/**
+ * The browsers and devices signed in. A device's id is the start of its token's hash; `current`
+ * marks the one asking, so it can show as "This browser".
+ */
 auth.get('/devices', requireOwner, async (c) => {
   const { results } = await c.env.DB.prepare(
     'SELECT substr(token_hash, 1, 12) AS id, kind, name, created_at AS createdAt, last_used_at AS lastUsedAt FROM auth_tokens WHERE owner_id = ? ORDER BY last_used_at DESC',
   )
     .bind(c.get('ownerId'))
     .all<{ id: string; kind: 'web' | 'device'; name: string; createdAt: number; lastUsedAt: number }>()
-  return c.json(results)
+  // requireOwner found a session, so the request carries a token.
+  const currentId = (await sha256Hex(presentedToken(c)!)).slice(0, 12)
+  return c.json(results.map((device) => ({ ...device, current: device.id === currentId })))
 })
 
 auth.delete('/devices/:id', requireOwner, async (c) => {

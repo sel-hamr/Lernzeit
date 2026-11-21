@@ -7,6 +7,9 @@
  * the owner: use it to change the password. That signs every browser and device out; the synced
  * data stays, since the owner keeps the same id.
  *
+ * For the local database only (`--local`), LERNZEIT_OWNER_EMAIL and LERNZEIT_OWNER_PASSWORD answer
+ * instead when both are set, so a test owner for `npm run worker:dev` can be set without typing.
+ *
  * Runs with Node's type stripping, outside the Vite build, so it uses only erasable TypeScript and
  * relative imports with extensions.
  */
@@ -31,7 +34,9 @@ const USAGE = `Usage: npm run cloud:owner -- [--local]
 Sets the email and password of the one Lernzeit cloud account, replacing any
 owner set before and signing every browser and device out.
 
-  --local     Write to the local D1 database (.wrangler/) instead of Cloudflare's
+  --local     Write to the local D1 database (.wrangler/) instead of Cloudflare's.
+              With it, LERNZEIT_OWNER_EMAIL and LERNZEIT_OWNER_PASSWORD are used
+              instead of asking, when both are set.
   -h, --help  Show this help`
 
 /** The email to store: trimmed and lower-case, as the Worker compares it. Throws when it is not an address. */
@@ -46,6 +51,17 @@ export function checkEmail(input: string): string {
 export function checkPassword(password: string, again: string): void {
   if (password.length < MIN_PASSWORD_LENGTH) throw new Error(`The password needs at least ${MIN_PASSWORD_LENGTH} characters.`)
   if (password !== again) throw new Error('The two passwords do not match.')
+}
+
+/**
+ * The owner from LERNZEIT_OWNER_EMAIL and LERNZEIT_OWNER_PASSWORD, checked like typed answers, when
+ * both are set and the local database is the target. The real cloud's password is only ever typed.
+ */
+export function ownerFromEnv(env: Record<string, string | undefined>, local: boolean): { email: string; password: string } | undefined {
+  const { LERNZEIT_OWNER_EMAIL: email, LERNZEIT_OWNER_PASSWORD: password } = env
+  if (!local || !email || !password) return undefined
+  checkPassword(password, password)
+  return { email: checkEmail(email), password }
 }
 
 const sqlString = (text: string) => `'${text.replaceAll("'", "''")}'`
@@ -104,6 +120,27 @@ function wrangler(args: string[]): number {
   return result.status ?? 1
 }
 
+/** Asks for the email and the password, twice, until both pass the checks. */
+async function askOwner(): Promise<{ email: string; password: string }> {
+  const io = terminal()
+  try {
+    if (!process.stdin.isTTY) console.warn('This window cannot hide what you type, so the password will show. PowerShell or Windows Terminal can hide it.')
+    const email = checkEmail(await io.ask('Email: '))
+    for (;;) {
+      const password = await io.ask(`Password (at least ${MIN_PASSWORD_LENGTH} characters): `, true)
+      const again = await io.ask('Password again: ', true)
+      try {
+        checkPassword(password, again)
+        return { email, password }
+      } catch (error) {
+        console.error((error as Error).message)
+      }
+    }
+  } finally {
+    io.close()
+  }
+}
+
 async function main(args: string[]): Promise<number> {
   if (args.includes('-h') || args.includes('--help')) {
     console.log(USAGE)
@@ -116,25 +153,7 @@ async function main(args: string[]): Promise<number> {
   }
   const local = args.includes('--local')
 
-  const io = terminal()
-  let email: string
-  let password: string
-  try {
-    if (!process.stdin.isTTY) console.warn('This window cannot hide what you type, so the password will show. PowerShell or Windows Terminal can hide it.')
-    email = checkEmail(await io.ask('Email: '))
-    for (;;) {
-      password = await io.ask(`Password (at least ${MIN_PASSWORD_LENGTH} characters): `, true)
-      const again = await io.ask('Password again: ', true)
-      try {
-        checkPassword(password, again)
-        break
-      } catch (error) {
-        console.error((error as Error).message)
-      }
-    }
-  } finally {
-    io.close()
-  }
+  const { email, password } = ownerFromEnv(process.env, local) ?? (await askOwner())
 
   const stored = await hashPassword(password)
   const dir = mkdtempSync(join(tmpdir(), 'lernzeit-owner-'))
