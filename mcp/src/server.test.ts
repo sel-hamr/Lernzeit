@@ -12,35 +12,58 @@ interface Named {
 /** The real server over stdio, the way an AI app starts it. */
 describe('MCP server', () => {
   let child: ChildProcessWithoutNullStreams
-  const waiting = new Map<number, (message: { result?: Record<string, unknown>; error?: unknown }) => void>()
+  const waiting = new Map<number, { settle: (message: { result?: Record<string, unknown>; error?: unknown }) => void; fail: (error: Error) => void }>()
   let nextId = 1
+  let stderr = ''
+  /** Why the server stopped, once it has: every call after that fails with it. */
+  let exited: Error | undefined
 
   const rpc = (method: string, params: Record<string, unknown> = {}) =>
     // Tests read deep into the results, so they are typed loosely.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     new Promise<Record<string, any>>((resolve, reject) => {
+      if (exited) return reject(exited)
       const id = nextId++
-      waiting.set(id, (message) => (message.result ? resolve(message.result) : reject(new Error(JSON.stringify(message.error)))))
+      waiting.set(id, {
+        settle: (message) => (message.result ? resolve(message.result) : reject(new Error(JSON.stringify(message.error)))),
+        fail: reject,
+      })
       child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`)
     })
 
-  before(async () => {
-    const port = String(40_000 + Math.floor(Math.random() * 20_000))
-    child = spawn(process.execPath, [fileURLToPath(new URL('./index.ts', import.meta.url))], {
-      env: { ...process.env, LERNZEIT_TOKEN: 'test-token', LERNZEIT_PORT: port },
-    })
-    createInterface({ input: child.stdout }).on('line', (line) => {
-      const message = JSON.parse(line) as { id?: number; result?: Record<string, unknown>; error?: unknown }
-      if (message.id !== undefined) waiting.get(message.id)?.(message)
-    })
-    await rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1' } })
-    child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' })}\n`)
-  })
+  before(
+    async () => {
+      // Below Windows' dynamic range (49152 and up) and the blocks Hyper-V and WSL reserve near it.
+      const port = String(20_000 + Math.floor(Math.random() * 10_000))
+      child = spawn(process.execPath, [fileURLToPath(new URL('./index.ts', import.meta.url))], {
+        env: { ...process.env, LERNZEIT_TOKEN: 'test-token', LERNZEIT_PORT: port },
+      })
+      child.stderr.on('data', (chunk: Buffer) => (stderr += chunk.toString()))
+      // A server that stops early (a port it may not use, a crash) fails the calls waiting on it.
+      child.on('exit', (code, signal) => {
+        exited = new Error(`The MCP server on port ${port} exited (${signal ?? `code ${code}`}). Its stderr:\n${stderr}`)
+        for (const { fail } of waiting.values()) fail(exited)
+        waiting.clear()
+      })
+      createInterface({ input: child.stdout }).on('line', (line) => {
+        const message = JSON.parse(line) as { id?: number; result?: Record<string, unknown>; error?: unknown }
+        if (message.id === undefined) return
+        waiting.get(message.id)?.settle(message)
+        waiting.delete(message.id)
+      })
+      await rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1' } })
+      child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' })}\n`)
+    },
+    { timeout: 20_000 },
+  )
 
-  after(async () => {
-    child.stdin.end()
-    if (child.exitCode === null) await once(child, 'exit')
-  })
+  after(
+    async () => {
+      child.stdin.end()
+      if (child.exitCode === null && child.signalCode === null) await once(child, 'exit')
+    },
+    { timeout: 10_000 },
+  )
 
   it('offers the eighteen tools', async () => {
     const { tools } = await rpc('tools/list')
