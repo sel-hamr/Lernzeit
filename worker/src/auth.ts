@@ -30,9 +30,58 @@ const MAX_TOKEN_LENGTH = 128
  */
 const NO_OWNER: StoredPassword = { hash: 'A'.repeat(43) + '=', salt: 'A'.repeat(22) + '==', iterations: PBKDF2_ITERATIONS }
 
+export const TOO_MANY_ATTEMPTS = 'Too many attempts. Try again in 15 minutes.'
 const WRONG = { error: 'Wrong email or password' }
 const SIGNED_OUT = { error: 'Signed out' }
-const TOO_MANY = { error: 'Too many attempts. Try again in 15 minutes.' }
+const TOO_MANY = { error: TOO_MANY_ATTEMPTS }
+
+/** Where a sign-in attempt comes from, for the rate limit. */
+export function clientIp(request: Request): string {
+  return request.headers.get('CF-Connecting-IP') ?? 'unknown'
+}
+
+export interface Owner {
+  id: string
+  email: string
+  /** When `npm run cloud:owner` last wrote the owner, in ms. A new value means a new password. */
+  createdAt: number
+}
+
+export type PasswordCheck =
+  /** `forgetAttempt` takes this attempt off the rate limit again; run it with whatever the sign-in writes. */
+  | { ok: true; owner: Owner; forgetAttempt: D1PreparedStatement }
+  | { ok: false; reason: 'wrong' | 'too_many' }
+
+/**
+ * Checks a password against the owner (found by email, or by id when the page asks only for the
+ * password), under the rate limit of 10 failed tries per address in 15 minutes. The web sign-in,
+ * the device sign-in and the OAuth authorize page all count against the same limit.
+ */
+export async function checkPassword(db: D1Database, ip: string, who: { email: string } | { id: string }, password: string): Promise<PasswordCheck> {
+  const now = Date.now()
+  // Every attempt is written down before the password is checked, and counted in the same
+  // transaction, so attempts sent in parallel cannot all slip under the limit. A successful or
+  // refused attempt is taken off again; only failed ones stay for the 15 minutes.
+  const [, inserted, counted] = await db.batch<{ id: number } | { n: number }>([
+    db.prepare('DELETE FROM login_attempts WHERE at <= ?').bind(now - ATTEMPT_WINDOW),
+    db.prepare('INSERT INTO login_attempts (ip, at) VALUES (?, ?) RETURNING rowid AS id').bind(ip, now),
+    db.prepare('SELECT COUNT(*) AS n FROM login_attempts WHERE ip = ?').bind(ip),
+  ])
+  const attempt = (inserted.results[0] as { id: number }).id
+  const forgetAttempt = db.prepare('DELETE FROM login_attempts WHERE rowid = ?').bind(attempt)
+  if ((counted.results[0] as { n: number }).n > MAX_FAILED_ATTEMPTS) {
+    await forgetAttempt.run()
+    return { ok: false, reason: 'too_many' }
+  }
+
+  const select = 'SELECT id, email, created_at AS createdAt, pass_hash AS hash, pass_salt AS salt, iterations FROM owner'
+  const owner = await ('email' in who ? db.prepare(`${select} WHERE email = ?`).bind(who.email) : db.prepare(`${select} WHERE id = ?`).bind(who.id)).first<
+    Owner & StoredPassword
+  >()
+  const matches = password.length <= MAX_PASSWORD_LENGTH && (await verifyPassword(password, owner ?? NO_OWNER))
+  if (!owner || !matches) return { ok: false, reason: 'wrong' }
+  return { ok: true, owner: { id: owner.id, email: owner.email, createdAt: owner.createdAt }, forgetAttempt }
+}
 
 interface Session {
   ownerId: string
@@ -105,36 +154,17 @@ auth.post('/login', requireJson, async (c) => {
   if (!login) return c.json({ error: 'Send an email and a password.' }, 400)
 
   const db = c.env.DB
-  const ip = c.req.header('CF-Connecting-IP') ?? 'unknown'
+  const check = await checkPassword(db, clientIp(c.req.raw), { email: login.email.trim().toLowerCase() }, login.password)
+  if (!check.ok) return check.reason === 'too_many' ? c.json(TOO_MANY, 429) : c.json(WRONG, 401)
+  const { owner } = check
+
   const now = Date.now()
-  // Every attempt is written down before the password is checked, and counted in the same
-  // transaction, so attempts sent in parallel cannot all slip under the limit. A successful or
-  // refused attempt is taken off again; only failed ones stay for the 15 minutes.
-  const [, inserted, counted] = await db.batch<{ id: number } | { n: number }>([
-    db.prepare('DELETE FROM login_attempts WHERE at <= ?').bind(now - ATTEMPT_WINDOW),
-    db.prepare('INSERT INTO login_attempts (ip, at) VALUES (?, ?) RETURNING rowid AS id').bind(ip, now),
-    db.prepare('SELECT COUNT(*) AS n FROM login_attempts WHERE ip = ?').bind(ip),
-  ])
-  const attempt = (inserted.results[0] as { id: number }).id
-  const forgetAttempt = db.prepare('DELETE FROM login_attempts WHERE rowid = ?').bind(attempt)
-  if ((counted.results[0] as { n: number }).n > MAX_FAILED_ATTEMPTS) {
-    await forgetAttempt.run()
-    return c.json(TOO_MANY, 429)
-  }
-
-  const owner = await db
-    .prepare('SELECT id, email, pass_hash AS hash, pass_salt AS salt, iterations FROM owner WHERE email = ?')
-    .bind(login.email.trim().toLowerCase())
-    .first<{ id: string; email: string } & StoredPassword>()
-  const matches = await verifyPassword(login.password, owner ?? NO_OWNER)
-  if (!owner || !matches) return c.json(WRONG, 401)
-
   const token = newToken()
   const tokenHash = await sha256Hex(token)
   const kind = login.device ? 'device' : 'web'
   const name = login.device ? login.device.name : 'Web browser'
   const statements = [
-    forgetAttempt,
+    check.forgetAttempt,
     db
       .prepare('INSERT INTO auth_tokens (token_hash, owner_id, kind, name, created_at, last_used_at) VALUES (?, ?, ?, ?, ?, ?)')
       .bind(tokenHash, owner.id, kind, name, now, now),

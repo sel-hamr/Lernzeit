@@ -8,6 +8,7 @@
     "typecheck": "tsc"
   },
   "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^1.2.4",
     "@lernzeit/core": "*",
     "@modelcontextprotocol/server": "^2.3.1",
     "hono": "^4.13.0",

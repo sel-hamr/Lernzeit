@@ -98,7 +98,7 @@ This changes the cloud, not the devices, and the devices resync by themselves. O
 
 ## Change the owner password
 
-Run `npm run cloud:owner` again and type a new password. It replaces the owner, keeps all your data, and **signs every device out**, so each one signs in again.
+Run `npm run cloud:owner` again and type a new password. It replaces the owner, keeps all your data, and **signs every device out**, so each one signs in again. Apps connected to the MCP endpoint, such as Claude, are disconnected too: their next call is refused, and they ask for the new password.
 
 ## Create the owner
 
