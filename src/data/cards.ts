@@ -3,7 +3,8 @@ import type { Card, CardReview, Deck, DeckDirections, Grade, ReviewLog } from '@
 import { cleanConjugation } from '@lernzeit/core/conjugation'
 import { splitArticle } from '@lernzeit/core/german'
 import { prepareImage } from '@/lib/image'
-import { applyGrade, directionsFor, newReview } from '@lernzeit/core/srs'
+import { applyGrade } from '@lernzeit/core/srs'
+import { reviewChanges } from '@lernzeit/core/cardPack'
 import { dateKey } from '@lernzeit/core/time'
 
 export const INCOMPLETE_TAG = 'incomplete'
@@ -15,17 +16,12 @@ export type ImageChange = { kind: 'keep' } | { kind: 'remove' } | { kind: 'set';
 
 /** Creates review rows for every enabled direction that does not have one yet. */
 async function syncReviews(database: LernzeitDB, card: Card, deck: Deck) {
-  const wanted = directionsFor(card, deck)
   const existing = await database.reviews.where('cardId').equals(card.id).toArray()
-  const have = new Set(existing.map((r) => r.direction))
-  const now = Date.now()
-  const missing = wanted.filter((d) => !have.has(d)).map((d) => newReview(card, d, now))
-  if (missing.length) await database.reviews.bulkAdd(missing)
+  const { add, remove, put } = reviewChanges(card, deck, existing, Date.now())
+  if (add.length) await database.reviews.bulkAdd(add)
   // A cloze card that changed type keeps no stale directions.
-  const stale = existing.filter((r) => (card.type === 'cloze') !== (r.direction === 'cloze'))
-  if (stale.length) await database.reviews.bulkDelete(stale.map((r) => r.id))
-  const moved = existing.filter((r) => r.deckId !== card.deckId)
-  if (moved.length) await database.reviews.bulkPut(moved.map((r) => ({ ...r, deckId: card.deckId })))
+  if (remove.length) await database.reviews.bulkDelete(remove)
+  if (put.length) await database.reviews.bulkPut(put)
 }
 
 async function deleteImageIfUnused(database: LernzeitDB, imageId: string | undefined, exceptCardId?: string) {

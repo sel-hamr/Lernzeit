@@ -6,11 +6,12 @@ import { MERGED_KEY } from '@/sync/firstSignIn'
 import { MISSING_IMAGES_KEY, stopSync, syncNow, withLock } from '@/sync/engine'
 import { applyRemote } from '@/sync/outbox'
 import { db, getSettings, KV_KEYS, newId, type LernzeitDB, type OutboxEntry } from '@/db/db'
-import type { Card, CardType, Conjugation, Deck, DeckDirections, Doc, DocFolder, DrillStat, ExerciseStat, Gender, GrammarTopic, KV, PracticeRun, Question, QuestionResponse, ReviewLog, Session, Settings, StoredImage, Story, Task, Topic, CardReview } from '@lernzeit/core/types'
+import type { Card, CardType, Conjugation, Deck, Doc, DocFolder, DrillStat, ExerciseStat, Gender, GrammarTopic, KV, PracticeRun, Question, QuestionResponse, ReviewLog, Session, Settings, StoredImage, Story, Task, Topic, CardReview } from '@lernzeit/core/types'
 import { cleanConjugation } from '@lernzeit/core/conjugation'
 import { splitArticle } from '@lernzeit/core/german'
 import { blobToDataUrl, dataUrlToBlob } from '@/lib/image'
 import { directionsFor, newReview } from '@lernzeit/core/srs'
+import { packCardRows, type CardPack } from '@lernzeit/core/cardPack'
 
 /* ---------------------------------------------------------------- CSV ---- */
 
@@ -163,49 +164,7 @@ export const CSV_TEMPLATE =
 
 /* --------------------------------------------------------- Card packs ---- */
 
-/**
- * A shareable set of decks and cards (`"format": "lernzeit-cards"`), as in
- * the German starter file. Cards keep their ids, so importing a pack twice
- * only adds what is missing.
- */
-export interface CardPackDeck {
-  id: string
-  name: string
-  /** Topic name, e.g. "German". */
-  topic?: string
-  directions?: Partial<DeckDirections>
-  newPerDay?: number
-  reviewsPerDay?: number
-}
-
-export interface CardPackCard {
-  id?: string
-  deckId: string
-  type?: CardType
-  english: string
-  german: string
-  gender?: Gender | null
-  plural?: string | null
-  verbForms?: string | null
-  /** Each tense as six forms for ich, du, er/sie/es, wir, ihr, sie. */
-  conjugation?: Conjugation | null
-  partOfSpeech?: string | null
-  exampleDe?: string | null
-  exampleEn?: string | null
-  tags?: string[]
-  /** A data: URL; other image links are ignored (they would not work offline). */
-  image?: string | null
-  emoji?: string | null
-  imageQuery?: string | null
-}
-
-export interface CardPack {
-  format: 'lernzeit-cards'
-  version: number
-  description?: string
-  decks: CardPackDeck[]
-  cards: CardPackCard[]
-}
+export type { CardPack, CardPackCard, CardPackDeck } from '@lernzeit/core/cardPack'
 
 export function isCardPack(value: unknown): value is CardPack {
   const v = value as Partial<CardPack> | null
@@ -225,8 +184,6 @@ export function parseCardPack(value: unknown): CardPack {
   })
   return value
 }
-
-const clean = (v: string | null | undefined) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
 
 /** Images in a pack are decoded before writing, since a database transaction cannot wait for that. */
 export interface PreparedPack {
@@ -297,34 +254,12 @@ export async function writeCardPack(
 
     pack.cards.forEach((pc, i) => {
       if (pc.id && existing.has(pc.id)) return
-      const deck = deckFor.get(pc.deckId)!
-      const type: CardType = pc.type === 'sentence' || pc.type === 'cloze' ? pc.type : 'word'
       const id = pc.id ?? newId()
       const image = images.get(i)
       if (image) newImages.push(image)
-      const card: Card = {
-        id,
-        deckId: deck.id,
-        type,
-        english: pc.english.trim(),
-        german: pc.german.trim(),
-        gender: type === 'word' && pc.gender && GENDERS.has(pc.gender) ? pc.gender : undefined,
-        plural: clean(pc.plural),
-        verbForms: clean(pc.verbForms),
-        conjugation: cleanConjugation(pc.conjugation),
-        partOfSpeech: clean(pc.partOfSpeech),
-        exampleDe: clean(pc.exampleDe),
-        exampleEn: clean(pc.exampleEn),
-        emoji: clean(pc.emoji),
-        imageQuery: clean(pc.imageQuery),
-        imageId: image?.id ?? opts.imageForCard?.(id),
-        tags: (pc.tags ?? []).map((t) => t.trim()).filter(Boolean),
-        // Keep the pack's order for new cards.
-        createdAt: now + i,
-        updatedAt: now + i,
-      }
-      cards.push(card)
-      for (const direction of directionsFor(card, deck)) reviews.push(newReview(card, direction, now))
+      const rows = packCardRows(pc, deckFor.get(pc.deckId)!, { id, now, index: i, imageId: image?.id ?? opts.imageForCard?.(id) })
+      cards.push(rows.card)
+      reviews.push(...rows.reviews)
     })
 
     if (newImages.length) await database.images.bulkAdd(newImages)
