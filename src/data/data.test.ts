@@ -431,6 +431,14 @@ describe('stories', () => {
     await expect(saveStory({ title: 'x', text: ' ', tags: [] }, undefined, database)).rejects.toThrow('needs some text')
   })
 
+  it('keeps the teaching notes when the story is edited', async () => {
+    const note = { word: 'lerne', sentence: 'Ich lerne Deutsch.', baseForm: 'lernen', partOfSpeech: 'verb', translation: 'learn' }
+    const story = await saveStory({ title: 'Mein Tag', text: 'Ich lerne Deutsch.', tags: [], words: [note] }, undefined, database)
+    // The editor sends only its own fields.
+    await saveStory({ title: 'Neu', text: story.text, level: 'A1', topicId: story.topicId, tags: story.tags }, story.id, database)
+    expect(await database.stories.get(story.id)).toMatchObject({ title: 'Neu', words: [note] })
+  })
+
   it('records reading time as one session that grows', async () => {
     const topicId = await germanId()
     const start = Date.now()
