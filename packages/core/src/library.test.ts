@@ -1,5 +1,23 @@
 import { describe, expect, it } from 'vitest'
+import type { Library } from './fold'
 import { createMemoryStore } from './library'
+import { libraryStoreContract } from './library.contract'
+
+libraryStoreContract('the memory store', async (seed: Library) => {
+  const store = createMemoryStore(seed)
+  return {
+    store,
+    // What is stored: the seed with every committed change, none of the staged ones.
+    async reopen() {
+      const stored = createMemoryStore(seed)
+      for (const change of store.committed) {
+        if (change.deleted) stored.remove(change.tbl, change.id)
+        else stored.put(change.tbl, change.data as object)
+      }
+      return stored
+    },
+  }
+})
 
 const seed = {
   decks: [

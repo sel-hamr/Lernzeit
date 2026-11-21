@@ -52,7 +52,7 @@ export async function runAction<A extends ActionName>(store: LibraryStore, actio
     store: staged,
     now: store.now(),
     timeZone: store.timeZone,
-    newId: () => globalThis.crypto.randomUUID(),
+    newId: () => crypto.randomUUID(),
   })
   for (const change of staged.changes()) {
     if (change.data) store.put(change.tbl, change.data)

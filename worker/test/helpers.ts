@@ -1,5 +1,8 @@
 import { SELF } from 'cloudflare:test'
 import { env } from 'cloudflare:workers'
+import type { Library } from '@lernzeit/core/fold'
+import { recordId, type SyncTable } from '@lernzeit/core/sync'
+import { applyChanges } from '../src/changes.ts'
 import { hashPassword } from '../src/password.ts'
 
 export const EMAIL = 'owner@example.com'
@@ -55,4 +58,25 @@ export async function deviceToken(name = 'Pixel 8'): Promise<string> {
 /** Empties the synced data: records, blobs and the change counter. */
 export async function clearSyncData(): Promise<void> {
   await env.DB.batch([env.DB.prepare('DELETE FROM records'), env.DB.prepare('DELETE FROM blobs'), env.DB.prepare('DELETE FROM counters')])
+}
+
+/** Stores `library` for `owner` as one push would, every record stamped `updatedAt`. */
+export async function seedLibrary(owner: string, library: Library, updatedAt = 1): Promise<void> {
+  const changes = (Object.entries(library) as [SyncTable, object[]][]).flatMap(([tbl, rows]) =>
+    rows.map((row) => ({ tbl, id: recordId(tbl, row), data: row, updatedAt, deleted: false })),
+  )
+  await applyChanges(env.DB, owner, changes)
+}
+
+/** The D1 binding, counting its `batch` calls: D1 counts each batch as one query against a request's limit. */
+export function countingDb(db: D1Database = env.DB): { db: D1Database; batches: () => number } {
+  let batches = 0
+  const wrapped = {
+    prepare: (sql: string) => db.prepare(sql),
+    batch: (statements: D1PreparedStatement[]) => {
+      batches++
+      return db.batch(statements)
+    },
+  }
+  return { db: wrapped as unknown as D1Database, batches: () => batches }
 }

@@ -1,0 +1,131 @@
+/**
+ * The owner's library in D1, as the AI tools read and write it (`LibraryStore` in core
+ * library.ts, whose memory store has the same behaviour; library.contract.ts tests both).
+ *
+ * Reads go to the live `records` rows with the filter compiled to SQL, so a tool reads only the
+ * rows it asks for. The reads a tool asks for together (a `Promise.all`, or a handler's reads
+ * before its first await) go to D1 as one batch: D1 counts a batch as one query, and a request
+ * may make only 50 on the Free plan. Writes are staged, readable at once, and stored by
+ * `commit()` through `applyChanges`, the same path a device's push takes: newest `updatedAt`
+ * wins, so a browser edit stamped after the tool's write still wins when it is pushed.
+ */
+import type { Filter, LibraryReader, LibraryStore } from '@lernzeit/core/library'
+import { stageWrites } from '@lernzeit/core/library'
+import { MAX_PUSH_CHANGES, type SyncChange, type SyncTable } from '@lernzeit/core/sync'
+import type { Settings } from '@lernzeit/core/types'
+import { applyChanges, validateChanges } from './changes.ts'
+
+/** A filter field goes into the SQL as a JSON path, so it must be a plain name. */
+const FIELD_NAME = /^[A-Za-z][A-Za-z0-9]*$/
+
+/**
+ * The SQL that picks the owner's live rows of `tbl` matching `filter`, with its parameters.
+ * `null` matches a missing field too; booleans compare as JSON stores them, as 1 and 0.
+ */
+function whereClause(owner: string, tbl: SyncTable, filter: Filter = {}): { sql: string; params: (string | number)[] } {
+  const params: (string | number)[] = [owner, tbl]
+  const parts = ['owner = ?1', 'tbl = ?2', 'deleted = 0']
+  for (const [field, value] of Object.entries(filter)) {
+    if (!FIELD_NAME.test(field)) throw new Error(`Cannot filter on the field ${JSON.stringify(field)}: use letters and digits only.`)
+    const path = `json_extract(data, '$.${field}')`
+    if (value === null) {
+      parts.push(`${path} IS NULL`)
+    } else {
+      params.push(typeof value === 'boolean' ? (value ? 1 : 0) : value)
+      parts.push(`${path} = ?${params.length}`)
+    }
+  }
+  return { sql: parts.join(' AND '), params }
+}
+
+/** Runs the statements asked for in one go as one D1 batch, each caller getting its own rows. */
+function batcher(db: D1Database) {
+  let queue: { statement: D1PreparedStatement; resolve: (rows: unknown[]) => void; reject: (error: unknown) => void }[] = []
+
+  async function flush() {
+    const batch = queue
+    queue = []
+    try {
+      const results = await db.batch(batch.map((q) => q.statement))
+      batch.forEach((q, i) => q.resolve(results[i].results))
+    } catch (error) {
+      for (const q of batch) q.reject(error)
+    }
+  }
+
+  return function query<T>(sql: string, params: unknown[]): Promise<T[]> {
+    const statement = db.prepare(sql).bind(...params)
+    return new Promise<unknown[]>((resolve, reject) => {
+      if (queue.length === 0) queueMicrotask(() => void flush())
+      queue.push({ statement, resolve, reject })
+    }) as Promise<T[]>
+  }
+}
+
+function storedReader(db: D1Database, owner: string): LibraryReader {
+  const query = batcher(db)
+  const parse = <T>(rows: { data: string }[]) => rows.map((row) => JSON.parse(row.data) as T)
+  return {
+    async list<T>(tbl: SyncTable, filter?: Filter) {
+      const where = whereClause(owner, tbl, filter)
+      return parse<T>(await query<{ data: string }>(`SELECT data FROM records WHERE ${where.sql}`, where.params))
+    },
+    async get<T>(tbl: SyncTable, id: string) {
+      const rows = await query<{ data: string }>('SELECT data FROM records WHERE owner = ?1 AND tbl = ?2 AND id = ?3 AND deleted = 0', [owner, tbl, id])
+      return parse<T>(rows)[0]
+    },
+    async count(tbl: SyncTable, filter?: Filter) {
+      const where = whereClause(owner, tbl, filter)
+      const [row] = await query<{ n: number }>(`SELECT COUNT(*) AS n FROM records WHERE ${where.sql}`, where.params)
+      return row.n
+    },
+  }
+}
+
+/** The zone, when Intl knows it. */
+function knownTimeZone(zone: unknown): string | undefined {
+  if (typeof zone !== 'string' || zone === '') return undefined
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: zone })
+    return zone
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * The owner's library in D1, for one tool call. Its `timeZone` is the one in the synced settings
+ * (`kv/settings`), or UTC when they have none Intl knows.
+ *
+ * Make one store per call, as `runAction` expects, and do not reuse it: `commit()` takes the staged
+ * writes off the store before it writes them, so when it throws they are gone rather than left for
+ * a later commit to store half a failed call. `commit()` stamps every change with `now()`, the
+ * server's clock (`now` is there for tests), and writes nothing when nothing is staged.
+ */
+export async function createD1Store(db: D1Database, owner: string, options: { now?: () => number } = {}): Promise<LibraryStore> {
+  const stored = storedReader(db, owner)
+  const settings = await stored.get<{ value?: Partial<Settings> }>('kv', 'settings')
+  const timeZone = knownTimeZone(settings?.value?.timeZone) ?? 'UTC'
+  const staging = stageWrites(stored)
+  const now = options.now ?? (() => Date.now())
+
+  return {
+    list: staging.list,
+    get: staging.get,
+    count: staging.count,
+    put: staging.put,
+    remove: staging.remove,
+    async commit() {
+      const staged = staging.changes()
+      staging.clear()
+      if (staged.length === 0) return
+      const updatedAt = now()
+      const changes: SyncChange[] = staged.map(({ tbl, id, data }) => ({ tbl, id, data, updatedAt, deleted: data === null }))
+      // A push's rules for each record (its id, its size). A tool call may write more records than one push may carry.
+      for (let i = 0; i < changes.length; i += MAX_PUSH_CHANGES) validateChanges(changes.slice(i, i + MAX_PUSH_CHANGES))
+      await applyChanges(db, owner, changes)
+    },
+    timeZone,
+    now,
+  }
+}
