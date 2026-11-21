@@ -81,4 +81,4 @@ To use another MCP app, such as one hosted at `app.example.com`, add the host an
 
 - Everything saved by Claude goes to the cloud; a browser that is signed out or has never synced does not get it until it signs in.
 - The authorize page and client registration are rate limited per address, so a stranger cannot fill your storage.
-- An app you stop using expires: a registration nobody uses for 30 days is removed.
+- An app you stop using expires: a registration nobody uses for 30 days is removed, and so is a connection whose tokens are not refreshed for 30 days. An app in use stays connected: every refresh (about once an hour while Claude works with Lernzeit) gives it 30 more days.

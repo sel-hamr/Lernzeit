@@ -1,7 +1,7 @@
 import { getOAuthApi } from '@cloudflare/workers-oauth-provider'
 import { SELF } from 'cloudflare:test'
 import { env } from 'cloudflare:workers'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { oauthOptions } from '../src/index.ts'
 import { DEFAULT_REDIRECT_HOSTS, redirectAllowed, redirectHosts } from '../src/redirects.ts'
 import { EMAIL, PASSWORD, clearSyncData, deviceToken, freshIp, login, seedOwner, sessionCookie } from './helpers.ts'
@@ -250,6 +250,28 @@ describe('connecting Claude', () => {
 
     const refreshed = await exchange({ grant_type: 'refresh_token', refresh_token: tokens.refresh_token, client_id: clientId })
     expect(refreshed.status).toBe(400)
+  })
+
+  it('a grant lives while it is used: every refresh gives it 30 more days, and 30 idle days end it', async () => {
+    const DAY = 24 * 60 * 60 * 1000
+    const { clientId, tokens } = await connect()
+    const refresh = (token: string) => exchange({ grant_type: 'refresh_token', refresh_token: token, client_id: clientId })
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      // Refreshed every 20 days, well past 30 days after connecting.
+      let token = tokens.refresh_token
+      for (let n = 1; n <= 3; n++) {
+        vi.setSystemTime(Date.now() + 20 * DAY)
+        const refreshed = await refresh(token)
+        expect(refreshed.status, `refresh ${n}`).toBe(200)
+        token = (await refreshed.json<Tokens>()).refresh_token
+      }
+      // Then idle for 31 days.
+      vi.setSystemTime(Date.now() + 31 * DAY)
+      expect((await refresh(token)).status).toBe(400)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('a token whose owner row is gone is refused', async () => {

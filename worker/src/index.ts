@@ -52,6 +52,10 @@ export function oauthOptions(origin: string, hosts = redirectHosts(undefined)): 
     clientRegistrationEndpoint: '/register',
     // A registration nobody uses for 30 days expires; one in use is renewed by its token requests.
     clientRegistrationTTL: 30 * 24 * 60 * 60,
+    // A grant lasts 30 days from connecting, and every refresh moves its end to 30 days after that
+    // refresh, so Claude stays connected while it is used and is cut off after 30 idle days.
+    refreshTokenTTL: 30 * 24 * 60 * 60,
+    refreshTokenIdleTTL: 30 * 24 * 60 * 60,
     scopesSupported: [SCOPE],
     requiredScopes: [SCOPE],
     resourceMetadata: { resource: `${origin}${MCP_PATH}`, authorization_servers: [origin], resource_name: 'Lernzeit' },
