@@ -7,7 +7,7 @@
     { "binding": "DB", "database_name": "lernzeit", "database_id": "1f2d491c-82c4-49f9-9ffc-202b794776db", "migrations_dir": "worker/migrations" }
   ],
   // The OAuth grants, tokens and registered clients that let Claude use /mcp. The id is set at deploy.
-  "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "<set at deploy>" }],
+  "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "d742b601a38542698ebaa77ba52291f4" }],
   "vars": {
     // Where an OAuth client may send access back to, comma-separated: exact hostnames over https,
     // plus localhost, 127.0.0.1 and [::1] over http or https on any port (worker/src/redirects.ts).
