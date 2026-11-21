@@ -4,7 +4,7 @@
   "compatibility_date": "2026-11-01",
   "main": "worker/src/index.ts",
   "d1_databases": [
-    { "binding": "DB", "database_name": "lernzeit", "database_id": "<set in Task 10>", "migrations_dir": "worker/migrations" }
+    { "binding": "DB", "database_name": "lernzeit", "database_id": "1f2d491c-82c4-49f9-9ffc-202b794776db", "migrations_dir": "worker/migrations" }
   ],
   "assets": {
     "binding": "ASSETS",

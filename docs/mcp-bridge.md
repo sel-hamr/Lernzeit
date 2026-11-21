@@ -2,9 +2,12 @@
 
 Lets an AI app (Claude Code, Claude Desktop, Cursor) add cards, decks, stories, practice questions, tasks and study time to Lernzeit, read, move and delete cards, and delete decks.
 
+> [!NOTE]
+> Lernzeit now syncs with your own Cloudflare cloud ([cloud.md](cloud.md)). The bridge still works as described here, and what it saves reaches your other devices by sync, like any change you make in the app. A remote MCP server, so Claude on your phone can use your library without this computer, is planned and will replace the bridge.
+
 ## Why a bridge
 
-Lernzeit keeps all data in IndexedDB, inside the browser. An MCP server is a separate Node program, and a browser does not let outside programs open its database.
+Lernzeit keeps the copy it reads in IndexedDB, inside the browser, and syncs it with the cloud. An MCP server is a separate Node program, and a browser does not let outside programs open its database.
 
 So the server never touches the data. It passes each request to the open Lernzeit tab, and the app saves it with the code it already has. This means:
 
@@ -252,7 +255,7 @@ Error codes: `no_browser`, `pick_browser`, `unknown_browser`, `disconnected`, `t
 
 - Lernzeit must be open in a browser with the switch on.
 - The AI app and the browser must be on the same computer.
-- Data lands in one browser only. To get it onto your phone, use backup and restore. Real sync needs a cloud database, which is a separate project.
+- The AI writes into the one browser it is connected to. Sync then sends it to your other devices (see [cloud.md](cloud.md)), so the browser must be signed in and online for it to arrive there.
 - All AI apps and sessions must use the same `LERNZEIT_TOKEN`. A server with another token, or from an older version, cannot share the port; its tools return `port_in_use`, and it keeps trying in case the port frees up.
 - When Lernzeit runs from a hosted `https` address, Chrome may ask to allow access to local devices. Click Allow.
 - The AI can read your cards, decks, topics and grammar topics, but not your answers, scores, review history or notes.

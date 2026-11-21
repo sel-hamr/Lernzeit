@@ -104,7 +104,9 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173). The first visit asks what you want to learn (German, AI or your own topic) and how long a day, then a tour shows each page.
+Open [http://localhost:5173](http://localhost:5173). You sign in with the owner of your Lernzeit cloud, so set that up first (see [Deploy](#deploy-and-install-on-your-phone) and [docs/cloud.md](docs/cloud.md)). The first sign-in on a browser merges what it already has into the cloud, then asks what you want to learn (German, AI or your own topic) and how long a day, and a tour shows each page.
+
+`npm run dev` sends `/api` to the Worker named in [.env](.env). To try it without deploying, run `npm run worker:dev` and `npm run cloud:owner -- --local`, and point `.env.local` at `http://127.0.0.1:8787` ([details](docs/cloud.md#local-development)).
 
 **Connect Claude** in two steps:
 
@@ -116,14 +118,14 @@ Open [http://localhost:5173](http://localhost:5173). The first visit asks what y
 
 2. In Lernzeit, open **Settings → AI connection**, turn it on and paste the token.
 
-Keep the Lernzeit tab open while you talk to Claude: the server passes each request to that tab, which saves it. An **AI** row in the sidebar shows whether Claude can reach this browser. [docs/mcp-bridge.md](docs/mcp-bridge.md#setup) has the details.
+Keep the Lernzeit tab open while you talk to Claude: the server passes each request to that tab, which saves it, and sync sends it to your other devices. An **AI** row in the sidebar shows whether Claude can reach this browser. [docs/mcp-bridge.md](docs/mcp-bridge.md#setup) has the details.
 
 ## Everything in the app
 
 - **Daily goals.** A goal in minutes per topic and weekday. The focus timer counts toward it, and so can card reviews, story reading and grammar and question practice (switches in Settings).
-- **Local-first.** No account and no server. Your cards, sessions and tasks are stored in IndexedDB, and a JSON backup takes one click.
+- **Your library in your own Cloudflare account, with an offline copy on every device.** One Worker and one D1 database that you deploy yourself hold your cards, sessions, tasks and docs. Each browser keeps a copy in IndexedDB, so it works with no connection and catches up later. A JSON backup takes one click. See [docs/cloud.md](docs/cloud.md).
 - **Works offline** and installs on your phone as an app.
-- **Always in sync.** Every view reads live queries, so a change shows up at once, even one Claude just made, and in other tabs.
+- **Always in sync.** Every view reads live queries, so a change shows up at once, even one Claude just made, and in other tabs. Changes reach your other devices within a minute: the newest change to a record wins.
 - **Search everything.** Press <kbd>/</kbd> to search your cards, tasks and docs from any page.
 - **Turn off what you don't use.** Every page but Today can be switched off in **Settings → Features**. Nothing you saved in it is deleted.
 - **A guided start.** A welcome sets up your goals, and a tour shows how each page works and why it helps you remember. **Settings → Tour** runs it again.
@@ -275,8 +277,8 @@ Four columns: Backlog, To do, Doing and Done. Drag cards between columns and reo
 | **Appearance** | Light, dark or system theme |
 | **Reminders** | Goal reminders at the times you pick |
 | **Tour** | Run the tour of the app again |
-| **Your data** | JSON backup and restore, **Install app** where the browser offers it, storage use and "protect storage", and delete all data |
-| **Account** | Sign out. Your data stays in the browser |
+| **Your data** | JSON backup and restore, **Install app** where the browser offers it, storage use and "protect storage", and delete all data. Restore and delete apply to every device |
+| **Account** | Your email, the last sync, **Sync now**, the browsers signed in (**Remove** one), and **Sign out** |
 
 </details>
 
@@ -324,11 +326,11 @@ Import both kinds of file in **Settings → Decks → Import**.
 
 ## What the AI can see
 
-Your data stays in your browser. The MCP server in [`mcp/`](mcp) runs on your computer and only passes each request to the open Lernzeit tab, which saves it.
+Your library is in your own Cloudflare account, and only you can sign in. The MCP server in [`mcp/`](mcp) runs on your computer and only passes each request to the open Lernzeit tab, which saves it and syncs it. Nothing is sent to an AI unless you paste it or ask Claude to read it.
 
 - Claude **can** add decks, cards, stories, questions, grammar topics and exercises, docs, tasks and study time. It can read your cards and docs, move cards to another deck with their progress, and delete the cards or the deck you name, after telling you what and how many.
 - Claude **cannot** see your review history, your answers or your notes, and cannot edit or delete anything else. It does not know which words you know: **Write with AI** puts that into the prompt you paste, so you see what it gets.
-- Several browsers can be connected at once. Each keeps its own data, and Claude asks which one to use.
+- Several browsers can be connected at once. Claude asks which one to use; what it saves reaches the others by sync.
 
 | Tools | What they do |
 |---|---|
@@ -349,6 +351,8 @@ The server also has a `lernzeit://guide` resource that teaches Claude how to wri
 | `npm run build` | Type-checks and builds to `dist/`, including the service worker |
 | `npm run preview` | Serves the production build on http://localhost:4173 |
 | `npm start` | Builds if the code changed, then serves and opens the production build (the same as `lz`) |
+| `npm run worker:dev` | Runs the Worker locally on http://127.0.0.1:8787 with a local database |
+| `npm run cloud:owner` | Sets the email and password of your cloud account (`--local` for the local database) |
 | `npm run mcp:setup` | Adds the MCP server to Claude Code and Claude Desktop and prints a token |
 | `npm test` | Runs the unit tests (Vitest), the app's and the MCP server's |
 | `npm run lint` | Runs ESLint |
@@ -376,24 +380,29 @@ If Lernzeit is already running, `lz` only opens it. `lz` runs the TypeScript fil
 
 ## Deploy and install on your phone
 
-The build is static files with no server code, so any static host with HTTPS works. [wrangler.jsonc](wrangler.jsonc) is set up for Cloudflare: it serves `dist/` and sends client-side routes such as `/flashcards` to `index.html`.
+Lernzeit deploys as one Cloudflare Worker: it serves `dist/`, sends client-side routes such as `/flashcards` to `index.html`, and answers `/api` from a D1 database. The free plan is enough. [wrangler.jsonc](wrangler.jsonc) holds the setup.
 
 ```bash
-npm run build
-npx wrangler deploy
+npx wrangler login
+npx wrangler d1 create lernzeit
 ```
 
-Then open the site on your phone and choose **Add to Home screen**.
+Put the printed `database_id` in [wrangler.jsonc](wrangler.jsonc), then:
+
+```bash
+npx wrangler d1 migrations apply lernzeit --remote
+npm run build && npx wrangler deploy
+npm run cloud:owner
+```
+
+`npm run cloud:owner` asks for your email and a password. Put the address `wrangler deploy` prints in [.env](.env) as `LERNZEIT_CLOUD_URL`. After a code change, run `npm run build && npx wrangler deploy` again, and apply migrations first when `worker/migrations/` has a new file. Then open the site on your phone, sign in, and choose **Add to Home screen**. [docs/cloud.md](docs/cloud.md) also covers undoing a mistake with Time Travel.
 
 > [!NOTE]
-> On another host (Netlify, Vercel, GitHub Pages), deploy `dist/` and make the host serve `index.html` for every unknown path.
+> The app needs the Worker's `/api`, so a static-only host (Netlify, Vercel, GitHub Pages) is not enough.
 
 ## Sign in
 
-The app opens on a sign-in page with full-screen photos of German places (Bremen, Dresden, Bamberg, Neuschwanstein) that crossfade under a German proverb and its English. Once you sign in, this browser remembers it until **Settings → Account → Sign out**, which keeps your data.
-
-> [!WARNING]
-> The login is hardcoded in [src/features/login/login.ts](src/features/login/login.ts) and ships in the JavaScript, so anyone who reads the site's code can see it. It only keeps out people who don't look. Change it before you deploy, and don't use a real password.
+The app opens on a sign-in page with full-screen photos of German places (Bremen, Dresden, Bamberg, Neuschwanstein) that crossfade under a German proverb and its English. You sign in with the email and password of your cloud's owner, made by `npm run cloud:owner`. This browser stays signed in until **Settings → Account → Sign out**, or until you change the password, which signs every device out. After 10 wrong tries from one address, sign-in waits 15 minutes.
 
 ## Keyboard shortcuts
 
@@ -436,7 +445,10 @@ bin/              The `lz` command: builds when needed and serves the production
 scripts/          `mcp:setup` adds the MCP server to Claude Code and Claude Desktop; `make-starter` builds the German starter
 mcp/              MCP server for AI apps (an npm workspace)
 public/starter/   The German starter the welcome downloads
-wrangler.jsonc    Cloudflare static hosting
+worker/           The Cloudflare Worker: sign-in, sync and images over D1 (an npm workspace)
+packages/core/    Code shared by the app and the Worker: sync rules and the first-sign-in merge
+src/sync/         The app's side of sync: outbox, engine, account, first-sign-in merge
+wrangler.jsonc    The Worker's setup: static files, the /api routes and the D1 database
 ```
 
 The logic that decides correctness lives in `src/lib`, `src/data` and `src/bridge` as plain functions, each with a `*.test.ts` beside it (practice queue, grammar, drills, conjugation, story words and prompts, questions, docs, progress, tour, starter, the AI bridge). The data tests run against an in-memory IndexedDB, `src/languages/languages.test.ts` checks the German pack, and `mcp/src` has its own tests. `npm test` runs them all.
@@ -446,7 +458,8 @@ The logic that decides correctness lives in `src/lib`, `src/data` and `src/bridg
 | Area | Tools |
 |---|---|
 | UI | React 19, TypeScript, React Router, Tailwind CSS 4, lucide-react, Geist font |
-| Build and hosting | Vite, vite-plugin-pwa, Cloudflare (wrangler) |
+| Build and hosting | Vite, vite-plugin-pwa, Cloudflare Workers (wrangler) |
+| Cloud | Hono on a Worker, D1 (SQLite) |
 | Data | Dexie (IndexedDB), dexie-react-hooks, Papa Parse (CSV import) |
 | Learning | ts-fsrs |
 | Voice | Piper through @mintplex-labs/piper-tts-web and onnxruntime-web, Thorsten voice |
@@ -457,12 +470,12 @@ The logic that decides correctness lives in `src/lib`, `src/data` and `src/bridg
 
 ## Good to know
 
-Reminders and end-of-timer notifications use the browser's Notification API. With no server behind the app, they only fire while it is open or running in the background as an installed PWA. They can't wake a closed app.
+Reminders and end-of-timer notifications use the browser's Notification API. They only fire while the app is open or running in the background as an installed PWA, and only the device that started a timer rings. They can't wake a closed app.
 
-The Thorsten voice keeps its model in the browser's private file storage and its clips in IndexedDB (up to 100 MB, oldest dropped first). Clips are not in backups; they are made again when needed. [docs/voice.md](docs/voice.md) explains how it works and why it was chosen.
+The Thorsten voice keeps its model in the browser's private file storage and its clips in IndexedDB (up to 100 MB, oldest dropped first). Clips are not in backups and are not synced; they are made again on each device when needed. [docs/voice.md](docs/voice.md) explains how it works and why it was chosen.
 
 ## More
 
 - [SPEC.md](SPEC.md): the full product spec
-- [docs/](docs/): how each part works ([grammar](docs/grammar.md), [stories](docs/stories.md), [questions](docs/questions.md), [docs](docs/docs.md), [German levels](docs/languages.md), [voice](docs/voice.md), [AI connection](docs/mcp-bridge.md)), and two planned features, [journal](docs/journal.md) and [speaking](docs/speaking.md)
+- [docs/](docs/): how each part works ([grammar](docs/grammar.md), [stories](docs/stories.md), [questions](docs/questions.md), [docs](docs/docs.md), [German levels](docs/languages.md), [voice](docs/voice.md), [AI connection](docs/mcp-bridge.md), [cloud and sync](docs/cloud.md)), and two planned features, [journal](docs/journal.md) and [speaking](docs/speaking.md)
 - [design/](design/): the original design mockups for Today, Timer, Flashcards and History
