@@ -1,6 +1,6 @@
 import type { CreateDeckParams, CreateDeckResult, DeckSummary, DeleteDeckParams, DeleteDeckResult } from '../protocol'
 import type { Card, Deck, Topic } from '../types'
-import { deleteImageIfUnused, removeProgress } from './cards'
+import { deleteUnusedImages, removeProgress } from './cards'
 import { byId, findDeck, findTopic, invalid, key, sortedDecks, type ActionContext } from './shared'
 
 async function describeDeck(ctx: ActionContext, deck: Deck): Promise<DeckSummary> {
@@ -47,9 +47,9 @@ export async function deleteDeck({ deck: deckRef, cardCount }: DeleteDeckParams,
   if (cards.length !== cardCount) {
     throw invalid(`"${deck.name}" has ${cards.length} ${cards.length === 1 ? 'card' : 'cards'}, not ${cardCount}. Nothing was deleted; tell the user the real number and ask again.`)
   }
-  await Promise.all(cards.map((card) => removeProgress(ctx, card.id)))
+  await removeProgress(ctx, cards.map((c) => c.id))
   for (const card of cards) ctx.store.remove('cards', card.id)
   ctx.store.remove('decks', deck.id)
-  for (const imageId of new Set(cards.map((c) => c.imageId))) await deleteImageIfUnused(ctx, imageId)
+  await deleteUnusedImages(ctx, cards.map((c) => c.imageId))
   return { deck: deck.name, deletedCards: cards.length }
 }

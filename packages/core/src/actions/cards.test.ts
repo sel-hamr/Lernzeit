@@ -225,6 +225,34 @@ describe('list_cards, move_cards and delete_cards', () => {
     expect(store.committed.at(-1)).toEqual({ tbl: 'images', id: 'img', data: null, updatedAt: NOW, deleted: true })
   })
 
+  it('deletes the images of the cards one call deletes, reading the docs once', async () => {
+    const [spoon, fork] = await foodCards()
+    store.put('cards', { ...spoon, imageId: 'img-a' })
+    store.put('cards', { ...fork, imageId: 'img-b' })
+    store.put('images', { id: 'img-a', width: 1, height: 1, fit: 'cover', type: 'image/png' })
+    store.put('images', { id: 'img-b', width: 1, height: 1, fit: 'cover', type: 'image/png' })
+    await store.commit()
+    const tables: string[] = []
+    const list = store.list
+    store.list = (tbl, filter) => (tables.push(tbl), list(tbl, filter))
+
+    await runAction(store, 'delete_cards', { deck: 'Food', cards: [spoon.id, fork.id] })
+    expect(await store.get('images', 'img-a')).toBeUndefined()
+    expect(await store.get('images', 'img-b')).toBeUndefined()
+    expect(tables.filter((t) => t === 'docs')).toHaveLength(1)
+  })
+
+  it('deletes an image two cards shared when one call deletes both', async () => {
+    const [spoon, fork] = await foodCards()
+    store.put('cards', { ...spoon, imageId: 'img' })
+    store.put('cards', { ...fork, imageId: 'img' })
+    store.put('images', { id: 'img', width: 1, height: 1, fit: 'cover', type: 'image/png' })
+    await store.commit()
+
+    await runAction(store, 'delete_cards', { deck: 'Food', cards: [spoon.id, fork.id] })
+    expect(await store.get('images', 'img')).toBeUndefined()
+  })
+
   it('keeps an image a doc still shows when the card that had it is deleted', async () => {
     const [spoon] = await foodCards()
     store.put('cards', { ...spoon, imageId: 'img' })

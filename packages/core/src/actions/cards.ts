@@ -105,7 +105,10 @@ async function moveCard(ctx: ActionContext, card: Card, deck: Deck) {
   for (const review of put) ctx.store.put('reviews', review)
 }
 
-/** Moves cards with their progress; a card whose text the target deck already has stays put. */
+/**
+ * Moves cards with their progress; a card whose text the target deck already has stays put.
+ * The cards' reviews are read together, so the store can fetch them in one go.
+ */
 export async function moveCards({ deck: fromRef, to: toRef, cards: refs }: MoveCardsParams, ctx: ActionContext): Promise<MoveCardsResult> {
   checkCardRefs(refs)
   const from = await findDeck(ctx, fromRef)
@@ -113,7 +116,7 @@ export async function moveCards({ deck: fromRef, to: toRef, cards: refs }: MoveC
   if (from.id === to.id) throw invalid(`The cards are in "${from.name}" already. Name another deck in to.`)
   const { found, notFound } = resolveCards(await ctx.store.list<Card>('cards', { deckId: from.id }), refs)
   const taken = new Set((await ctx.store.list<Card>('cards', { deckId: to.id })).map((c) => cardTextKey(c.german)))
-  const moved: string[] = []
+  const moving: Card[] = []
   const skipped: string[] = []
   for (const card of found) {
     if (taken.has(cardTextKey(card.german))) {
@@ -121,40 +124,45 @@ export async function moveCards({ deck: fromRef, to: toRef, cards: refs }: MoveC
       continue
     }
     taken.add(cardTextKey(card.german))
-    await moveCard(ctx, card, to)
-    moved.push(card.german)
+    moving.push(card)
   }
-  return { from: from.name, to: to.name, moved, skipped, notFound }
+  await Promise.all(moving.map((card) => moveCard(ctx, card, to)))
+  return { from: from.name, to: to.name, moved: moving.map((c) => c.german), skipped, notFound }
 }
 
-/** Removes a card's progress: its rows in every table of CARD_PROGRESS_TABLES (core cardPack.ts). */
-export async function removeProgress(ctx: ActionContext, cardId: string) {
-  const rows = await Promise.all(CARD_PROGRESS_TABLES.map((tbl) => ctx.store.list<{ id: string }>(tbl, { cardId })))
-  CARD_PROGRESS_TABLES.forEach((tbl, i) => {
+/**
+ * Removes the cards' progress: their rows in every table of CARD_PROGRESS_TABLES (core cardPack.ts).
+ * All the rows are read together, so the store can fetch them in one go.
+ */
+export async function removeProgress(ctx: ActionContext, cardIds: string[]) {
+  const reads = cardIds.flatMap((cardId) => CARD_PROGRESS_TABLES.map((tbl) => ({ tbl, cardId })))
+  const rows = await Promise.all(reads.map(({ tbl, cardId }) => ctx.store.list<{ id: string }>(tbl, { cardId })))
+  reads.forEach(({ tbl }, i) => {
     for (const row of rows[i]) ctx.store.remove(tbl, row.id)
   })
 }
 
-/** Removes an image once nothing uses it: no card left, and no doc (see `unusedImages`). */
-export async function deleteImageIfUnused(ctx: ActionContext, imageId: string | undefined) {
-  if (!imageId) return
-  const cards = await ctx.store.list<Card>('cards', { imageId })
-  // Docs are only read when no card uses the image any more.
-  const docs = cards.length ? [] : await ctx.store.list<Doc>('docs')
-  if (unusedImages([imageId], cards, docs).length) ctx.store.remove('images', imageId)
+/**
+ * Removes the images in `imageIds` that nothing uses any more: no card left, and no doc (see
+ * `unusedImages`). Call it once the cards are removed. Reads the cards of each image together,
+ * and the docs once, only when some image has no card left.
+ */
+export async function deleteUnusedImages(ctx: ActionContext, imageIds: (string | undefined)[]) {
+  const candidates = [...new Set(imageIds.filter((id): id is string => !!id))]
+  if (!candidates.length) return
+  const cards = (await Promise.all(candidates.map((imageId) => ctx.store.list<Card>('cards', { imageId })))).flat()
+  // Docs are only read when some image has no card using it any more.
+  const docs = unusedImages(candidates, cards, []).length ? await ctx.store.list<Doc>('docs') : []
+  for (const imageId of unusedImages(candidates, cards, docs)) ctx.store.remove('images', imageId)
 }
 
-/** Deletes a card with its progress, the way the card editor does. */
-async function deleteCard(ctx: ActionContext, card: Card) {
-  ctx.store.remove('cards', card.id)
-  await removeProgress(ctx, card.id)
-  await deleteImageIfUnused(ctx, card.imageId)
-}
-
+/** Deletes cards with their progress and the images nothing else uses, the way the card editor does. */
 export async function deleteCards({ deck: deckRef, cards: refs }: DeleteCardsParams, ctx: ActionContext): Promise<DeleteCardsResult> {
   checkCardRefs(refs)
   const deck = await findDeck(ctx, deckRef)
   const { found, notFound } = resolveCards(await ctx.store.list<Card>('cards', { deckId: deck.id }), refs)
-  for (const card of found) await deleteCard(ctx, card)
+  for (const card of found) ctx.store.remove('cards', card.id)
+  await removeProgress(ctx, found.map((c) => c.id))
+  await deleteUnusedImages(ctx, found.map((c) => c.imageId))
   return { deck: deck.name, deleted: found.map((c) => c.german), notFound }
 }

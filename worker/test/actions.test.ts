@@ -6,7 +6,7 @@ import type { PulledChange, PullResponse, PushResponse, SyncChange } from '@lern
 import type { Card, Session } from '@lernzeit/core/types'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createD1Store } from '../src/store.ts'
-import { clearSyncData, deviceToken, seedLibrary, seedOwner } from './helpers.ts'
+import { clearSyncData, countingDb, deviceToken, seedLibrary, seedOwner } from './helpers.ts'
 
 // The signed-in owner of the helpers, whose records the tools read and write.
 const OWNER = 'owner'
@@ -154,5 +154,81 @@ describe('a tool write and a browser edit of the same record', () => {
     await push([edit(browser, 3000)])
     await runAction(await store(5000), 'move_cards', { deck: 'My Words', to: 'German Top Words', cards: ['Haus'] })
     expect(await pulledHaus()).toMatchObject({ updatedAt: 5000, data: { english: 'home', deckId: 'german-top-words' } })
+  })
+})
+
+describe('D1 queries per tool call', () => {
+  // D1 allows 50 queries per request on the Free plan, a batch counting as one. A call's count must
+  // not grow per card: 100 cards took 7 when this was written (the store batches reads made together).
+  const MAX_QUERIES = 10
+
+  /** "Big": 100 cards with an image each and their progress; "Empty": none. Plus 30 docs. */
+  function bigLibrary() {
+    const library = fixtureLibrary() as Record<string, Record<string, unknown>[]>
+    const deck = (id: string, name: string, order: number) => ({
+      id, name, topicId: 'german', newPerDay: 15, reviewsPerDay: 150, directions: { imageToDe: true, enToDe: true, deToEn: true }, order, createdAt: 1,
+    })
+    library.decks.push(deck('big', 'Big', 10), deck('empty', 'Empty', 11))
+    const cards = Array.from({ length: 100 }, (_, i) => ({
+      id: `big-${i}`, deckId: 'big', type: 'word', german: `Wort${i}`, english: `word ${i}`, tags: [], createdAt: 1, updatedAt: 1, imageId: `img-${i}`,
+    }))
+    library.cards.push(...cards)
+    library.reviews.push(...cards.flatMap((c) => ['imageToDe', 'enToDe', 'deToEn'].map((direction) => ({ id: `${c.id}:${direction}`, cardId: c.id, deckId: 'big', direction, state: 0, due: 1 }))))
+    library.reviewLogs = cards.map((c, i) => ({ id: `log-${i}`, reviewId: `${c.id}:enToDe`, cardId: c.id, deckId: 'big', direction: 'enToDe', rating: 3, reviewedAt: 1 }))
+    library.drillStats = cards.map((c) => ({ id: `${c.id}:article`, cardId: c.id, drill: 'article', right: 1, wrong: 0 }))
+    library.images = cards.map((c) => ({ id: c.imageId, width: 1, height: 1, fit: 'cover', type: 'image/png' }))
+    library.docs = Array.from({ length: 30 }, (_, i) => ({ id: `doc-${i}`, folderId: 'root', title: `Doc ${i}`, body: 'Text', tags: [], createdAt: 1, updatedAt: 1 }))
+    return { library, cards }
+  }
+
+  async function queries<A extends Parameters<typeof runAction>[1]>(action: A, params: Parameters<typeof runAction<A>>[2]): Promise<number> {
+    const { db, batches } = countingDb()
+    await runAction(await createD1Store(db, OWNER, { now: () => 5000 }), action, params)
+    return batches()
+  }
+
+  let cards: { id: string }[]
+  beforeEach(async () => {
+    const big = bigLibrary()
+    cards = big.cards
+    await seedLibrary(OWNER, big.library)
+  })
+
+  it('deletes 100 cards with images and progress', async () => {
+    const count = await queries('delete_cards', { deck: 'Big', cards: cards.map((c) => c.id) })
+    const left = await pullAll()
+    expect(left.filter((c) => c.tbl === 'images' && !c.deleted)).toHaveLength(0)
+    expect(left.filter((c) => c.tbl === 'reviewLogs' && !c.deleted)).toHaveLength(0)
+    expect(count).toBeLessThanOrEqual(MAX_QUERIES)
+  })
+
+  it('moves 100 cards', async () => {
+    const count = await queries('move_cards', { deck: 'Big', to: 'Empty', cards: cards.map((c) => c.id) })
+    expect((await pullAll()).filter((c) => c.tbl === 'reviews' && (c.data as { deckId: string }).deckId === 'empty')).toHaveLength(300)
+    expect(count).toBeLessThanOrEqual(MAX_QUERIES)
+  })
+
+  it('deletes a deck of 100 cards', async () => {
+    const count = await queries('delete_deck', { deck: 'Big', cardCount: 100 })
+    expect((await pullAll()).filter((c) => c.tbl === 'cards' && c.deleted)).toHaveLength(100)
+    expect(count).toBeLessThanOrEqual(MAX_QUERIES)
+  })
+
+  it('stays at a few for the other tools', async () => {
+    const counts = {
+      list_decks: await queries('list_decks', {}),
+      list_cards: await queries('list_cards', {}),
+      create_cards: await queries('create_cards', { deck: 'Empty', cards: [{ german: 'Löffel', english: 'spoon' }] }),
+      create_deck: await queries('create_deck', { name: 'Neu' }),
+      log_study_time: await queries('log_study_time', { topic: 'German', minutes: 30 }),
+      list_docs: await queries('list_docs', {}),
+      read_doc: await queries('read_doc', { doc: 'Doc 3' }),
+      create_doc: await queries('create_doc', { title: 'Neu', body: 'Text' }),
+      create_task: await queries('create_task', { title: 'Lernen' }),
+      list_topics: await queries('list_topics', {}),
+      list_grammar_topics: await queries('list_grammar_topics', {}),
+    }
+    // 2 to 4 each when this was written.
+    expect(Object.entries(counts).filter(([, n]) => n > 5)).toEqual([])
   })
 })
