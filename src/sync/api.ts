@@ -22,6 +22,17 @@ export class SignedOutError extends ApiError {
   }
 }
 
+/**
+ * The cloud went back in time (a D1 Time Travel restore) past this device's cursor, so pulling on
+ * from it would skip changes: this device has to merge its library in again.
+ */
+export class ResyncNeededError extends ApiError {
+  constructor(message = 'Resync needed') {
+    super(409, message)
+    this.name = 'ResyncNeededError'
+  }
+}
+
 /** The request did not reach the server. */
 export class OfflineError extends Error {
   constructor(cause?: unknown) {
@@ -51,11 +62,10 @@ async function request(path: string, init: RequestInit = {}): Promise<Response> 
     throw new OfflineError(error)
   }
   if (response.ok) return response
-  const message = await response
-    .json()
-    .then((body: { error?: unknown }) => (typeof body.error === 'string' ? body.error : undefined))
-    .catch(() => undefined)
+  const body = (await response.json().catch(() => undefined)) as { error?: unknown; resync?: unknown } | undefined
+  const message = typeof body?.error === 'string' ? body.error : undefined
   if (response.status === 401) throw new SignedOutError(message)
+  if (response.status === 409 && body?.resync === true) throw new ResyncNeededError(message)
   throw new ApiError(response.status, message ?? `The server answered ${response.status}.`)
 }
 

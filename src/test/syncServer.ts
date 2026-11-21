@@ -1,7 +1,8 @@
 /*
  * The Worker's sync API in memory, for tests: push, pull, reset, images and sign-in, with the same
  * rules as worker/src/sync.ts. Newest `updatedAt` wins (a tie goes to the later arrival), each push
- * takes one `seq` for every record it changes, and pulling walks `(seq, tbl, id)` from a cursor.
+ * takes one `seq` for every record it changes, and pulling walks `(seq, tbl, id)` from a cursor. A
+ * cursor the database went back past (`timeTravel`) is answered with 409 `{ resync: true }`.
  */
 import {
   MAX_IMAGE_BYTES,
@@ -23,6 +24,13 @@ export interface ServerRecord {
   data: unknown | null
   updatedAt: number
   deleted: boolean
+  seq: number
+}
+
+/** The server's records, image bytes and counter at one moment, for `timeTravel`. */
+export interface ServerSnapshot {
+  records: Map<string, ServerRecord>
+  blobs: Map<string, Blob>
   seq: number
 }
 
@@ -54,6 +62,10 @@ export interface TestServer {
   refuseChange?: (change: SyncChange) => string | undefined
   /** Tombstones every record and drops every image, as `POST /api/sync/reset` does. */
   reset(): number
+  /** The records, image bytes and counter as they are now. */
+  snapshot(): ServerSnapshot
+  /** Puts records, image bytes and the counter back to `snapshot`, as a D1 Time Travel restore does. */
+  timeTravel(snapshot: ServerSnapshot): void
   signOut(): void
   signIn(): void
   record(tbl: SyncTable, id: string): ServerRecord | undefined
@@ -110,6 +122,14 @@ export function createTestServer(): TestServer {
       }
       server.blobs.clear()
       return at
+    },
+    snapshot() {
+      return { records: structuredClone(server.records), blobs: new Map(server.blobs), seq }
+    },
+    timeTravel(snapshot) {
+      server.records = structuredClone(snapshot.records)
+      server.blobs = new Map(snapshot.blobs)
+      seq = snapshot.seq
     },
     signOut() {
       signedIn = false
@@ -207,6 +227,9 @@ export function createTestServer(): TestServer {
   function pull(url: URL): Response {
     const given = url.searchParams.get('cursor') ?? ''
     const cursor = decodeCursor(given)
+    // As the Worker: a cursor past the counter, or whose own record is gone or older, went back in time.
+    const at = server.records.get(keyOf(cursor[1], cursor[2]))?.seq
+    if (cursor[0] > 0 && (cursor[0] > seq || at === undefined || at < cursor[0])) return json({ error: 'Resync needed', resync: true }, 409)
     const limit = Math.min(Number(url.searchParams.get('limit') ?? MAX_PULL_CHANGES), server.pageSize)
     const rest = [...server.records.values()].filter((record) => after(record, cursor)).sort(byPosition)
     const page = rest.slice(0, limit)

@@ -370,6 +370,47 @@ describe('changes the cloud refuses', () => {
   })
 })
 
+describe('after the cloud went back in time', () => {
+  /** A synced c1, a point to go back to, then c2 pushed after it: `a`'s cursor ends up past that point. */
+  async function restoredAfterC1() {
+    await signedIn(a)
+    await a.cards.put(card('c1'))
+    await syncNow(a)
+    const before = server.snapshot()
+    vi.setSystemTime(2_000)
+    await a.cards.put(card('c2', 'Katze'))
+    await syncNow(a)
+    server.timeTravel(before)
+    expect(server.record('cards', 'c2')).toBeUndefined()
+  }
+
+  it('a device whose cursor is past the cloud merges its library in again, then syncs as usual', async () => {
+    await restoredAfterC1()
+    await syncNow(a)
+    expect(server.statuses).toContain(409)
+    expect(server.record('cards', 'c2')).toMatchObject({ data: card('c2', 'Katze'), deleted: false })
+    expect((await a.cards.toArray()).map((c) => c.id).sort()).toEqual(['c1', 'c2'])
+    expect((await a.meta.get('merged'))?.value).toBe(true)
+    expect(await a.outbox.count()).toBe(0)
+    expect(getSyncStatus().state).toBe('idle')
+
+    // What other devices change from now on arrives again.
+    await b.cards.put(card('c3', 'Maus'))
+    await syncNow(b)
+    await syncNow(a)
+    expect((await a.cards.toArray()).map((c) => c.id).sort()).toEqual(['c1', 'c2', 'c3'])
+  })
+
+  it('also when another device pushed after the restore, so the counter is past the cursor again', async () => {
+    await restoredAfterC1()
+    await b.cards.put(card('c3', 'Maus'))
+    await syncNow(b)
+    await syncNow(a)
+    expect((await a.cards.toArray()).map((c) => c.id).sort()).toEqual(['c1', 'c2', 'c3'])
+    expect(server.record('cards', 'c2')).toMatchObject({ deleted: false })
+  })
+})
+
 describe('startSync', () => {
   it('syncs at start and 2 s after the last local change', async () => {
     vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] })

@@ -6,6 +6,12 @@
  * Every push takes the next number from the owner's counter and stamps it as `seq` on each record it
  * changes. Pulling walks the records in `(seq, tbl, id)` order from a cursor, so a device that keeps
  * its cursor gets each change once, and records sharing a `seq` still page cleanly.
+ *
+ * A cursor past the owner's counter means the database went back in time (a D1 Time Travel restore
+ * puts the counter back with the records): that device would skip the changes numbered again below
+ * its cursor. So does a cursor whose own record is gone or has an older `seq` (records are never
+ * removed and their `seq` only grows), which still shows once other pushes moved the counter past
+ * it again. Pull then answers 409 `{ resync: true }`, and the device merges its library in again.
  */
 import { Hono } from 'hono'
 import {
@@ -48,6 +54,9 @@ const DELETE_TOMBSTONED_BLOBS = `DELETE FROM blobs WHERE owner = ?1 AND id IN (S
 
 const TOMBSTONE_ALL = `UPDATE records SET data = NULL, deleted = 1, updated_at = ?2, seq = ${CURRENT_SEQ}
 WHERE owner = ?1 AND deleted = 0`
+
+/** The owner's counter and the `seq` of the record a cursor points at; either is null when missing. */
+const CURSOR_CHECK = `SELECT ${CURRENT_SEQ} AS counter, (SELECT seq FROM records WHERE owner = ?1 AND tbl = ?2 AND id = ?3) AS at`
 
 const PULL = `SELECT tbl, id, data, updated_at AS updatedAt, deleted, seq FROM records
 WHERE owner = ?1 AND (seq, tbl, id) > (?2, ?3, ?4) ORDER BY seq, tbl, id LIMIT ?5`
@@ -180,9 +189,13 @@ sync.get('/pull', async (c) => {
   const [seq, tbl, id] = decodeCursor(given)
   const limit = parseLimit(c.req.query('limit'))
 
-  const { results } = await c.env.DB.prepare(PULL)
-    .bind(c.get('ownerId'), seq, tbl, id, limit + 1)
-    .all<{ tbl: SyncTable; id: string; data: string | null; updatedAt: number; deleted: number; seq: number }>()
+  const db = c.env.DB
+  const owner = c.get('ownerId')
+  const [check, page] = await db.batch<unknown>([db.prepare(CURSOR_CHECK).bind(owner, tbl, id), db.prepare(PULL).bind(owner, seq, tbl, id, limit + 1)])
+  const { counter, at } = check.results[0] as { counter: number | null; at: number | null }
+  // No counter counts as 0: nothing was pushed, so no cursor past the start is valid.
+  if (seq > 0 && (seq > (counter ?? 0) || at === null || at < seq)) return c.json({ error: 'Resync needed', resync: true }, 409)
+  const results = page.results as { tbl: SyncTable; id: string; data: string | null; updatedAt: number; deleted: number; seq: number }[]
   const rows = results.slice(0, limit)
   const changes: PulledChange[] = rows.map((row) => ({
     tbl: row.tbl,

@@ -23,7 +23,8 @@ import {
   type SyncTable,
 } from '@lernzeit/core/sync'
 import type { StoredImage } from '@lernzeit/core/types'
-import { ApiError, OfflineError, SignedOutError, getImage, pull, push, putImage } from './api'
+import { ApiError, OfflineError, ResyncNeededError, SignedOutError, getImage, pull, push, putImage } from './api'
+import { MERGED_KEY, mergeIntoCloud } from './firstSignIn'
 import { applyRemote, onLocalChange } from './outbox'
 import { setSyncStatus, type SyncStatus } from './status'
 
@@ -366,7 +367,7 @@ async function run(database: LernzeitDB): Promise<SyncResult> {
       if (error instanceof OfflineError || error instanceof SignedOutError) throw error
       pushFailure = error ?? new Error('The push failed.')
     }
-    const pulled = await pullAll(database)
+    const pulled = await pullAll(database).catch((error) => (error instanceof ResyncNeededError ? resync(database) : Promise.reject(error)))
     if (pushFailure !== undefined) throw pushFailure
     setSyncStatus({ state: 'idle', lastSyncedAt: Date.now() })
     return { pushed, pulled }
@@ -374,6 +375,19 @@ async function run(database: LernzeitDB): Promise<SyncResult> {
     setSyncStatus(statusFor(error))
     throw error
   }
+}
+
+/**
+ * The cloud went back past this device's cursor (see ResyncNeededError): forgets the cursor and that
+ * this browser merged, then merges again, which uploads what the cloud lost and takes in the rest.
+ * Without `merged`, a merge cut short here runs again on the next start (the merge dialog) rather
+ * than a sync from the beginning, which would leave the records the cloud lost only on this device.
+ * Returns 0: the merge replaced the library rather than pulling changes into it.
+ */
+async function resync(database: LernzeitDB): Promise<number> {
+  await database.meta.bulkDelete([CURSOR_KEY, MERGED_KEY])
+  await mergeIntoCloud(database)
+  return 0
 }
 
 const running = new Map<string, Promise<SyncResult>>()

@@ -251,6 +251,47 @@ describe('sync push refuses bad input', () => {
   })
 })
 
+describe('sync pull after the database went back in time', () => {
+  it('a cursor ahead of the counter → 409 asking for a resync; a cursor at the counter pulls as usual', async () => {
+    await push([change('a', 1000)])
+    await push([change('b', 1000)])
+    const { cursor } = await pull()
+    expect((await pullRaw(`?cursor=${encodeURIComponent(cursor)}`)).status).toBe(200)
+
+    // A Time Travel restore puts the counter and the records back to after the first push.
+    await env.DB.batch([env.DB.prepare('DELETE FROM records WHERE seq > 1'), env.DB.prepare('UPDATE counters SET seq = 1')])
+    const response = await pullRaw(`?cursor=${encodeURIComponent(cursor)}`)
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({ error: 'Resync needed', resync: true })
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+    // Pulling from the start still works.
+    expect((await pull()).changes.map((c) => c.id)).toEqual(['a'])
+  })
+
+  it('still 409 once another device pushed after the restore, because the cursor’s own record went back', async () => {
+    await push([change('a', 1000)])
+    await push([change('b', 1000)])
+    const { cursor } = await pull()
+    await env.DB.batch([env.DB.prepare('DELETE FROM records WHERE seq > 1'), env.DB.prepare('UPDATE counters SET seq = 1')])
+    // The counter is back at the cursor's seq, but that seq now numbers another change.
+    await push([change('c', 1000)])
+    expect((await pullRaw(`?cursor=${encodeURIComponent(cursor)}`)).status).toBe(409)
+
+    // A record changed again after the cursor was handed out is no reason to resync.
+    const { cursor: fresh } = await pull()
+    await push([change('c', 2000)])
+    expect((await pull(fresh)).changes.map((ch) => ch.id)).toEqual(['c'])
+  })
+
+  it('with no counter at all, any cursor past the start → 409', async () => {
+    await push([change('a', 1000)])
+    const { cursor } = await pull()
+    await clearSyncData()
+    expect((await pullRaw(`?cursor=${encodeURIComponent(cursor)}`)).status).toBe(409)
+    expect((await pull()).changes).toEqual([])
+  })
+})
+
 describe('sync reset', () => {
   it('reset tombstones everything; a record pushed afterwards with a newer time is live', async () => {
     await push([change('a', 1000), change('b', 1000, undefined, 'decks'), tombstone('gone', 1000)])
