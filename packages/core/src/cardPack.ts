@@ -123,6 +123,12 @@ export function packCardRows(pc: CardPackCard, deck: Deck, at: { id: string; now
  * for each direction the deck practises that has none, none of the wrong kind
  * for a cloze card (or a cloze review on another card), and the card's deck on
  * every review. Apply `add`, then `remove`, then `put`.
+ *
+ * A quirk kept from the web app: `remove` and `put` are worked out from the
+ * same existing reviews, so a review of the wrong kind that is also on another
+ * deck is in both lists, and `put`, applied last, keeps it (with the new deck).
+ * That happens when the editor changes a card's type and its deck in one save;
+ * a move keeps the type, so it never does.
  */
 export function reviewChanges(card: Card, deck: Deck, existing: CardReview[], now: number): { add: CardReview[]; remove: string[]; put: CardReview[] } {
   const have = new Set(existing.map((r) => r.direction))
@@ -133,3 +139,11 @@ export function reviewChanges(card: Card, deck: Deck, existing: CardReview[], no
   const put = existing.filter((r) => r.deckId !== card.deckId).map((r) => ({ ...r, deckId: card.deckId }))
   return { add, remove, put }
 }
+
+/**
+ * The tables that hold a card's progress, each row with the card's id in
+ * `cardId`. Deleting a card deletes its rows in all of them (and its image
+ * once nothing uses it, see `unusedImages`). The card editor's delete in the
+ * web app and the AI's delete_cards and delete_deck both go by this list.
+ */
+export const CARD_PROGRESS_TABLES = ['reviews', 'reviewLogs', 'drillStats'] as const

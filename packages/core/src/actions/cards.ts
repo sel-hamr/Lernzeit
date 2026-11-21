@@ -1,4 +1,5 @@
-import { cardTextKey, newCardsFor, packCardRows, reviewChanges } from '../cardPack'
+import { CARD_PROGRESS_TABLES, cardTextKey, newCardsFor, packCardRows, reviewChanges } from '../cardPack'
+import { unusedImages } from '../docs'
 import { splitArticle } from '../german'
 import {
   MAX_CARDS_PER_CALL,
@@ -13,7 +14,7 @@ import {
   type MoveCardsParams,
   type MoveCardsResult,
 } from '../protocol'
-import type { Card, CardReview, Deck } from '../types'
+import type { Card, CardReview, Deck, Doc } from '../types'
 import { AI_TAG, byId, findDeck, invalid, key, sortedDecks, type ActionContext } from './shared'
 
 export async function createCards({ deck: deckRef, cards }: CreateCardsParams, ctx: ActionContext): Promise<CreateCardsResult> {
@@ -126,22 +127,21 @@ export async function moveCards({ deck: fromRef, to: toRef, cards: refs }: MoveC
   return { from: from.name, to: to.name, moved, skipped, notFound }
 }
 
-/** Removes a card's reviews, review logs and drill stats. */
+/** Removes a card's progress: its rows in every table of CARD_PROGRESS_TABLES (core cardPack.ts). */
 export async function removeProgress(ctx: ActionContext, cardId: string) {
-  const [reviews, logs, drills] = await Promise.all([
-    ctx.store.list<{ id: string }>('reviews', { cardId }),
-    ctx.store.list<{ id: string }>('reviewLogs', { cardId }),
-    ctx.store.list<{ id: string }>('drillStats', { cardId }),
-  ])
-  for (const r of reviews) ctx.store.remove('reviews', r.id)
-  for (const l of logs) ctx.store.remove('reviewLogs', l.id)
-  for (const d of drills) ctx.store.remove('drillStats', d.id)
+  const rows = await Promise.all(CARD_PROGRESS_TABLES.map((tbl) => ctx.store.list<{ id: string }>(tbl, { cardId })))
+  CARD_PROGRESS_TABLES.forEach((tbl, i) => {
+    for (const row of rows[i]) ctx.store.remove(tbl, row.id)
+  })
 }
 
-/** Removes an image once no card uses it. */
+/** Removes an image once nothing uses it: no card left, and no doc (see `unusedImages`). */
 export async function deleteImageIfUnused(ctx: ActionContext, imageId: string | undefined) {
   if (!imageId) return
-  if (!(await ctx.store.count('cards', { imageId }))) ctx.store.remove('images', imageId)
+  const cards = await ctx.store.list<Card>('cards', { imageId })
+  // Docs are only read when no card uses the image any more.
+  const docs = cards.length ? [] : await ctx.store.list<Doc>('docs')
+  if (unusedImages([imageId], cards, docs).length) ctx.store.remove('images', imageId)
 }
 
 /** Deletes a card with its progress, the way the card editor does. */

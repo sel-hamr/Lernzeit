@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { GrammarTopic } from '../types'
-import { expectCode, makeStore, NOW } from './fixture'
+import { expectCode, makeStore, NOW } from './fixture.test-utils'
 import { runAction } from './index'
 
 let store: ReturnType<typeof makeStore>

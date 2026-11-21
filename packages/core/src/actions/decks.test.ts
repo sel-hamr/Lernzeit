@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Card, CardReview, Deck, Topic } from '../types'
-import { expectCode, makeStore, MY_WORDS_CARDS, NOW } from './fixture'
+import { expectCode, makeStore, MY_WORDS_CARDS, NOW } from './fixture.test-utils'
 import { runAction } from './index'
 
 let store: ReturnType<typeof makeStore>
@@ -113,5 +113,17 @@ describe('delete_deck', () => {
         'images/img-own',
       ].sort(),
     )
+  })
+
+  it('keeps an image a doc still shows when its deck is deleted', async () => {
+    const deck = (await store.list<Deck>('decks')).find((d) => d.name === 'Food')!
+    const [spoon] = await store.list<Card>('cards', { deckId: deck.id })
+    store.put('cards', { ...spoon, imageId: 'img' })
+    store.put('images', { id: 'img', width: 1, height: 1, fit: 'cover', type: 'image/png' })
+    store.put('docs', { id: 'doc', folderId: 'root', title: 'Löffel', body: '![Löffel](image:img)', tags: [], status: 'toRead', pinned: false, createdAt: 1, updatedAt: 1 })
+    await store.commit()
+
+    await runAction(store, 'delete_deck', { deck: 'Food', cardCount: 2 })
+    expect(await store.get('images', 'img')).toBeDefined()
   })
 })

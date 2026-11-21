@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Doc, DocFolder } from './types'
-import { DOC_ROOT, docDateLabel, docExcerpt, docImageId, docImageIds, filterDocs, opensWithTitle, firstHeading, folderChoices, folderPath, folderSubtree, parseTags, titleFromMarkdown } from './docs'
+import { DOC_ROOT, unusedImages, docDateLabel, docExcerpt, docImageId, docImageIds, filterDocs, opensWithTitle, firstHeading, folderChoices, folderPath, folderSubtree, parseTags, titleFromMarkdown } from './docs'
 
 const folder = (id: string, name: string, parentId = DOC_ROOT): DocFolder => ({ id, name, parentId, createdAt: 0, updatedAt: 0 })
 const doc = (id: string, title: string, body = '', extra: Partial<Doc> = {}): Doc => ({
@@ -119,4 +119,12 @@ describe('filterDocs', () => {
 
 it('reads tags from commas', () => {
   expect(parseTags(' a, b ,, a')).toEqual(['a', 'b'])
+})
+
+describe('unusedImages', () => {
+  it('leaves out images a card or a doc still uses', () => {
+    const docs = [doc('d', 'D', '![a](image:inDoc) and ![b](image:both)')]
+    const cards = [{ imageId: 'onCard' }, { imageId: 'both' }, {}]
+    expect(unusedImages(['inDoc', 'onCard', 'both', 'unused', 'unused'], cards, docs)).toEqual(['unused'])
+  })
 })

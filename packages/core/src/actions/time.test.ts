@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Session } from '../types'
-import { expectCode, makeStore } from './fixture'
+import { expectCode, makeStore } from './fixture.test-utils'
 import { runAction } from './index'
 
 let store: ReturnType<typeof makeStore>

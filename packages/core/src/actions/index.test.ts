@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LibraryStore } from '../library'
 import type { ActionName, ActionParams } from '../protocol'
 import type { Card } from '../types'
-import { expectCode, makeStore } from './fixture'
+import { expectCode, makeStore } from './fixture.test-utils'
 import { runAction } from './index'
 
 let store: ReturnType<typeof makeStore>

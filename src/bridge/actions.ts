@@ -283,7 +283,7 @@ async function moveCards({ deck: fromRef, to: toRef, cards: refs }: MoveCardsPar
 /** Deletes cards with their progress, the way the card editor does. */
 async function deleteCards({ deck: deckRef, cards: refs }: DeleteCardsParams, database: LernzeitDB): Promise<DeleteCardsResult> {
   checkCardRefs(refs)
-  const tables = [database.decks, database.cards, database.reviews, database.reviewLogs, database.drillStats, database.images]
+  const tables = [database.decks, database.cards, database.reviews, database.reviewLogs, database.drillStats, database.images, database.docs]
   return database.transaction('rw', tables, async () => {
     const deck = await findDeck(database, deckRef)
     const { found, notFound } = resolveCards(await database.cards.where('deckId').equals(deck.id).toArray(), refs)
@@ -295,7 +295,7 @@ async function deleteCards({ deck: deckRef, cards: refs }: DeleteCardsParams, da
 /** Deletes a deck with its cards and their progress, the way the deck dialog does. */
 async function deleteDeckAction({ deck: deckRef, cardCount }: DeleteDeckParams, database: LernzeitDB): Promise<DeleteDeckResult> {
   if (!Number.isInteger(cardCount) || cardCount < 0) throw invalid('cardCount must be the number of cards in the deck, from list_decks.')
-  const tables = [database.decks, database.cards, database.reviews, database.reviewLogs, database.drillStats, database.images]
+  const tables = [database.decks, database.cards, database.reviews, database.reviewLogs, database.drillStats, database.images, database.docs]
   return database.transaction('rw', tables, async () => {
     const deck = await findDeck(database, deckRef)
     const cards = await database.cards.where('deckId').equals(deck.id).count()

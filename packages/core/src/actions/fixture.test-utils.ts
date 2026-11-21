@@ -1,9 +1,9 @@
 /*
+ * Test code only (no test runner imports, so nothing else pulls one in).
  * A small library for the action tests: a German topic with three decks, an
  * AI topic with an empty deck, a few cards with their reviews, and a question
  * set. Times are in Europe/Berlin, like the owner's.
  */
-import { expect } from 'vitest'
 import type { Library } from '../fold'
 import { createMemoryStore } from '../library'
 import { BridgeError, type BridgeErrorCode } from '../protocol'
@@ -58,12 +58,13 @@ export function makeStore(seed: Library = seedLibrary(), options: { timeZone?: s
   return createMemoryStore(seed, { timeZone: TIME_ZONE, now: () => NOW, ...options })
 }
 
+/** Waits for `promise` to fail with a BridgeError of `code`, and returns that error. */
 export async function expectCode(promise: Promise<unknown>, code: BridgeErrorCode): Promise<BridgeError> {
   const error = await promise.then(
     () => undefined,
     (e: unknown) => e,
   )
-  expect(error).toBeInstanceOf(BridgeError)
-  expect((error as BridgeError).code).toBe(code)
-  return error as BridgeError
+  if (!(error instanceof BridgeError)) throw new Error(`Expected a BridgeError "${code}", got ${error === undefined ? 'success' : String(error)}`)
+  if (error.code !== code) throw new Error(`Expected a BridgeError "${code}", got "${error.code}": ${error.message}`)
+  return error
 }

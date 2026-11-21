@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { DOC_ROOT } from '../docs'
 import type { Doc, DocFolder } from '../types'
-import { expectCode, makeStore, NOW } from './fixture'
+import { expectCode, makeStore, NOW } from './fixture.test-utils'
 import { AI_TAG, runAction } from './index'
 
 let store: ReturnType<typeof makeStore>

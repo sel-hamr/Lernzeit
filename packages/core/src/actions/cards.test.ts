@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Card, CardReview, Deck } from '../types'
-import { expectCode, makeStore, NOW } from './fixture'
+import { expectCode, makeStore, NOW } from './fixture.test-utils'
 import { AI_TAG, runAction } from './index'
 
 let store: ReturnType<typeof makeStore>
@@ -223,5 +223,17 @@ describe('list_cards, move_cards and delete_cards', () => {
     await runAction(store, 'delete_cards', { deck: 'Food', cards: [fork.id] })
     expect(await store.get('images', 'img')).toBeUndefined()
     expect(store.committed.at(-1)).toEqual({ tbl: 'images', id: 'img', data: null, updatedAt: NOW, deleted: true })
+  })
+
+  it('keeps an image a doc still shows when the card that had it is deleted', async () => {
+    const [spoon] = await foodCards()
+    store.put('cards', { ...spoon, imageId: 'img' })
+    store.put('images', { id: 'img', width: 1, height: 1, fit: 'cover', type: 'image/png' })
+    store.put('docs', { id: 'doc', folderId: 'root', title: 'Löffel', body: 'Ein ![Löffel](image:img).', tags: [], status: 'toRead', pinned: false, createdAt: 1, updatedAt: 1 })
+    await store.commit()
+
+    await runAction(store, 'delete_cards', { deck: 'Food', cards: [spoon.id] })
+    expect(await store.get('cards', spoon.id)).toBeUndefined()
+    expect(await store.get('images', 'img')).toBeDefined()
   })
 })

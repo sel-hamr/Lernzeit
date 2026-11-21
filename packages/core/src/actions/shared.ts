@@ -1,7 +1,7 @@
 import type { LibraryReader, LibraryStore } from '../library'
 import { BridgeError, type ActionName, type ActionParams, type ActionResult } from '../protocol'
 import { localDateTimeIn } from '../time'
-import type { Deck, StoryLevel, Topic } from '../types'
+import type { Deck, Topic } from '../types'
 
 /** Every card, story, question and doc the AI adds gets this tag, so it is easy to find and check. */
 export const AI_TAG = 'ai'
@@ -50,14 +50,3 @@ export async function findDeck(ctx: ActionContext, nameOrId: string): Promise<De
   if (!deck) throw new BridgeError('deck_not_found', `No deck named "${nameOrId}". Decks: ${nameList(decks)}.`)
   return deck
 }
-
-const STORY_LEVELS: StoryLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
-
-/** "a2 " -> "A2"; anything else -> undefined. As the web app reads a level. */
-export function parseLevel(value: string | undefined): StoryLevel | undefined {
-  const level = value?.trim().toUpperCase()
-  return STORY_LEVELS.find((l) => l === level)
-}
-
-/** Trimmed tags without blanks or repeats. */
-export const cleanTags = (tags: string[]) => [...new Set(tags.map((t) => t.trim()).filter(Boolean))]

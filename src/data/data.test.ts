@@ -313,6 +313,28 @@ describe('flashcards', () => {
     expect(reviews.map((r) => r.direction).sort()).toEqual(['deToEn', 'enToDe'])
   })
 
+  it('keeps an image a doc still shows when the card that had it is deleted, alone or with its deck', async () => {
+    const deck = await createDeck({ name: 'Bilder' }, database)
+    const image = (id: string) => ({ id, blob: new Blob(['x'], { type: 'image/png' }), width: 1, height: 1, fit: 'cover' as const })
+    await database.images.bulkAdd([image('shared'), image('alone'), image('deck-shared')])
+    const card = await quickAddCard({ english: 'dog', german: 'Hund', deckId: deck.id }, database)
+    const other = await quickAddCard({ english: 'cat', german: 'Katze', deckId: deck.id }, database)
+    const third = await quickAddCard({ english: 'cow', german: 'Kuh', deckId: deck.id }, database)
+    await database.cards.update(card.id, { imageId: 'shared' })
+    await database.cards.update(other.id, { imageId: 'alone' })
+    await database.cards.update(third.id, { imageId: 'deck-shared' })
+    await database.docs.add({ id: 'doc', folderId: 'root', title: 'Hund', body: '![dog](image:shared) ![cow](image:deck-shared)', tags: [], status: 'toRead', pinned: false, createdAt: 1, updatedAt: 1 })
+
+    await deleteCard(card.id, database)
+    await deleteCard(other.id, database)
+    expect(await database.images.get('shared')).toBeDefined()
+    expect(await database.images.get('alone')).toBeUndefined()
+
+    await deleteDeck(deck.id, database)
+    expect(await database.cards.get(third.id)).toBeUndefined()
+    expect(await database.images.get('deck-shared')).toBeDefined()
+  })
+
   it('creates review rows for enabled directions and a cloze row for cloze cards', async () => {
     const deck = (await database.decks.orderBy('order').first())!
     const cloze = await saveCard({ deckId: deck.id, type: 'cloze', english: 'The dog plays.', german: 'Der Hund {{spielt}}.', tags: [] }, { kind: 'keep' }, undefined, database)

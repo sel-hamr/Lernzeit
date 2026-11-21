@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Question } from '../types'
-import { expectCode, makeStore, NOW, SEEDED_QUESTIONS } from './fixture'
+import { expectCode, makeStore, NOW, SEEDED_QUESTIONS } from './fixture.test-utils'
 import { AI_TAG, runAction } from './index'
 
 let store: ReturnType<typeof makeStore>

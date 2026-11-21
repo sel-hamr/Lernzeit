@@ -61,6 +61,27 @@ export function docImageIds(body: string): string[] {
   return [...new Set([...body.matchAll(/\]\(image:([\w-]+)\)/g)].map((m) => m[1]))]
 }
 
+/**
+ * The images in `candidates` that nothing uses any more: no card has one as
+ * its picture and no doc shows it (as `![name](image:<id>)`). Cards and docs
+ * can share an image, so both are checked before an image is deleted.
+ */
+export function unusedImages(candidates: Iterable<string>, cards: { imageId?: string }[], docs: { body: string }[]): string[] {
+  const used = new Set(docs.flatMap((d) => docImageIds(d.body)))
+  for (const card of cards) if (card.imageId) used.add(card.imageId)
+  return [...new Set(candidates)].filter((id) => !used.has(id))
+}
+
+/** A doc's title, text and tags as they are saved: with no title, the first heading or line names it. */
+export function normalizeDoc(input: { title: string; body: string; tags: string[] }): { title: string; body: string; tags: string[] } {
+  const body = input.body.trimEnd()
+  return {
+    title: input.title.trim() || titleFromMarkdown(body) || 'Untitled',
+    body,
+    tags: [...new Set(input.tags.map((t) => t.trim()).filter(Boolean))],
+  }
+}
+
 /** A folder and everything inside it. */
 export function folderSubtree(folders: DocFolder[], id: string): Set<string> {
   const ids = new Set([id])

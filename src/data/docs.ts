@@ -1,6 +1,6 @@
 import { db, newId, type LernzeitDB } from '@/db/db'
 import type { Doc, DocFolder, DocStatus, StoredImage } from '@lernzeit/core/types'
-import { DOC_ROOT, docImageIds, folderSubtree, titleFromMarkdown } from '@lernzeit/core/docs'
+import { DOC_ROOT, docImageIds, folderSubtree, normalizeDoc, unusedImages } from '@lernzeit/core/docs'
 import { foldText } from '@lernzeit/core/text'
 
 export type DocInput = Pick<Doc, 'title' | 'body' | 'folderId' | 'tags'>
@@ -9,21 +9,18 @@ async function assertFolder(database: LernzeitDB, id: string) {
   if (id !== DOC_ROOT && !(await database.docFolders.get(id))) throw new Error('This folder does not exist any more')
 }
 
-/** Deletes the images nothing uses any more. Docs and cards can share one. */
+/** Deletes the images nothing uses any more. Docs and cards can share one (see `unusedImages`). */
 export async function removeUnusedDocImages(ids: Iterable<string>, database: LernzeitDB = db) {
   const candidates = [...ids]
   if (!candidates.length) return
   await database.transaction('rw', database.docs, database.cards, database.images, async () => {
-    const used = new Set((await database.docs.toArray()).flatMap((d) => docImageIds(d.body)))
-    await database.cards.each((card) => {
-      if (card.imageId) used.add(card.imageId)
-    })
-    await database.images.bulkDelete(candidates.filter((id) => !used.has(id)))
+    const [docs, cards] = await Promise.all([database.docs.toArray(), database.cards.toArray()])
+    await database.images.bulkDelete(unusedImages(candidates, cards, docs))
   })
 }
 
 export async function saveDoc(input: DocInput, existingId?: string, database: LernzeitDB = db): Promise<Doc> {
-  const body = input.body.trimEnd()
+  const { title, body, tags } = normalizeDoc(input)
   if (!body.trim()) throw new Error('A doc needs some text')
   await assertFolder(database, input.folderId)
   const previous = existingId ? await database.docs.get(existingId) : undefined
@@ -35,9 +32,9 @@ export async function saveDoc(input: DocInput, existingId?: string, database: Le
     ...previous,
     id: previous?.id ?? newId(),
     folderId: input.folderId,
-    title: input.title.trim() || titleFromMarkdown(body) || 'Untitled',
+    title,
     body,
-    tags: [...new Set(input.tags.map((t) => t.trim()).filter(Boolean))],
+    tags,
     updatedAt: now,
   }
   await database.docs.put(doc)

@@ -1,4 +1,4 @@
-import { DOC_ROOT, filterDocs, folderChoices, folderSubtree, folderTrail, titleFromMarkdown } from '../docs'
+import { DOC_ROOT, filterDocs, folderChoices, folderSubtree, folderTrail, normalizeDoc } from '../docs'
 import {
   BridgeError,
   MAX_DOC_CHARS,
@@ -15,7 +15,7 @@ import {
 import { countWords } from '../reader'
 import { foldText } from '../text'
 import type { Doc, DocFolder } from '../types'
-import { AI_TAG, byId, cleanTags, invalid, localDateTime, type ActionContext } from './shared'
+import { AI_TAG, byId, invalid, localDateTime, type ActionContext } from './shared'
 
 const docFolderPath = (folders: DocFolder[], id: string) =>
   folderTrail(folders, id)
@@ -93,16 +93,13 @@ export async function createDoc({ title, body, folder, tags }: CreateDocParams, 
   let doc = twin
   if (!doc) {
     // As the doc editor saves a new doc.
-    const text = body.trimEnd()
     doc = {
       status: 'toRead',
       pinned: false,
       createdAt: ctx.now,
       id: ctx.newId(),
       folderId,
-      title: (title ?? '').trim() || titleFromMarkdown(text) || 'Untitled',
-      body: text,
-      tags: cleanTags([...(tags ?? []), AI_TAG]),
+      ...normalizeDoc({ title: title ?? '', body, tags: [...(tags ?? []), AI_TAG] }),
       updatedAt: ctx.now,
     }
     ctx.store.put('docs', doc)
