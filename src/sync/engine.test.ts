@@ -5,7 +5,7 @@ import type { Card, Doc } from '@lernzeit/core/types'
 import { createTestServer, type TestServer } from '@/test/syncServer'
 import { OfflineError, SignedOutError, setFetch } from './api'
 import { startSync, stopSync, syncNow } from './engine'
-import { getSyncStatus } from './status'
+import { getSyncStatus, stuckChanges } from './status'
 
 let server: TestServer
 let a: LernzeitDB
@@ -141,7 +141,28 @@ describe('syncNow', () => {
     expect(await image?.blob.text()).toBe('png bytes')
   })
 
-  it('a failed image download leaves the cursor unchanged', async () => {
+  it('image bytes missing on the server (404) skip that image, move the cursor and note its id', async () => {
+    await a.images.put({ id: 'i1', blob: new Blob(['png bytes'], { type: 'image/png' }), width: 40, height: 30, fit: 'cover' })
+    await a.cards.put(card('c1'))
+    await syncNow(a)
+    server.blobs.delete('i1')
+
+    expect(await syncNow(b)).toEqual({ pushed: 0, pulled: 1 })
+    expect(await b.cards.get('c1')).toBeDefined()
+    expect(await b.images.get('i1')).toBeUndefined()
+    expect(await b.meta.get('missingImages')).toEqual({ key: 'missingImages', value: ['i1'] })
+    expect(await cursorOf(b)).toBe((await server.fetch('/api/sync/pull?cursor=').then((r) => r.json())).cursor)
+    expect(getSyncStatus().state).toBe('idle')
+    // Pulled again later, with its bytes back, it is applied and no longer missing.
+    vi.setSystemTime(2_000)
+    await a.images.update('i1', { fit: 'contain' })
+    await syncNow(a)
+    await syncNow(b)
+    expect(await b.images.get('i1')).toMatchObject({ fit: 'contain' })
+    expect((await b.meta.get('missingImages'))?.value).toEqual([])
+  })
+
+  it('a failed image download (5xx) leaves the cursor unchanged', async () => {
     await a.cards.put(card('c0'))
     await syncNow(a)
     await syncNow(b)
@@ -151,16 +172,16 @@ describe('syncNow', () => {
     await a.images.put({ id: 'i1', blob: new Blob(['png bytes'], { type: 'image/png' }), width: 40, height: 30, fit: 'cover' })
     await a.cards.put(card('c1'))
     await syncNow(a)
-    const bytes = server.blobs.get('i1')!
-    server.blobs.delete('i1')
+    server.beforeRequest = (_method, path) => (path === '/api/images/i1' ? new Response('{"error":"D1 is down"}', { status: 503 }) : undefined)
 
-    await expect(syncNow(b)).rejects.toThrow()
+    await expect(syncNow(b)).rejects.toThrow('D1 is down')
     expect(await cursorOf(b)).toBe(cursor)
     expect(await b.images.get('i1')).toBeUndefined()
     expect(await b.cards.get('c1')).toBeUndefined()
+    expect(await b.meta.get('missingImages')).toBeUndefined()
     expect(getSyncStatus().state).toBe('error')
 
-    server.blobs.set('i1', bytes)
+    server.beforeRequest = undefined
     expect(await syncNow(b)).toMatchObject({ pulled: 2 })
     expect(await b.images.get('i1')).toBeDefined()
     expect(await b.cards.get('c1')).toBeDefined()
@@ -206,6 +227,8 @@ describe('syncNow', () => {
     await a.cards.bulkPut(Array.from({ length: 501 }, (_, i) => card(`c${i}`)))
     expect(await syncNow(a)).toMatchObject({ pushed: 501 })
     expect(server.requests.filter((r) => r === 'POST /api/sync/push')).toHaveLength(2)
+    // None was refused and retried in halves.
+    expect(server.statuses.every((status) => status < 400)).toBe(true)
     expect(server.records.size).toBe(501)
     expect(await a.outbox.count()).toBe(0)
   })
@@ -215,6 +238,8 @@ describe('syncNow', () => {
     await a.docs.bulkPut(['d1', 'd2', 'd3', 'd4'].map(doc))
     await syncNow(a)
     expect(server.requests.filter((r) => r === 'POST /api/sync/push')).toHaveLength(2)
+    // The batches were cut to size here: none was refused (413) and retried in halves.
+    expect(server.statuses.every((status) => status < 400)).toBe(true)
     expect(server.records.size).toBe(4)
   })
 
@@ -247,6 +272,98 @@ describe('syncNow', () => {
     release()
     await Promise.all([first, second])
     expect(await b.cards.get('c1')).toEqual(card('c1'))
+  })
+})
+
+describe('changes the cloud refuses', () => {
+  const doc = (id: string, bytes: number): Doc =>
+    ({ id, folderId: 'root', title: id, body: 'x'.repeat(bytes), tags: [], status: 'toRead', pinned: false, createdAt: 1, updatedAt: 1 }) as Doc
+  const pushes = () => server.requests.filter((r) => r === 'POST /api/sync/push').length
+
+  it('an oversized doc stays in the outbox, other changes push, and pull still brings a remote change', async () => {
+    await b.cards.put(card('remote'))
+    await syncNow(b)
+
+    await a.docs.put(doc('big', 1_200_000))
+    await a.cards.put(card('c1'))
+    expect(await syncNow(a)).toEqual({ pushed: 1, pulled: 2 })
+    expect(server.record('docs', 'big')).toBeUndefined()
+    expect(server.record('cards', 'c1')).toBeDefined()
+    expect(await a.cards.get('remote')).toBeDefined()
+    expect(await a.outbox.count()).toBe(1)
+    expect(await stuckChanges(a)).toEqual([{ tbl: 'docs', id: 'big', reason: expect.stringContaining('too large') }])
+    expect(getSyncStatus().state).toBe('idle')
+
+    // It is not sent again while it stays as it is.
+    const before = pushes()
+    await syncNow(a)
+    expect(pushes()).toBe(before)
+    expect(await stuckChanges(a)).toHaveLength(1)
+  })
+
+  it('a parked entry is retried after it changes to a valid size', async () => {
+    await a.docs.put(doc('big', 1_200_000))
+    await syncNow(a)
+    expect(await stuckChanges(a)).toHaveLength(1)
+
+    vi.setSystemTime(2_000)
+    await a.docs.update('big', { body: 'short now' })
+    expect(await stuckChanges(a)).toEqual([])
+    expect(await syncNow(a)).toMatchObject({ pushed: 1 })
+    expect(server.record('docs', 'big')).toMatchObject({ data: { body: 'short now' }, updatedAt: 2_000 })
+    expect(await a.outbox.count()).toBe(0)
+  })
+
+  it('a 400 for one change in a batch of 10 pushes the other 9', async () => {
+    server.refuseChange = (change) => (change.id === 'c7' ? 'is not something the server can store.' : undefined)
+    await a.cards.bulkPut(Array.from({ length: 10 }, (_, i) => card(`c${i}`)))
+    expect(await syncNow(a)).toMatchObject({ pushed: 9 })
+    expect(server.records.size).toBe(9)
+    expect(server.record('cards', 'c7')).toBeUndefined()
+    expect(await a.outbox.toArray()).toMatchObject([{ tbl: 'cards', id: 'c7' }])
+    expect(await stuckChanges(a)).toEqual([{ tbl: 'cards', id: 'c7', reason: expect.stringContaining('is not something the server can store') }])
+    expect(server.requests).toContain('GET /api/sync/pull')
+
+    // Parked, it is not sent again until it changes.
+    const before = pushes()
+    await syncNow(a)
+    expect(pushes()).toBe(before)
+  })
+
+  it('an oversized SVG image entry is parked and reported, and so is a file that is not an image', async () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg">' + ' '.repeat(1_600_000) + '</svg>'
+    await a.images.put({ id: 'big', blob: new Blob([svg], { type: 'image/svg+xml' }), width: 40, height: 30, fit: 'contain' })
+    await a.images.put({ id: 'odd', blob: new Blob(['text'], { type: 'text/plain' }), width: 40, height: 30, fit: 'contain' })
+    await a.cards.put(card('c1'))
+    expect(await syncNow(a)).toMatchObject({ pushed: 1 })
+    expect(server.requests.filter((r) => r.startsWith('PUT /api/images/'))).toEqual([])
+    expect(server.record('images', 'big')).toBeUndefined()
+    expect(server.record('images', 'odd')).toBeUndefined()
+    const reasons = Object.fromEntries((await stuckChanges(a)).map((change) => [change.id, change.reason]))
+    expect(reasons.big).toContain('too large')
+    expect(reasons.odd).toContain('not an image')
+  })
+
+  it('an image the server refuses is parked and its record is not pushed', async () => {
+    server.beforeRequest = (method, path) =>
+      method === 'PUT' && path === '/api/images/i1' ? new Response('{"error":"Not this one."}', { status: 415 }) : undefined
+    await a.images.put({ id: 'i1', blob: new Blob(['png'], { type: 'image/png' }), width: 40, height: 30, fit: 'cover' })
+    await a.cards.put(card('c1'))
+    expect(await syncNow(a)).toMatchObject({ pushed: 1 })
+    expect(server.record('images', 'i1')).toBeUndefined()
+    expect(await stuckChanges(a)).toEqual([{ tbl: 'images', id: 'i1', reason: 'Not this one.' }])
+  })
+
+  it('still pulls after a push fails on the server, and reports the failure', async () => {
+    await b.cards.put(card('remote'))
+    await syncNow(b)
+    server.beforeRequest = (_method, path) => (path === '/api/sync/push' ? new Response('{"error":"D1 is down"}', { status: 503 }) : undefined)
+    await a.cards.put(card('c1'))
+    await expect(syncNow(a)).rejects.toThrow('D1 is down')
+    expect(await a.cards.get('remote')).toBeDefined()
+    expect(await a.outbox.count()).toBe(1)
+    expect(await stuckChanges(a)).toEqual([])
+    expect(getSyncStatus()).toMatchObject({ state: 'error', error: 'D1 is down' })
   })
 })
 

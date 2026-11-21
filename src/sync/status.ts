@@ -4,7 +4,7 @@
  */
 import { useSyncExternalStore } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '@/db/db'
+import { db, type LernzeitDB } from '@/db/db'
 
 export type SyncState = 'idle' | 'syncing' | 'offline' | 'signedOut' | 'error'
 
@@ -32,8 +32,24 @@ export function subscribeSyncStatus(listener: () => void): () => void {
   return () => listeners.delete(listener)
 }
 
-export function useSyncStatus(): SyncStatus & { pending: number } {
+/** A local change the cloud cannot take as it is. It waits in the outbox until the record changes. */
+export interface StuckChange {
+  tbl: string
+  id: string
+  reason: string
+}
+
+const NONE: StuckChange[] = []
+
+export async function stuckChanges(database: LernzeitDB = db): Promise<StuckChange[]> {
+  const entries = await database.outbox.filter((entry) => entry.stuck !== undefined).toArray()
+  return entries.map(({ tbl, id, stuck }) => ({ tbl, id, reason: stuck! }))
+}
+
+/** The status, how many local changes wait in the outbox (stuck ones included) and which are stuck. */
+export function useSyncStatus(): SyncStatus & { pending: number; stuck: StuckChange[] } {
   const current = useSyncExternalStore(subscribeSyncStatus, getSyncStatus)
   const pending = useLiveQuery(() => db.outbox.count(), [], 0)
-  return { ...current, pending }
+  const stuck = useLiveQuery(() => stuckChanges(), [], NONE)
+  return { ...current, pending, stuck }
 }

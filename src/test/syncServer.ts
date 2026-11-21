@@ -3,7 +3,19 @@
  * rules as worker/src/sync.ts. Newest `updatedAt` wins (a tie goes to the later arrival), each push
  * takes one `seq` for every record it changes, and pulling walks `(seq, tbl, id)` from a cursor.
  */
-import { MAX_PULL_CHANGES, MAX_PUSH_CHANGES, SYNC_TABLES, isSynced, type PullResponse, type PulledChange, type SyncTable } from '@lernzeit/core/sync'
+import {
+  MAX_IMAGE_BYTES,
+  MAX_PULL_CHANGES,
+  MAX_PUSH_BYTES,
+  MAX_PUSH_CHANGES,
+  MAX_RECORD_BYTES,
+  SYNC_TABLES,
+  isSynced,
+  type PullResponse,
+  type PulledChange,
+  type SyncChange,
+  type SyncTable,
+} from '@lernzeit/core/sync'
 
 export interface ServerRecord {
   tbl: SyncTable
@@ -23,14 +35,21 @@ export interface TestServer {
   blobs: Map<string, Blob>
   /** `METHOD /path` of every request answered, in order. */
   requests: string[]
+  /** The status of each answer in `requests`, in the same order. */
+  statuses: number[]
   email: string
   password: string
   /** While true, every request fails as if the network were down. */
   offline: boolean
   /** The most changes one pull hands out; lower it to test paging. */
   pageSize: number
-  /** Runs before each request is answered, so a test can act while a request is in flight. */
-  beforeRequest?: (method: string, path: string) => void | Promise<void>
+  /**
+   * Runs before each request is answered, so a test can act while a request is in flight. A
+   * Response it returns is the answer instead.
+   */
+  beforeRequest?: (method: string, path: string) => void | Response | Promise<void | Response>
+  /** A reason to refuse one pushed change with 400, as the Worker refuses a change it cannot store. */
+  refuseChange?: (change: SyncChange) => string | undefined
   /** Tombstones every record and drops every image, as `POST /api/sync/reset` does. */
   reset(): number
   signOut(): void
@@ -39,6 +58,7 @@ export interface TestServer {
 }
 
 const tables = new Set<string>(SYNC_TABLES)
+const encoder = new TextEncoder()
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 const isJson = (request: Request) => (request.headers.get('Content-Type') ?? '').split(';')[0].trim().toLowerCase() === 'application/json'
@@ -74,6 +94,7 @@ export function createTestServer(): TestServer {
     records: new Map(),
     blobs: new Map(),
     requests: [],
+    statuses: [],
     email: 'owner@lernzeit.test',
     password: 'test-password',
     offline: false,
@@ -101,8 +122,9 @@ export function createTestServer(): TestServer {
       const request = new Request(new URL(input instanceof Request ? input.url : String(input), 'http://lernzeit.test'), init)
       const url = new URL(request.url)
       server.requests.push(`${request.method} ${url.pathname}`)
-      await server.beforeRequest?.(request.method, url.pathname)
-      return handle(request, url)
+      const response = (await server.beforeRequest?.(request.method, url.pathname)) || (await handle(request, url))
+      server.statuses.push(response.status)
+      return response
     },
   }
 
@@ -124,7 +146,9 @@ export function createTestServer(): TestServer {
 
     if (route === 'POST /api/sync/push') {
       if (!isJson(request)) return json({ error: 'Send JSON (Content-Type: application/json).' }, 415)
-      return push(await request.json())
+      const bytes = await request.arrayBuffer()
+      if (bytes.byteLength > MAX_PUSH_BYTES) return json({ error: `A push can be at most ${MAX_PUSH_BYTES} bytes.` }, 413)
+      return push(JSON.parse(new TextDecoder().decode(bytes)))
     }
     if (route === 'GET /api/sync/pull') return pull(url)
     if (route === 'POST /api/sync/reset') {
@@ -135,7 +159,10 @@ export function createTestServer(): TestServer {
     if (image && request.method === 'PUT') {
       const type = (request.headers.get('Content-Type') ?? '').split(';')[0].trim().toLowerCase()
       if (!type.startsWith('image/')) return json({ error: 'Send the image with its type, such as Content-Type: image/png.' }, 415)
-      server.blobs.set(decodeURIComponent(image[1]), new Blob([await request.arrayBuffer()], { type }))
+      const bytes = await request.arrayBuffer()
+      if (bytes.byteLength > MAX_IMAGE_BYTES) return json({ error: `An image can be at most ${MAX_IMAGE_BYTES} bytes.` }, 413)
+      if (bytes.byteLength === 0) return json({ error: 'Send the image bytes.' }, 400)
+      server.blobs.set(decodeURIComponent(image[1]), new Blob([bytes], { type }))
       return new Response(null, { status: 204 })
     }
     if (image && request.method === 'GET') {
@@ -154,6 +181,11 @@ export function createTestServer(): TestServer {
       const { tbl, id, data, updatedAt, deleted } = change as Record<string, unknown>
       if (typeof tbl !== 'string' || !tables.has(tbl) || typeof id !== 'string' || !isSynced(tbl, id)) return json({ error: `Change ${i} is not synced.` }, 400)
       if (typeof updatedAt !== 'number' || typeof deleted !== 'boolean' || (!deleted && data == null)) return json({ error: `Change ${i} is malformed.` }, 400)
+      if (!deleted && encoder.encode(JSON.stringify(data)).byteLength > MAX_RECORD_BYTES) {
+        return json({ error: `Change ${i} (${tbl}/${id}) is over ${MAX_RECORD_BYTES} bytes.` }, 400)
+      }
+      const refused = server.refuseChange?.(change as SyncChange)
+      if (refused) return json({ error: `Change ${i} (${tbl}/${id}) ${refused}` }, 400)
     }
     if (changes.length === 0) return json({ applied: 0 })
     seq++

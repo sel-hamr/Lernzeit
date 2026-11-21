@@ -30,6 +30,11 @@ export interface OutboxEntry {
   tbl: string
   id: string
   at: number
+  /**
+   * Why the cloud cannot take this change as it is, such as a doc too large. Push skips it until
+   * the record changes again, which rewrites the entry without it.
+   */
+  stuck?: string
 }
 
 /** Bookkeeping for this device: its id, sync cursors. */

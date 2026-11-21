@@ -8,8 +8,10 @@
  */
 import { db, type LernzeitDB, type OutboxEntry } from '@/db/db'
 import {
+  MAX_IMAGE_BYTES,
   MAX_PUSH_BYTES,
   MAX_PUSH_CHANGES,
+  MAX_RECORD_BYTES,
   SYNC_TABLES,
   imageMeta,
   isSynced,
@@ -34,6 +36,8 @@ export interface SyncResult {
 
 const LOCK = 'lernzeit-sync'
 const CURSOR_KEY = 'cursor'
+/** Ids of pulled image records whose bytes the server no longer has, so they could not be shown here. */
+const MISSING_IMAGES_KEY = 'missingImages'
 /** A sync starts this long after the last local change, so a burst of edits goes up together. */
 const LOCAL_CHANGE_DELAY = 2_000
 /** How often a visible tab syncs to pick up other devices' changes. */
@@ -55,17 +59,46 @@ interface Outgoing {
 
 // ---- Push ----
 
-/** Pushes the outbox as it is now; entries written while this runs go up next time. Returns how many changes went up. */
+/** A change the cloud will not take as it is, and why. */
+interface Refused {
+  entry: OutboxEntry
+  reason: string
+}
+
+/** Server answers that refuse what was sent, not the request: 400 names a bad change, 413 is too large, 415 not an image. */
+const PUSH_REFUSALS = [400, 413]
+const IMAGE_REFUSALS = [400, 413, 415]
+
+function refusedBy(error: unknown, statuses: number[]): error is ApiError {
+  return error instanceof ApiError && statuses.includes(error.status)
+}
+
+const megabytes = (bytes: number) => `${(bytes / 1_000_000).toFixed(1)} MB`
+
+/** Why the cloud would refuse this change, checked here so it is not sent at all. */
+function refusal(change: SyncChange, blob: Blob | undefined): string | undefined {
+  if (blob && !blob.type.startsWith('image/')) return `This file is not an image (${blob.type || 'it has no type'}), so it cannot sync.`
+  if (blob && blob.size > MAX_IMAGE_BYTES) {
+    return `This image is too large to sync: ${megabytes(blob.size)}, and the most is ${megabytes(MAX_IMAGE_BYTES)}.`
+  }
+  if (change.deleted) return undefined
+  const bytes = encoder.encode(JSON.stringify(change.data)).byteLength
+  if (bytes > MAX_RECORD_BYTES) return `This is too large to sync: ${megabytes(bytes)}, and the most is ${megabytes(MAX_RECORD_BYTES)}.`
+  return undefined
+}
+
+/**
+ * Pushes the outbox as it is now; entries written while this runs go up next time. A change the
+ * cloud refuses is parked in the outbox and the rest still go. Returns how many changes went up.
+ */
 async function pushOutbox(database: LernzeitDB): Promise<number> {
   // Oldest first.
   const queued = (await database.outbox.toArray()).sort((x, y) => x.at - y.at)
   let pushed = 0
   for (let i = 0; i < queued.length; i += MAX_PUSH_CHANGES) {
-    const outgoing = await readOutgoing(database, queued.slice(i, i + MAX_PUSH_CHANGES))
-    for (const batch of batches(outgoing)) {
-      for (const item of batch) if (item.blob) await putImage(item.change.id, item.blob)
-      pushed += await send(database, batch)
-    }
+    const { outgoing, refused } = await readOutgoing(database, queued.slice(i, i + MAX_PUSH_CHANGES))
+    await park(database, refused)
+    for (const batch of batches(outgoing)) pushed += await send(database, await uploadImages(database, batch))
   }
   return pushed
 }
@@ -88,14 +121,18 @@ async function readRows(database: LernzeitDB, records: { tbl: string; id: string
   return rows
 }
 
-/** Each entry's record as it is now, read with the entry in one transaction so the two agree. */
-function readOutgoing(database: LernzeitDB, queued: OutboxEntry[]): Promise<Outgoing[]> {
+/**
+ * Each entry's record as it is now, read with the entry in one transaction so the two agree, and
+ * the entries the cloud would refuse. Entries parked before are left out until their record changes.
+ */
+function readOutgoing(database: LernzeitDB, queued: OutboxEntry[]): Promise<{ outgoing: Outgoing[]; refused: Refused[] }> {
   return database.transaction('r', [...SYNC_TABLES, database.outbox], async () => {
     const found = await database.outbox.bulkGet(queued.map((e) => [e.tbl, e.id]))
     // Gone: a pulled change settled it since the outbox was read.
-    const entries = found.filter((entry): entry is OutboxEntry => entry !== undefined && syncTables.has(entry.tbl))
+    const entries = found.filter((entry): entry is OutboxEntry => entry !== undefined && entry.stuck === undefined && syncTables.has(entry.tbl))
     const rows = await readRows(database, entries)
     const outgoing: Outgoing[] = []
+    const refused: Refused[] = []
     for (const [i, entry] of entries.entries()) {
       const tbl = entry.tbl as SyncTable
       const row = rows[i]
@@ -106,13 +143,15 @@ function readOutgoing(database: LernzeitDB, queued: OutboxEntry[]): Promise<Outg
         blob = (row as StoredImage).blob
         change = { tbl, id: entry.id, data: imageMeta(row as StoredImage), updatedAt: entry.at, deleted: false }
       } else change = { tbl, id: entry.id, data: row, updatedAt: entry.at, deleted: false }
-      outgoing.push({ entry, change, blob, bytes: encoder.encode(JSON.stringify(change)).byteLength + 1 })
+      const reason = refusal(change, blob)
+      if (reason) refused.push({ entry, reason })
+      else outgoing.push({ entry, change, blob, bytes: encoder.encode(JSON.stringify(change)).byteLength + 1 })
     }
-    return outgoing
+    return { outgoing, refused }
   })
 }
 
-/** Splits changes into pushes of at most MAX_PUSH_CHANGES and MAX_PUSH_BYTES. A change too large on its own goes alone. */
+/** Splits changes into pushes of at most MAX_PUSH_CHANGES and MAX_PUSH_BYTES. */
 function batches(outgoing: Outgoing[]): Outgoing[][] {
   const result: Outgoing[][] = []
   let batch: Outgoing[] = []
@@ -130,12 +169,39 @@ function batches(outgoing: Outgoing[]): Outgoing[][] {
   return result
 }
 
-/** Pushes one batch and clears its entries. The server refuses a push too large to store (413); it then goes in halves. */
+/** Uploads the batch's image bytes. An image the server refuses is parked, and its record stays out of the push. */
+async function uploadImages(database: LernzeitDB, batch: Outgoing[]): Promise<Outgoing[]> {
+  const ready: Outgoing[] = []
+  for (const item of batch) {
+    if (item.blob) {
+      try {
+        await putImage(item.change.id, item.blob)
+      } catch (error) {
+        if (!refusedBy(error, IMAGE_REFUSALS)) throw error
+        await park(database, [{ entry: item.entry, reason: error.message }])
+        continue
+      }
+    }
+    ready.push(item)
+  }
+  return ready
+}
+
+/**
+ * Pushes one batch and clears its entries. When the server refuses it (a change it cannot store,
+ * or a push too large to store at once), the batch goes in halves down to the one change at fault,
+ * which is parked; the others still go up.
+ */
 async function send(database: LernzeitDB, batch: Outgoing[]): Promise<number> {
+  if (batch.length === 0) return 0
   try {
     await push(batch.map((item) => item.change))
   } catch (error) {
-    if (!(error instanceof ApiError && error.status === 413 && batch.length > 1)) throw error
+    if (!refusedBy(error, PUSH_REFUSALS)) throw error
+    if (batch.length === 1) {
+      await park(database, [{ entry: batch[0].entry, reason: error.message }])
+      return 0
+    }
     const half = Math.ceil(batch.length / 2)
     return (await send(database, batch.slice(0, half))) + (await send(database, batch.slice(half)))
   }
@@ -152,6 +218,19 @@ function acknowledge(database: LernzeitDB, pushed: OutboxEntry[]): Promise<void>
   })
 }
 
+/**
+ * Marks refused entries stuck, so push skips them while their record stays as it is. They stay in
+ * the outbox: the change is the owner's data. An entry written again meanwhile gets its own try.
+ */
+function park(database: LernzeitDB, refused: Refused[]): Promise<void> {
+  if (refused.length === 0) return Promise.resolve()
+  return database.transaction('rw', database.outbox, async () => {
+    const current = await database.outbox.bulkGet(refused.map(({ entry }) => [entry.tbl, entry.id]))
+    const still = refused.filter(({ entry }, i) => current[i]?.at === entry.at)
+    await database.outbox.bulkPut(still.map(({ entry, reason }) => ({ tbl: entry.tbl, id: entry.id, at: entry.at, stuck: reason })))
+  })
+}
+
 // ---- Pull ----
 
 /** Pulls page after page until the server has no more. Returns how many changes were written here. */
@@ -161,8 +240,8 @@ async function pullAll(database: LernzeitDB): Promise<number> {
   for (;;) {
     const page = await pull(cursor)
     // A failed download throws here, before the page is applied, so the cursor stays put.
-    const blobs = await downloadImages(database, page)
-    pulled += await applyPage(database, page, blobs)
+    const { blobs, missing } = await downloadImages(database, page)
+    pulled += await applyPage(database, page, blobs, missing)
     // A page that did not move the cursor would only be asked for again.
     if (!page.more || page.cursor === cursor) return pulled
     cursor = page.cursor
@@ -174,16 +253,26 @@ function pendingNewer(entry: OutboxEntry | undefined, change: { updatedAt: numbe
   return entry !== undefined && entry.at > change.updatedAt
 }
 
-/** The bytes of the page's live images that are not here yet. */
-async function downloadImages(database: LernzeitDB, page: PullResponse): Promise<Map<string, Blob>> {
+/**
+ * The bytes of the page's live images that are not here yet, and the ids whose bytes the server no
+ * longer has (404). Any other failure throws, so the page is not applied.
+ */
+async function downloadImages(database: LernzeitDB, page: PullResponse): Promise<{ blobs: Map<string, Blob>; missing: Set<string> }> {
   const blobs = new Map<string, Blob>()
+  const missing = new Set<string>()
   for (const change of page.changes) {
     if (change.tbl !== 'images' || change.deleted) continue
     if (pendingNewer(await database.outbox.get(['images', change.id]), change)) continue
     if ((await database.images.get(change.id))?.blob) continue
-    blobs.set(change.id, await getImage(change.id))
+    try {
+      blobs.set(change.id, await getImage(change.id))
+    } catch (error) {
+      // Waiting would not bring them back, and would stop this device pulling for good.
+      if (!refusedBy(error, [404])) throw error
+      missing.add(change.id)
+    }
   }
-  return blobs
+  return { blobs, missing }
 }
 
 /** Only what this app syncs, whose data names its own id, so a bad answer cannot touch this device's own kv rows. */
@@ -192,13 +281,18 @@ function acceptable(change: PulledChange): boolean {
   return change.deleted || (typeof change.data === 'object' && change.data !== null && recordId(change.tbl, change.data) === change.id)
 }
 
-/** Writes one page and its cursor in one transaction. Returns how many changes it wrote. */
-function applyPage(database: LernzeitDB, page: PullResponse, blobs: Map<string, Blob>): Promise<number> {
+/**
+ * Writes one page and its cursor in one transaction. An image whose bytes the server no longer has
+ * is left out and its id kept in `meta.missingImages`. Returns how many changes it wrote.
+ */
+function applyPage(database: LernzeitDB, page: PullResponse, blobs: Map<string, Blob>, missing: Set<string>): Promise<number> {
   return applyRemote(database, async () => {
     const changes = page.changes.filter(acceptable)
     const keys = changes.map((change): [string, string] => [change.tbl, change.id])
     const entries = await database.outbox.bulkGet(keys)
     const images = await database.images.bulkGet(changes.map((change) => (change.tbl === 'images' ? change.id : '')))
+    const listed = (await database.meta.get(MISSING_IMAGES_KEY))?.value as string[] | undefined
+    const missingImages = new Set(listed)
 
     const puts = new Map<string, unknown[]>()
     const deletes = new Map<string, string[]>()
@@ -210,11 +304,16 @@ function applyPage(database: LernzeitDB, page: PullResponse, blobs: Map<string, 
     }
     changes.forEach((change, i) => {
       if (pendingNewer(entries[i], change)) return
+      if (change.tbl === 'images') missingImages.delete(change.id)
       if (change.deleted) add(deletes, change.tbl, change.id)
       else if (change.tbl === 'images') {
         const meta = change.data as ImageMeta
         const downloaded = blobs.get(change.id)
         const blob = downloaded ? new Blob([downloaded], { type: meta.type }) : images[i]?.blob
+        if (!blob && missing.has(change.id)) {
+          missingImages.add(change.id)
+          return
+        }
         // Nothing to show: undo the page, so it is pulled again next time.
         if (!blob) throw new Error(`The bytes of image ${change.id} are missing.`)
         add(puts, 'images', { id: meta.id, width: meta.width, height: meta.height, fit: meta.fit, blob } satisfies StoredImage)
@@ -228,6 +327,7 @@ function applyPage(database: LernzeitDB, page: PullResponse, blobs: Map<string, 
       ...[...deletes].map(([tbl, ids]) => database.table(tbl).bulkDelete(ids)),
       database.outbox.bulkDelete(settled),
       database.meta.put({ key: CURSOR_KEY, value: page.cursor }),
+      listed || missingImages.size ? database.meta.put({ key: MISSING_IMAGES_KEY, value: [...missingImages] }) : undefined,
     ])
     return [...puts.values(), ...deletes.values()].reduce((sum, list) => sum + list.length, 0)
   })
@@ -255,8 +355,18 @@ function statusFor(error: unknown): SyncStatus {
 async function run(database: LernzeitDB): Promise<SyncResult> {
   setSyncStatus({ state: 'syncing' })
   try {
-    const pushed = await pushOutbox(database)
+    let pushed = 0
+    let pushFailure: unknown
+    try {
+      pushed = await pushOutbox(database)
+    } catch (error) {
+      // Offline or signed out, a pull would fail the same way. After any other failure this
+      // device still takes in the other devices' changes.
+      if (error instanceof OfflineError || error instanceof SignedOutError) throw error
+      pushFailure = error ?? new Error('The push failed.')
+    }
     const pulled = await pullAll(database)
+    if (pushFailure !== undefined) throw pushFailure
     setSyncStatus({ state: 'idle', lastSyncedAt: Date.now() })
     return { pushed, pulled }
   } catch (error) {
