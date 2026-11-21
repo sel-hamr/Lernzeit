@@ -4,7 +4,10 @@
  * same German topic, decks and cards can sit in both under different ids.
  * Folding maps those local copies onto the cloud's and keeps whatever only
  * the browser has. Records with the same id on both sides are not folded:
- * newest-wins settles them on the server, by `uploadTime`.
+ * newest-wins settles them on the server, by `uploadTime`. Practice progress
+ * (reviews, drill and exercise stats) is the exception: starter cards share
+ * their pack ids, so the same review id sits on both sides, and the copy that
+ * was practised more is kept whichever side last wrote it.
  */
 import { isSynced, recordId, SYNC_TABLES, type SyncTable } from './sync'
 import type { PracticeDeckTime, StoredFsrs } from './types'
@@ -22,6 +25,7 @@ export interface FoldResult {
    * review with more logs. Push them with `updatedAt = max(uploadTime, the cloud
    * row's updatedAt)` so newest-wins keeps them (a tie goes to the later arrival).
    * Same ids the fold did not decide on are not listed: newest-wins settles those.
+   * Where the fold chose the cloud's progress, the local row is simply not uploaded.
    */
   mustWin: { tbl: SyncTable; id: string }[]
   summary: {
@@ -69,11 +73,20 @@ export function uploadTime(tbl: SyncTable, row: Record<string, unknown>): number
   return at ?? num(row.createdAt) ?? 0
 }
 
+/** How much a progress record was practised: compared item by item, the larger wins. */
+type Score = [answers: number, last: number]
+
+/** Above 0 when `a` was practised more than `b`, 0 on a tie. */
+const compare = (a: Score, b: Score): number => a[0] - b[0] || a[1] - b[1]
+
+/** Right and wrong answers, then when the last was: a drill or exercise stat's practice. */
+const answered = (r: Row): Score => [(num(r.right) ?? 0) + (num(r.wrong) ?? 0), num(r.lastAt) ?? 0]
+
 /** A candidate for one review or drill stat id: a local row, moved there or already there. */
 interface Candidate {
   row: Row
   from: string
-  score: number
+  score: Score
 }
 
 /** Merges the local library into the cloud's. Pure: it reads both sides and changes neither. */
@@ -151,14 +164,17 @@ export function foldLibraries(local: Library, cloud: Library): FoldResult {
 
   /**
    * Reviews and drill stats are keyed by card. Those of a folded card move to
-   * the cloud card's key. Where that key is taken, the row with the higher
-   * score is kept, a tie going to the cloud's.
+   * the cloud card's key. Each key then holds the best-practised of the local
+   * rows on it, which is kept only if it beats the cloud's row there too; a
+   * tie goes to the row already on the key, then to the cloud's. That holds for
+   * same ids as well: newest-wins would compare when each side last wrote the
+   * row, not how much it was practised.
    */
   function settle(
     tbl: 'reviews' | 'drillStats',
     move: (r: Row, card: string) => Row,
     rewrite: (r: Row) => Row,
-    score: (r: Row, side: 'local' | 'cloud') => number,
+    score: (r: Row, side: 'local' | 'cloud') => Score,
   ): Row[] {
     const cloudById = new Map(rows(cloud, tbl).map((r) => [str(r.id), r]))
     const groups = new Map<string, Candidate[]>()
@@ -170,15 +186,16 @@ export function foldLibraries(local: Library, cloud: Library): FoldResult {
     }
     const out: Row[] = []
     for (const [id, list] of groups) {
-      // Nothing moved onto this id: same ids on both sides are left to newest-wins.
-      if (list.every((c) => c.from === id)) {
-        out.push(...list.map((c) => c.row))
-        continue
-      }
-      const best = list.reduce((a, b) => (b.score > a.score || (b.score === a.score && b.from === id) ? b : a))
+      const best = list.reduce((a, b) => {
+        const order = compare(b.score, a.score)
+        return order > 0 || (order === 0 && b.from === id) ? b : a
+      })
       const theirs = cloudById.get(id)
-      const keep = theirs !== undefined && score(theirs, 'cloud') >= best.score ? undefined : best
-      for (const c of list) if (c !== keep || c.from !== id) drop(tbl, c.from)
+      const keep = theirs !== undefined && compare(score(theirs, 'cloud'), best.score) >= 0 ? undefined : best
+      // A moved row always leaves its old id. A row already on this id is dropped only when another
+      // local row replaces it; when the cloud's wins, it gives way to the cloud's copy like any
+      // same-id record, which is no fold.
+      for (const c of list) if (c.from !== id || (keep !== undefined && c !== keep)) drop(tbl, c.from)
       if (keep) out.push(keep.row)
       if (keep && theirs !== undefined) mustWin.push({ tbl, id })
     }
@@ -195,13 +212,13 @@ export function foldLibraries(local: Library, cloud: Library): FoldResult {
     'reviews',
     (r, card) => ({ ...repoint(r, 'deckId', deckMap), id: `${card}:${str(r.direction)}`, cardId: card }),
     (r) => repoint(r, 'deckId', deckMap),
-    (r, side) => logs[side].get(str(r.id)) ?? 0,
+    (r, side) => [logs[side].get(str(r.id)) ?? 0, num((r.fsrs as Partial<StoredFsrs> | undefined)?.last_review) ?? 0],
   )
   const drillStats = settle(
     'drillStats',
     (r, card) => ({ ...r, id: `${card}:${str(r.drill)}`, cardId: card }),
     (r) => r,
-    (r) => (num(r.right) ?? 0) + (num(r.wrong) ?? 0),
+    answered,
   )
 
   // Every review log is kept, pointed at the card it now belongs to.
@@ -213,13 +230,19 @@ export function foldLibraries(local: Library, cloud: Library): FoldResult {
 
   // A folded grammar topic keeps the scores of the exercises the cloud copy has.
   const cloudGrammar = new Map(rows(cloud, 'grammarTopics').map((g) => [str(g.id), g]))
+  const cloudExercises = new Map(rows(cloud, 'exerciseStats').map((s) => [str(s.id), s]))
   const exerciseStats = rows(local, 'exerciseStats').filter((s) => {
     const to = grammarMap.get(str(s.topicId))
-    if (to === undefined) return true
-    const exercises = (cloudGrammar.get(to)?.exercises ?? []) as { id?: unknown }[]
-    if (exercises.some((e) => e.id === s.id)) return true
-    drop('exerciseStats', str(s.id))
-    return false
+    if (to !== undefined && !((cloudGrammar.get(to)?.exercises ?? []) as { id?: unknown }[]).some((e) => e.id === s.id)) {
+      drop('exerciseStats', str(s.id))
+      return false
+    }
+    // An exercise's score with the same id on both sides: the side that answered more, as for reviews.
+    const theirs = cloudExercises.get(str(s.id))
+    if (theirs === undefined) return true
+    if (compare(answered(s), answered(theirs)) <= 0) return false
+    mustWin.push({ tbl: 'exerciseStats', id: str(s.id) })
+    return true
   })
 
   // 6: a synced kv key the cloud already has keeps the cloud's value.

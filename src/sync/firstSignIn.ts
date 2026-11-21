@@ -3,7 +3,8 @@
  * (@lernzeit/core/fold) maps this browser's copies of the starter onto the
  * cloud's and keeps whatever only this browser has; the result goes up, and
  * then this browser's copy is replaced by the cloud's, so every device holds
- * the same records under the same ids.
+ * the same records under the same ids. It merges, never replaces: an upload
+ * the cloud ends up without stays here and goes up again.
  *
  * Steps 1–4 only read here, so a failure there leaves the browser as it was
  * and the merge can simply run again. Step 5 writes everything in one
@@ -77,9 +78,11 @@ export async function mergeIntoCloud(database: LernzeitDB = db, onStep?: (step: 
   onStep?.('Reading this browser’s library')
   const { library, blobs } = await readLocal(database)
   const fold = foldLibraries(library, cloudLibrary(cloud))
+  const liveBefore = new Set([...cloud].flatMap(([key, change]) => (change.deleted ? [] : [key])))
 
   onStep?.('Uploading this browser’s data')
-  const refused = await upload(uploads(fold, cloud, blobs))
+  const list = uploads(fold, cloud, blobs)
+  const refused = await upload(list)
 
   // What the cloud holds now: the state above and everything since, ours included. The same as
   // pulling again from the start, without downloading it all twice.
@@ -87,12 +90,41 @@ export async function mergeIntoCloud(database: LernzeitDB = db, onStep?: (step: 
   const finalCursor = await pullInto(cloud, cursor)
   const { downloaded, missing } = await downloadImages(database, cloud)
 
+  const refusedKeys = new Set(refused.map(({ tbl, id }) => keyOf(tbl, id)))
+  const sent = list.filter(({ change }) => !refusedKeys.has(keyOf(change.tbl, change.id)))
+  // An upload the cloud has no live copy of (a delete won meanwhile, or the push was lost) stays
+  // here and goes up again: a first sign-in never deletes this browser's data.
+  const unconfirmed = sent.filter(({ change }) => {
+    const theirs = cloud.get(keyOf(change.tbl, change.id))
+    return theirs === undefined || theirs.deleted
+  })
+  if (unconfirmed.length) {
+    console.warn(
+      `The merge kept ${unconfirmed.length} record(s) the cloud does not hold, and queued them to upload again:`,
+      unconfirmed.map(({ change }) => keyOf(change.tbl, change.id)),
+    )
+  }
+
   onStep?.('Saving')
-  await replaceLocal(database, cloud, finalCursor, downloaded, missing, refused)
-  return fold.summary
+  await replaceLocal(database, cloud, finalCursor, downloaded, missing, refused, unconfirmed)
+  const mustWin = new Set(fold.mustWin.map(({ tbl, id }) => keyOf(tbl, id)))
+  return { added: addedBy(sent, cloud, (key) => !liveBefore.has(key) || mustWin.has(key)), folded: fold.summary.folded }
 }
 
-/** What the merge summary names, in this order. Study history (reviews, logs, scores) is not counted out. */
+/** Per table, the uploads the cloud now holds as they were sent and that `counts`: new to the cloud, or chosen over its copy. */
+function addedBy(sent: Upload[], cloud: CloudState, counts: (key: string) => boolean): MergeSummary['added'] {
+  const added: MergeSummary['added'] = {}
+  for (const { change } of sent) {
+    const key = keyOf(change.tbl, change.id)
+    const theirs = cloud.get(key)
+    const kept =
+      theirs !== undefined && !theirs.deleted && theirs.updatedAt === change.updatedAt && JSON.stringify(theirs.data) === JSON.stringify(change.data)
+    if (kept && counts(key)) added[change.tbl] = (added[change.tbl] ?? 0) + 1
+  }
+  return added
+}
+
+/** What the merge summary names, in this order. Practice progress and settings are not counted out. */
 const SUMMARY_NOUNS: [SyncTable, string, string?][] = [
   ['cards', 'card'],
   ['decks', 'deck'],
@@ -107,6 +139,9 @@ const SUMMARY_NOUNS: [SyncTable, string, string?][] = [
   ['sessions', 'study session'],
 ]
 
+/** Practice progress: reviews and their logs, answers, scores and practice runs. */
+const PROGRESS_TABLES = new Set<SyncTable>(['reviews', 'reviewLogs', 'responses', 'drillStats', 'exerciseStats', 'practiceRuns'])
+
 const listed = (parts: string[]) => (parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0])
 
 /** "Added 214 cards and 12 stories. Folded 898 duplicate cards, 3 decks and 1 topic from the starter." */
@@ -116,7 +151,11 @@ export function mergeSummaryText({ added, folded }: MergeSummary): string {
   const sentences: string[] = []
   const addedParts = counted(added)
   if (addedParts.length) sentences.push(`Added ${listed(addedParts)}.`)
-  else if (Object.keys(added).length) sentences.push('Added this browser’s study history.')
+  else {
+    const tables = (Object.keys(added) as SyncTable[]).filter((tbl) => added[tbl])
+    const kinds = [...(tables.some((tbl) => PROGRESS_TABLES.has(tbl)) ? ['practice progress'] : []), ...(tables.includes('kv') ? ['settings'] : [])]
+    if (kinds.length) sentences.push(`Added this browser’s ${kinds.join(' and ')}.`)
+  }
   const foldedParts = counted(folded)
   if (foldedParts.length) sentences.push(`Folded ${listed([foldedParts[0].replace(' ', ' duplicate '), ...foldedParts.slice(1)])} from the starter.`)
   return sentences.join(' ') || 'Your cloud had everything this browser has.'
@@ -175,7 +214,9 @@ function readLocal(database: LernzeitDB): Promise<{ library: Library; blobs: Map
 
 /**
  * The fold's uploads as changes. Each is stamped with `uploadTime`; a record the fold chose over
- * the cloud's copy is stamped at least as late as that copy, so newest-wins keeps it.
+ * the cloud's copy is stamped at least as late as that copy, so newest-wins keeps it. A record the
+ * cloud holds as a tombstone (after a reset, or a delete on another device) is stamped after it:
+ * the fold saw no copy there, and a first sign-in adds this browser's data, it never deletes it.
  */
 function uploads(fold: FoldResult, cloud: CloudState, blobs: Map<string, Blob>): Upload[] {
   const mustWin = new Set(fold.mustWin.map(({ tbl, id }) => keyOf(tbl, id)))
@@ -185,7 +226,11 @@ function uploads(fold: FoldResult, cloud: CloudState, blobs: Map<string, Blob>):
       const id = recordId(tbl, row)
       const key = keyOf(tbl, id)
       const theirs = cloud.get(key)
-      const updatedAt = mustWin.has(key) ? Math.max(uploadTime(tbl, row), theirs?.updatedAt ?? 0) : uploadTime(tbl, row)
+      const updatedAt = theirs?.deleted
+        ? Math.max(uploadTime(tbl, row), theirs.updatedAt + 1)
+        : mustWin.has(key)
+          ? Math.max(uploadTime(tbl, row), theirs?.updatedAt ?? 0)
+          : uploadTime(tbl, row)
       const change: SyncChange = { tbl, id, data: row, updatedAt, deleted: false }
       if (tbl !== 'images') {
         list.push({ change, row })
@@ -280,7 +325,8 @@ async function downloadImages(database: LernzeitDB, cloud: CloudState): Promise<
  * In one transaction: this browser's synced rows give way to the cloud's live records. Images
  * stay where the cloud has them too, so their bytes need not come down again. The outbox, which
  * recorded every write since before the first sign-in, is cleared: the merge uploaded them.
- * Records the cloud refused stay as they were and wait in the outbox as stuck.
+ * Records the cloud refused stay as they were and wait in the outbox as stuck. Uploads the cloud
+ * has no live copy of (`unconfirmed`) stay as they were too, and wait in the outbox to go up again.
  */
 function replaceLocal(
   database: LernzeitDB,
@@ -289,11 +335,16 @@ function replaceLocal(
   downloaded: Map<string, Blob>,
   missing: Set<string>,
   refused: Refused[],
+  unconfirmed: Upload[],
 ): Promise<void> {
   return applyRemote(database, async () => {
     const live = [...cloud.values()].filter((change) => !change.deleted)
     const liveImages = live.filter((change) => change.tbl === 'images')
-    const keptImages = new Set([...liveImages.map((change) => change.id), ...refused.filter((r) => r.tbl === 'images').map((r) => r.id)])
+    const keptImages = new Set([
+      ...liveImages.map((change) => change.id),
+      ...refused.filter((r) => r.tbl === 'images').map((r) => r.id),
+      ...unconfirmed.filter((u) => u.change.tbl === 'images').map((u) => u.change.id),
+    ])
     const imageIds = (await database.images.toCollection().primaryKeys()) as string[]
     const localImages = new Map((await database.images.bulkGet(liveImages.map((change) => change.id))).flatMap((image) => (image ? [[image.id, image]] : [])))
 
@@ -327,10 +378,18 @@ function replaceLocal(
     }
     await Promise.all([...puts].map(([tbl, rows]) => database.table(tbl).bulkPut(rows)))
 
-    // Refused rows keep this browser's version, after the cloud's, so a copy there does not replace it.
+    // Refused and unconfirmed rows keep this browser's version, after the cloud's, so a copy there does not replace it.
     const at = Date.now()
-    await Promise.all(refused.map(({ tbl, row }) => database.table(tbl).put(row)))
-    await database.outbox.bulkPut(refused.map(({ tbl, id, reason }): OutboxEntry => ({ tbl, id, at, stuck: reason })))
+    const keptRows = [...refused, ...unconfirmed.map(({ change, row }) => ({ tbl: change.tbl, row }))]
+    await Promise.all(keptRows.map(({ tbl, row }) => database.table(tbl).put(row)))
+    await database.outbox.bulkPut([
+      ...refused.map(({ tbl, id, reason }): OutboxEntry => ({ tbl, id, at, stuck: reason })),
+      // Stamped after the cloud's tombstone and the upload's own time, so the next push wins.
+      ...unconfirmed.map(({ change }): OutboxEntry => {
+        const theirs = cloud.get(keyOf(change.tbl, change.id))
+        return { tbl: change.tbl, id: change.id, at: Math.max(at, change.updatedAt, (theirs?.updatedAt ?? 0) + 1) }
+      }),
+    ])
 
     await database.meta.bulkPut([
       { key: MERGED_KEY, value: true },

@@ -154,6 +154,100 @@ describe('mergeIntoCloud', () => {
     }
   })
 
+  it('a starter review practised here wins over the cloud’s same-id copy that was written later but never practised', async () => {
+    // Another browser installed the starter later (same pack ids for decks, cards and so reviews) and synced it.
+    vi.setSystemTime(50_000)
+    await a.decks.put(deck('d1', 't1'))
+    await a.cards.put(card('c1', 'd1', 'Hund', 'dog'))
+    await a.reviews.put(review('c1', 'd1', 0, 0))
+    await syncNow(a)
+    expect(server.record('reviews', 'c1:enToDe')?.updatedAt).toBe(50_000)
+
+    // This browser practised it five times, the last at 10 000: older than the cloud's row.
+    await b.decks.put(deck('d1', 't1'))
+    await b.cards.put(card('c1', 'd1', 'Hund', 'dog'))
+    await b.reviews.put(review('c1', 'd1', 5, 10_000))
+    await b.reviewLogs.bulkPut(logs('lb', 'c1', 'd1', 5))
+    const summary = await mergeIntoCloud(b)
+
+    const practised = review('c1', 'd1', 5, 10_000)
+    expect(server.record('reviews', 'c1:enToDe')).toMatchObject({ data: practised, deleted: false })
+    expect(await b.reviews.toArray()).toEqual([practised])
+    expect(await b.reviewLogs.count()).toBe(5)
+    expect(mergeSummaryText(summary)).toBe('Added this browser’s practice progress.')
+    await syncNow(a)
+    expect(await a.reviews.toArray()).toEqual([practised])
+  })
+
+  it('after a cloud reset, a first sign-in keeps the starter decks, cards, reviews and images here and in the cloud', async () => {
+    await a.topics.put(topic('t1'))
+    await a.decks.put(deck('d1', 't1'))
+    await a.cards.put(card('c1', 'd1', 'Hund', 'dog'))
+    await a.reviews.put(review('c1', 'd1', 1, 900))
+    await a.images.put(image('i1'))
+    await mergeIntoCloud(a)
+    // The reset's tombstones are newer than anything this browser stamps from its records.
+    vi.setSystemTime(60_000)
+    server.reset()
+
+    await b.topics.put(topic('t1'))
+    await b.decks.put(deck('d1', 't1'))
+    await b.cards.put(card('c1', 'd1', 'Hund', 'dog'))
+    await b.reviews.put(review('c1', 'd1', 2, 5_000))
+    await b.images.put(image('i1'))
+    const summary = await mergeIntoCloud(b)
+
+    expect(live('topics').map((r) => r.id)).toEqual(['t1'])
+    expect(live('decks').map((r) => r.id)).toEqual(['d1'])
+    expect(live('cards').map((r) => r.id)).toEqual(['c1'])
+    expect(live('reviews').map((r) => r.data)).toEqual([review('c1', 'd1', 2, 5_000)])
+    expect(live('images').map((r) => r.id)).toEqual(['i1'])
+    expect(await server.blobs.get('i1')?.text()).toBe('png bytes')
+    expect((await b.decks.toArray()).map((d) => d.id)).toEqual(['d1'])
+    expect((await b.cards.toArray()).map((c) => c.id)).toEqual(['c1'])
+    expect(await b.reviews.toArray()).toEqual([review('c1', 'd1', 2, 5_000)])
+    expect(await (await b.images.get('i1'))?.blob.text()).toBe('png bytes')
+    expect(summary.added).toMatchObject({ topics: 1, decks: 1, cards: 1, images: 1, reviews: 1 })
+    expect(await b.outbox.count()).toBe(0)
+  })
+
+  it('a row the cloud did not keep is kept here and queued again, not dropped', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await a.decks.put(deck('d1', 't1'))
+    await a.cards.put(card('c1', 'd1', 'Hund', 'dog'))
+    // The push answers as if stored, but nothing reaches the cloud.
+    server.beforeRequest = (method, path) => (method === 'POST' && path === '/api/sync/push' ? Response.json({ applied: 0 }) : undefined)
+    const summary = await mergeIntoCloud(a)
+
+    expect(live('cards')).toEqual([])
+    expect((await a.cards.toArray()).map((c) => c.id)).toEqual(['c1'])
+    expect((await a.decks.toArray()).map((d) => d.id)).toEqual(['d1'])
+    expect((await a.outbox.toArray()).map((e) => `${e.tbl}/${e.id}`).sort()).toEqual(['cards/c1', 'decks/d1'])
+    expect(warn).toHaveBeenCalled()
+    // Nothing is said to be added that the cloud does not hold.
+    expect(summary.added).toEqual({})
+
+    server.beforeRequest = undefined
+    await syncNow(a)
+    expect(live('cards').map((r) => r.id)).toEqual(['c1'])
+    warn.mockRestore()
+  })
+
+  it('the summary counts only what the cloud kept', async () => {
+    await a.cards.bulkPut([card('c1', 'd1', 'Hund', 'dog'), card('c2', 'd1', 'Maus', 'mouse')])
+    // Another device writes c2 while this merge uploads, later than this browser's copy.
+    let raced = false
+    server.beforeRequest = async (method, path) => {
+      if (raced || method !== 'POST' || path !== '/api/sync/push') return
+      raced = true
+      const changes = [{ tbl: 'cards', id: 'c2', data: card('c2', 'd1', 'Maus', 'the mouse'), updatedAt: 99_000, deleted: false }]
+      await server.fetch('/api/sync/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ changes }) })
+    }
+    const summary = await mergeIntoCloud(a)
+    expect(summary.added).toEqual({ cards: 1 })
+    expect((await a.cards.get('c2'))?.english).toBe('the mouse')
+  })
+
   it('a failure while pushing leaves local data unchanged and merged unset', async () => {
     await a.topics.put(topic('tA'))
     await a.decks.put(deck('dA', 'tA'))
@@ -237,7 +331,9 @@ describe('mergeSummaryText', () => {
     expect(mergeSummaryText({ added: { cards: 214, stories: 12, reviews: 300 }, folded: { cards: 898, decks: 3, topics: 1 } })).toBe(
       'Added 214 cards and 12 stories. Folded 898 duplicate cards, 3 decks and 1 topic from the starter.',
     )
-    expect(mergeSummaryText({ added: { reviews: 3, reviewLogs: 9 }, folded: {} })).toBe('Added this browser’s study history.')
+    expect(mergeSummaryText({ added: { reviews: 3, reviewLogs: 9 }, folded: {} })).toBe('Added this browser’s practice progress.')
+    expect(mergeSummaryText({ added: { kv: 2 }, folded: {} })).toBe('Added this browser’s settings.')
+    expect(mergeSummaryText({ added: { drillStats: 1, kv: 1 }, folded: {} })).toBe('Added this browser’s practice progress and settings.')
     expect(mergeSummaryText({ added: {}, folded: {} })).toBe('Your cloud had everything this browser has.')
   })
 })

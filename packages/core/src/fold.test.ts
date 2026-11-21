@@ -136,13 +136,83 @@ describe('foldLibraries', () => {
     expect(upload.reviewLogs).toEqual([{ ...logs('lL', 'cL', 'dL', 'enToDe', 1)[0], reviewId: 'cC:enToDe', cardId: 'cC', deckId: 'dC' }])
   })
 
-  it('leaves a review with the same id on both sides to newest-wins', () => {
+  it('a same-id review with more logs here wins over the cloud row, however old', () => {
+    // Starter cards share their pack ids, so their reviews have the same id on both sides.
     const local: Library = { cards: [card('c1', 'd1', 'Hund', 'dog')], reviews: [review('c1', 'd1', 'enToDe', 5)], reviewLogs: logs('l', 'c1', 'd1', 'enToDe', 5) }
-    const cloud: Library = { cards: [card('c1', 'd1', 'Hund', 'dog')], reviews: [review('c1', 'd1', 'enToDe', 1)] }
-    const { upload, mustWin, summary } = foldLibraries(local, cloud)
+    const cloud: Library = { cards: [card('c1', 'd1', 'Hund', 'dog')], reviews: [{ ...review('c1', 'd1', 'enToDe', 0), fsrs: fsrs(0) }] }
+    const { upload, mustWin, dropLocal, summary } = foldLibraries(local, cloud)
     expect(upload.reviews).toEqual([review('c1', 'd1', 'enToDe', 5)])
-    expect(mustWin).toEqual([])
+    expect(mustWin).toEqual([{ tbl: 'reviews', id: 'c1:enToDe' }])
+    expect(dropLocal).toEqual([])
     expect(summary.folded).toEqual({})
+  })
+
+  it('a same-id review the cloud practised more is not uploaded', () => {
+    const local: Library = { reviews: [review('c1', 'd1', 'enToDe', 1)], reviewLogs: logs('l', 'c1', 'd1', 'enToDe', 1) }
+    const cloud: Library = { reviews: [review('c1', 'd1', 'enToDe', 4)], reviewLogs: logs('k', 'c1', 'd1', 'enToDe', 4) }
+    const { upload, mustWin, dropLocal } = foldLibraries(local, cloud)
+    expect(upload.reviews ?? []).toEqual([])
+    expect(mustWin).toEqual([])
+    expect(dropLocal).toEqual([])
+    // The logs are this browser's own and still go up.
+    expect(upload.reviewLogs).toHaveLength(1)
+  })
+
+  it('same-id reviews with as many logs: the later review wins, a tie goes to the cloud', () => {
+    const at = (reps: number, last: number): Row => ({ ...review('c1', 'd1', 'enToDe', reps), fsrs: fsrs(reps, last) })
+    const later = foldLibraries({ reviews: [at(2, 9_000)] }, { reviews: [at(1, 5_000)] })
+    expect(later.upload.reviews).toEqual([at(2, 9_000)])
+    expect(later.mustWin).toEqual([{ tbl: 'reviews', id: 'c1:enToDe' }])
+    const earlier = foldLibraries({ reviews: [at(2, 5_000)] }, { reviews: [at(1, 9_000)] })
+    expect(earlier.upload.reviews ?? []).toEqual([])
+    const tie = foldLibraries({ reviews: [at(2, 5_000)] }, { reviews: [at(1, 5_000)] })
+    expect(tie.upload.reviews ?? []).toEqual([])
+    expect(tie.mustWin).toEqual([])
+  })
+
+  it('same-id drill and exercise stats keep the side with more answers, then the later one', () => {
+    const local: Library = {
+      drillStats: [drill('c1', 4, 2), drill('c2', 1, 0), { ...drill('c3', 1, 1), lastAt: 9 }],
+      exerciseStats: [{ ...exStat('e1', 'g1'), right: 6 }, exStat('e2', 'g1'), { ...exStat('e3', 'g1'), lastAt: 9 }],
+    }
+    const cloud: Library = {
+      drillStats: [drill('c1', 1, 0), drill('c2', 3, 3), { ...drill('c3', 2, 0), lastAt: 5 }],
+      exerciseStats: [exStat('e1', 'g1'), { ...exStat('e2', 'g1'), wrong: 4 }, { ...exStat('e3', 'g1'), lastAt: 5 }],
+    }
+    const { upload, mustWin, dropLocal } = foldLibraries(local, cloud)
+    expect(ids(upload.drillStats)).toEqual(['c1:gender', 'c3:gender'])
+    expect(ids(upload.exerciseStats)).toEqual(['e1', 'e3'])
+    expect(mustWin).toEqual(expect.arrayContaining([
+      { tbl: 'drillStats', id: 'c1:gender' }, { tbl: 'drillStats', id: 'c3:gender' },
+      { tbl: 'exerciseStats', id: 'e1' }, { tbl: 'exerciseStats', id: 'e3' },
+    ]))
+    expect(mustWin).toHaveLength(4)
+    expect(dropLocal).toEqual([])
+  })
+
+  it('a review moved onto an id this browser also has competes with that row and the cloud', () => {
+    // cC is on both sides; cL is a duplicate of it here, so its review moves onto cC's.
+    const base = (): { local: Library; cloud: Library } => ({
+      local: {
+        cards: [card('cC', 'd1', 'der Hund', 'dog'), card('cL', 'd1', 'der Hund', 'dog')],
+        reviews: [review('cC', 'd1', 'enToDe', 2), review('cL', 'd1', 'enToDe', 5)],
+        reviewLogs: [...logs('a', 'cC', 'd1', 'enToDe', 2), ...logs('b', 'cL', 'd1', 'enToDe', 5)],
+      },
+      cloud: { cards: [card('cC', 'd1', 'der Hund', 'dog')], reviews: [review('cC', 'd1', 'enToDe', 3)], reviewLogs: logs('c', 'cC', 'd1', 'enToDe', 3) },
+    })
+    const won = foldLibraries(base().local, base().cloud)
+    expect(won.upload.reviews).toEqual([{ ...review('cL', 'd1', 'enToDe', 5), id: 'cC:enToDe', cardId: 'cC' }])
+    expect(won.mustWin).toEqual([{ tbl: 'reviews', id: 'cC:enToDe' }])
+    // Both local rows gave way: cL's moved off its id, cC's was replaced by cL's.
+    expect(won.dropLocal.filter((d) => d.tbl === 'reviews')).toEqual(expect.arrayContaining([{ tbl: 'reviews', id: 'cL:enToDe' }, { tbl: 'reviews', id: 'cC:enToDe' }]))
+
+    const { local, cloud } = base()
+    cloud.reviewLogs = logs('c', 'cC', 'd1', 'enToDe', 6)
+    const lost = foldLibraries(local, cloud)
+    expect(lost.upload.reviews ?? []).toEqual([])
+    expect(lost.mustWin).toEqual([])
+    // The moved row leaves its old id; the row already on the cloud's id gives way to the cloud's, as a same-id row does.
+    expect(lost.dropLocal.filter((d) => d.tbl === 'reviews')).toEqual([{ tbl: 'reviews', id: 'cL:enToDe' }])
   })
 
   it('keeps a local review of a direction the cloud card never had', () => {
