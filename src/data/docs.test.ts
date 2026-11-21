@@ -16,16 +16,20 @@ import {
   saveDoc,
   setDocPinned,
 } from './docs'
+import { setFetch } from '@/sync/api'
+import { signedIn, useTestCloud } from '@/test/cloud'
 import { exportBackup, resetAllData, restoreBackup } from './io'
 
 let database: LernzeitDB
 let counter = 0
 
-beforeEach(() => {
-  database = new LernzeitDB(`docs-test-${counter++}`)
+beforeEach(async () => {
+  useTestCloud()
+  database = await signedIn(new LernzeitDB(`docs-test-${counter++}`))
 })
 
 afterEach(async () => {
+  setFetch()
   await database.delete()
 })
 
@@ -152,7 +156,7 @@ describe('backups', () => {
     const folder = await createDocFolder('Top', DOC_ROOT, database)
     const saved = await doc('# Hello', folder.id)
     const backup = JSON.parse(JSON.stringify(await exportBackup(database)))
-    const other = new LernzeitDB(`docs-test-${counter++}`)
+    const other = await signedIn(new LernzeitDB(`docs-test-${counter++}`))
     try {
       await restoreBackup(backup, other)
       expect(await other.docFolders.get(folder.id)).toEqual(folder)

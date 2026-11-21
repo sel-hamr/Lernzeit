@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { getSettings, LernzeitDB } from '@/db/db'
+import { setFetch } from '@/sync/api'
+import { signedIn, useTestCloud } from '@/test/cloud'
 import { resetAllData } from './io'
 import { GERMAN_SUMMARY, loadStarterFile, parseStarterFile, setUpLernzeit, shouldOfferStarter, startEmpty, STARTER_URL, type StarterFile } from './starter'
 import { createTask } from './tasks'
@@ -12,11 +14,13 @@ const shipped = (): StarterFile => parseStarterFile(JSON.parse(readFileSync(file
 let database: LernzeitDB
 let counter = 0
 
-beforeEach(() => {
-  database = new LernzeitDB(`starter-${counter++}`)
+beforeEach(async () => {
+  useTestCloud()
+  database = await signedIn(new LernzeitDB(`starter-${counter++}`))
 })
 
 afterEach(async () => {
+  setFetch()
   await database.delete()
 })
 

@@ -2,6 +2,8 @@ import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getActiveTimer, getSettings, KV_KEYS, LernzeitDB, updateSettings } from '@/db/db'
 import { getDeviceId } from '@/sync/device'
+import { setFetch } from '@/sync/api'
+import { signedIn, useTestCloud } from '@/test/cloud'
 import { seedGerman } from '@/test/fixtures'
 import { loadPack, packLevels } from '@/languages'
 import { addStarterContent, addStarterConjugations, installLevels, syncStarterTopics } from './languages'
@@ -27,16 +29,23 @@ import { clearClips, clipKey, readClip, saveClip } from './clips'
 let database: LernzeitDB
 let counter = 0
 
+/** A second database signed in to the in-memory cloud, as restoring a backup needs. */
+async function signedInDb(): Promise<LernzeitDB> {
+  return signedIn(new LernzeitDB(`test-${counter++}`))
+}
+
 const at = (y: number, m: number, d: number, h = 0, min = 0) => new Date(y, m - 1, d, h, min)
 
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(at(2026, 10, 14, 14, 2))
+  useTestCloud()
   database = new LernzeitDB(`test-${counter++}`)
   await seedGerman(database)
 })
 
 afterEach(async () => {
+  setFetch()
   vi.useRealTimers()
   await database.delete()
 })
@@ -438,7 +447,7 @@ describe('stories', () => {
     const backup = await exportBackup(database)
     expect(backup.stories).toHaveLength(await database.stories.count())
 
-    const other = new LernzeitDB(`test-${counter++}`)
+    const other = await signedInDb()
     try {
       await restoreBackup(JSON.parse(JSON.stringify(backup)), other)
       expect((await other.stories.get('story-0001'))?.title).toBe('Ein Tag in Berlin')
@@ -529,7 +538,7 @@ describe('questions', () => {
     expect(backup.questions).toHaveLength(45)
     expect(backup.responses).toHaveLength(1)
 
-    const other = new LernzeitDB(`test-${counter++}`)
+    const other = await signedInDb()
     try {
       await restoreBackup(JSON.parse(JSON.stringify(backup)), other)
       expect((await other.responses.toArray()).map((r) => r.text)).toEqual(['Ich heiße Sam.'])
@@ -610,7 +619,7 @@ describe('drills', () => {
     const backup = await exportBackup(database)
     expect(backup.drillStats).toHaveLength(1)
 
-    const other = new LernzeitDB(`test-${counter++}`)
+    const other = await signedInDb()
     try {
       await restoreBackup(JSON.parse(JSON.stringify(backup)), other)
       expect(await other.drillStats.get(`${card.id}:gender`)).toMatchObject({ wrong: 1, score: 2 })
@@ -652,7 +661,7 @@ describe('practice history', () => {
     const backup = await exportBackup(database)
     expect(backup.practiceRuns).toEqual([run()])
 
-    const other = new LernzeitDB(`test-${counter++}`)
+    const other = await signedInDb()
     try {
       await restoreBackup(JSON.parse(JSON.stringify(backup)), other)
       expect(await other.practiceRuns.get('run-1')).toEqual(run())
@@ -800,7 +809,7 @@ describe('grammar', () => {
     await saveExerciseAnswer('grammar-001', 'grammar-001-01', false, database)
     const backup = await exportBackup(database)
     expect(backup.grammarTopics?.length).toBeGreaterThanOrEqual(25)
-    const other = new LernzeitDB(`test-${counter++}`)
+    const other = await signedInDb()
     try {
       await restoreBackup(JSON.parse(JSON.stringify(backup)), other)
       expect(await other.exerciseStats.get('grammar-001-01')).toMatchObject({ wrong: 1 })

@@ -214,7 +214,7 @@ export default function SettingsPage() {
     }
     const ok = await confirm({
       title: 'Restore this backup?',
-      body: 'Everything currently in Lernzeit is replaced by the backup. Export a backup first if you want to keep it.',
+      body: 'This replaces your library on every device with the backup.',
       confirmLabel: 'Replace my data',
       danger: true,
     })
@@ -230,12 +230,18 @@ export default function SettingsPage() {
   const reset = async () => {
     const ok = await confirm({
       title: 'Delete all data?',
-      body: 'Cards, images, history and tasks are removed from this device. This cannot be undone.',
+      body: 'This deletes your whole library on every device: cards, progress, sessions, stories, tasks and docs. Cloudflare can restore the last 7 days (see docs/cloud.md).',
       confirmLabel: 'Delete everything',
       danger: true,
+      requireText: 'reset',
     })
     if (!ok) return
-    await resetAllData()
+    try {
+      await resetAllData()
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Reset failed', { tone: 'error' })
+      return
+    }
     window.location.assign('/')
   }
 

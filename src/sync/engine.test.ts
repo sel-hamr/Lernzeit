@@ -1,6 +1,9 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { LernzeitDB } from '@/db/db'
+import { getSettings, LernzeitDB } from '@/db/db'
+import { resetAllData, restoreBackup, type Backup } from '@/data/io'
+import { signedIn } from '@/test/cloud'
+import { getDeviceId } from './device'
 import type { Card, Doc } from '@lernzeit/core/types'
 import { createTestServer, type TestServer } from '@/test/syncServer'
 import { OfflineError, SignedOutError, setFetch } from './api'
@@ -381,5 +384,130 @@ describe('startSync', () => {
     await vi.advanceTimersByTimeAsync(600)
     await vi.waitFor(() => expect(server.records.size).toBe(2))
     expect(server.requests.filter((r) => r === 'POST /api/sync/push')).toHaveLength(1)
+  })
+})
+
+describe('restore and reset across devices', () => {
+  const backupOf = async (cards: Card[], speechRate = 0.5): Promise<Backup> => ({
+    app: 'lernzeit',
+    version: 1,
+    exportedAt: 1,
+    topics: [],
+    sessions: [],
+    decks: [],
+    cards,
+    reviews: [],
+    reviewLogs: [],
+    tasks: [],
+    images: [],
+    settings: { ...(await getSettings(a)), speechRate },
+  })
+
+  beforeEach(async () => {
+    await Promise.all([signedIn(a), signedIn(b)])
+  })
+
+  it('reset on one database empties the other after it syncs', async () => {
+    await a.cards.bulkPut([card('c1'), card('c2')])
+    await a.kv.put({ key: 'seeded', value: 1 })
+    await syncNow(a)
+    await syncNow(b)
+    expect(await b.cards.count()).toBe(2)
+
+    vi.setSystemTime(2_000)
+    await resetAllData(a)
+    expect(await a.cards.count()).toBe(0)
+    expect(await a.outbox.count()).toBe(0)
+    expect(server.record('cards', 'c1')).toMatchObject({ deleted: true })
+
+    await syncNow(b)
+    expect(await b.cards.count()).toBe(0)
+    expect(await b.kv.get('seeded')).toBeUndefined()
+    expect(await b.outbox.count()).toBe(0)
+  })
+
+  it('reset keeps the device id, the account, the cursor and this device settings', async () => {
+    const deviceId = await getDeviceId(a)
+    await a.cards.put(card('c1'))
+    await a.kv.bulkPut([
+      { key: 'deviceSettings', value: { speechRate: 0.7 } },
+      { key: 'bridge', value: { key: 'bridge', value: 'x' } },
+      { key: 'settings', value: { dailyGoal: 1 } },
+    ])
+    await syncNow(a)
+    const cursor = await cursorOf(a)
+    await resetAllData(a)
+
+    expect(await getDeviceId(a)).toBe(deviceId)
+    expect(await a.meta.get('account')).toEqual({ key: 'account', value: { email: 'owner@lernzeit.test' } })
+    expect((await a.meta.get('merged'))?.value).toBe(true)
+    expect((await cursorOf(a)) ?? '').not.toBe('')
+    expect(cursor).toBeTruthy()
+    expect((await a.kv.toArray()).map((row) => row.key).sort()).toEqual(['bridge', 'deviceSettings'])
+    expect((await a.kv.get('deviceSettings'))?.value).toEqual({ speechRate: 0.7 })
+  })
+
+  it('restore uploads every backup record and the other database receives them', async () => {
+    await b.cards.put(card('old'))
+    await syncNow(b)
+    vi.setSystemTime(2_000)
+    const result = await restoreBackup(await backupOf([card('c1'), card('c2')]), a)
+    expect(result).toEqual({ cards: 2, sessions: 0, tasks: 0 })
+    expect(await a.outbox.count()).toBe(0)
+    expect(server.record('cards', 'c1')).toMatchObject({ data: card('c1'), deleted: false })
+    expect(server.record('cards', 'old')).toMatchObject({ deleted: true })
+
+    await syncNow(b)
+    expect((await b.cards.toArray()).map((c) => c.id).sort()).toEqual(['c1', 'c2'])
+  })
+
+  it('restore leaves the backup in the outbox when the sync fails, and keeps this device settings', async () => {
+    await a.kv.put({ key: 'deviceSettings', value: { speechRate: 0.9 } })
+    server.beforeRequest = (_method, path) => (path === '/api/sync/push' ? new Response('{"error":"D1 is down"}', { status: 503 }) : undefined)
+    await restoreBackup(await backupOf([card('c1')], 0.5), a)
+    expect(await a.cards.count()).toBe(1)
+    expect((await a.outbox.toArray()).map((e) => `${e.tbl}/${e.id}`)).toContain('cards/c1')
+    expect((await a.kv.get('deviceSettings'))?.value).toEqual({ speechRate: 0.9 })
+    // Shared settings still come from the backup.
+    expect(await a.kv.get('settings')).toBeDefined()
+
+    server.beforeRequest = undefined
+    await syncNow(a)
+    expect(server.record('cards', 'c1')).toMatchObject({ deleted: false })
+  })
+
+  it('restore seeds device settings only where this device has none', async () => {
+    await restoreBackup(await backupOf([card('c1')], 0.5), a)
+    expect((await a.kv.get('deviceSettings'))?.value).toMatchObject({ speechRate: 0.5 })
+  })
+
+  it('a failed cloud reset changes nothing locally, and says why', async () => {
+    await a.cards.put(card('c1'))
+    await syncNow(a)
+    await a.cards.put(card('c2'))
+    const outbox = await a.outbox.toArray()
+
+    server.offline = true
+    await expect(resetAllData(a)).rejects.toThrow("You're offline. Connect to reset your library.")
+    await expect(restoreBackup(await backupOf([card('z')]), a)).rejects.toThrow("You're offline. Connect to restore a backup.")
+    server.offline = false
+    server.signOut()
+    await expect(resetAllData(a)).rejects.toThrow('Sign in to reset your library.')
+    server.signIn()
+    server.beforeRequest = () => new Response('{"error":"D1 is down"}', { status: 503 })
+    await expect(resetAllData(a)).rejects.toThrow('D1 is down')
+
+    expect((await a.cards.toArray()).map((c) => c.id).sort()).toEqual(['c1', 'c2'])
+    expect(await a.outbox.toArray()).toEqual(outbox)
+  })
+
+  it('refuses without asking the server when nobody is signed in', async () => {
+    await a.meta.delete('account')
+    await a.cards.put(card('c1'))
+    server.requests.length = 0
+    await expect(resetAllData(a)).rejects.toThrow('Sign in to reset your library.')
+    await expect(restoreBackup(await backupOf([]), a)).rejects.toThrow('Sign in to restore a backup.')
+    expect(server.requests).toEqual([])
+    expect(await a.cards.count()).toBe(1)
   })
 })

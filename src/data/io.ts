@@ -1,6 +1,10 @@
 import Papa from 'papaparse'
-import { splitSettings } from '@lernzeit/core/sync'
-import { db, getSettings, KV_KEYS, newId, type LernzeitDB } from '@/db/db'
+import { isSynced, SYNCED_KV_KEYS, SYNC_TABLES, splitSettings } from '@lernzeit/core/sync'
+import { OfflineError, SignedOutError, resetCloud } from '@/sync/api'
+import { readAccount } from '@/sync/account'
+import { MISSING_IMAGES_KEY, syncNow, withLock } from '@/sync/engine'
+import { applyRemote } from '@/sync/outbox'
+import { db, getSettings, KV_KEYS, newId, type LernzeitDB, type OutboxEntry } from '@/db/db'
 import type { Card, CardType, Conjugation, Deck, DeckDirections, Doc, DocFolder, DrillStat, ExerciseStat, Gender, GrammarTopic, KV, PracticeRun, Question, QuestionResponse, ReviewLog, Session, Settings, StoredImage, Story, Task, Topic, CardReview } from '@lernzeit/core/types'
 import { cleanConjugation } from '@lernzeit/core/conjugation'
 import { splitArticle } from '@lernzeit/core/german'
@@ -428,22 +432,64 @@ function assertBackup(value: unknown): asserts value is Backup {
   }
 }
 
-/** Replaces all data with the backup. */
+/** Words for why the cloud could not be reset, ending in what the owner was trying to do. */
+function cloudFailure(error: unknown, task: string): Error {
+  if (error instanceof OfflineError) return new Error(`You're offline. Connect to ${task}.`)
+  if (error instanceof SignedOutError) return new Error(`Sign in to ${task}.`)
+  return error instanceof Error ? error : new Error(String(error))
+}
+
+/**
+ * Empties the cloud, then this device, as one change that is not recorded in the outbox (the other
+ * devices learn of it from the cloud). Runs holding the sync lock, so no sync pushes the old library
+ * back in between. `write` adds the new library in the same local transaction. If the cloud cannot be
+ * reset (offline, signed out, refused) nothing local changes and the error says why.
+ *
+ * Kept: `meta` (this device's id, the account, the pull cursor: pulling the cloud's tombstones for
+ * what is gone is harmless) and every kv key that does not sync, such as this device's settings.
+ */
+async function replaceLibrary(database: LernzeitDB, task: string, write?: () => Promise<void>): Promise<void> {
+  if (!(await readAccount(database))) throw new Error(`Sign in to ${task}.`)
+  await withLock(async () => {
+    try {
+      await resetCloud()
+    } catch (error) {
+      throw cloudFailure(error, task)
+    }
+    await applyRemote(database, async () => {
+      await Promise.all([
+        ...SYNC_TABLES.filter((tbl) => tbl !== 'kv').map((tbl) => database.table(tbl).clear()),
+        database.kv.bulkDelete([...SYNCED_KV_KEYS]),
+        database.outbox.clear(),
+        database.meta.delete(MISSING_IMAGES_KEY),
+      ])
+      if (!write) return
+      await write()
+      // The new library is waiting to go up: an entry for each row.
+      const at = Date.now()
+      const entries: OutboxEntry[] = []
+      for (const tbl of SYNC_TABLES) {
+        for (const key of await database.table(tbl).toCollection().primaryKeys()) {
+          if (isSynced(tbl, String(key))) entries.push({ tbl, id: String(key), at })
+        }
+      }
+      await database.outbox.bulkPut(entries)
+    })
+  })
+}
+
+/**
+ * Replaces the library on every device with the backup: the cloud is emptied first, then the backup
+ * is written and synced up. When that sync fails the backup stays here and in the outbox; the sync
+ * engine retries later. This device keeps its own settings (voice, theme, reminders).
+ */
 export async function restoreBackup(raw: unknown, database: LernzeitDB = db): Promise<{ cards: number; sessions: number; tasks: number }> {
   assertBackup(raw)
   const backup = raw
   const images: StoredImage[] = await Promise.all(
     backup.images.map(async (img) => ({ id: img.id, width: img.width, height: img.height, fit: img.fit, blob: await dataUrlToBlob(img.dataUrl) })),
   )
-  const tables = [
-    database.topics, database.sessions, database.decks, database.cards, database.reviews,
-    database.reviewLogs, database.tasks, database.stories, database.questions, database.responses, database.drillStats, database.grammarTopics, database.exerciseStats,
-    database.practiceRuns, database.docFolders, database.docs, database.images, database.kv,
-  ]
-  await database.transaction('rw', tables, async () => {
-    // The AI connection belongs to this browser, not to the backup.
-    const bridge = await database.kv.get(KV_KEYS.bridge)
-    await Promise.all(tables.map((t) => t.clear()))
+  await replaceLibrary(database, 'restore a backup', async () => {
     await database.topics.bulkAdd(backup.topics)
     await database.sessions.bulkAdd(backup.sessions)
     await database.decks.bulkAdd(backup.decks)
@@ -465,19 +511,20 @@ export async function restoreBackup(raw: unknown, database: LernzeitDB = db): Pr
     if (backup.settings) {
       const { shared, device } = splitSettings(backup.settings)
       kv.push({ key: KV_KEYS.settings, value: shared })
-      if (Object.keys(device).length) kv.push({ key: KV_KEYS.deviceSettings, value: device })
+      // Device settings belong to the device: a backup only seeds them where there are none.
+      if (Object.keys(device).length && !(await database.kv.get(KV_KEYS.deviceSettings))) kv.push({ key: KV_KEYS.deviceSettings, value: device })
     }
-    if (bridge) kv.push(bridge)
-    await database.kv.bulkAdd(kv)
+    await database.kv.bulkPut(kv)
   })
+  // A failed sync leaves the backup in the outbox for the engine's next try.
+  await syncNow(database).catch(() => {})
   return { cards: backup.cards.length, sessions: backup.sessions.length, tasks: backup.tasks.length }
 }
 
-/** Wipes everything; the app starts empty again. */
+/** Deletes the library on every device; the app starts empty again. Needs a sign-in and the cloud. */
 export async function resetAllData(database: LernzeitDB = db) {
-  await database.transaction('rw', database.tables, async () => {
-    await Promise.all(database.tables.map((t) => t.clear()))
-  })
+  await replaceLibrary(database, 'reset your library')
+  await syncNow(database).catch(() => {})
 }
 
 export function downloadFile(name: string, content: string | Blob, type = 'application/json') {

@@ -1,7 +1,9 @@
 import 'fake-indexeddb/auto'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { LernzeitDB } from '@/db/db'
 import { exportBackup, restoreBackup } from '@/data/io'
+import { setFetch } from '@/sync/api'
+import { signedIn, useTestCloud } from '@/test/cloud'
 import { browserKind, DEFAULT_BRIDGE_CONFIG, getBridgeConfig, updateBridgeConfig } from './config'
 
 const databases: LernzeitDB[] = []
@@ -11,7 +13,12 @@ const freshDb = () => {
   return database
 }
 
+beforeEach(() => {
+  useTestCloud()
+})
+
 afterEach(async () => {
+  setFetch()
   await Promise.all(databases.splice(0).map((d) => d.delete()))
 })
 
@@ -30,7 +37,7 @@ describe('bridge config', () => {
     const backup = await exportBackup(source)
     expect(JSON.stringify(backup)).not.toContain('from-source')
 
-    const target = freshDb()
+    const target = await signedIn(freshDb())
     await updateBridgeConfig({ enabled: true, token: 'target-token', name: 'Edge' }, target)
     await restoreBackup(backup, target)
     expect(await getBridgeConfig(target)).toMatchObject({ token: 'target-token', name: 'Edge' })
