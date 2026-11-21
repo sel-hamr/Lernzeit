@@ -644,8 +644,11 @@ describe('restore and reset across devices', () => {
     await syncNow(a)
     vi.setSystemTime(2_000)
     const spy = vi.spyOn(a.docs, 'bulkAdd').mockRejectedValue(new Error('quota'))
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
     await expect(restoreBackup(await backupOf([card('new')]), a)).rejects.toThrow('Restore failed. Your library was kept.')
     spy.mockRestore()
+    expect(logged).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ message: 'quota' }))
+    logged.mockRestore()
     expect(server.record('cards', 'old1')).toMatchObject({ deleted: true })
     expect((await a.cards.toArray()).map((c) => c.id).sort()).toEqual(['old1', 'old2'])
     expect((await a.outbox.toArray()).map((e) => `${e.tbl}/${e.id}`)).toEqual(expect.arrayContaining(['cards/old1', 'cards/old2']))
@@ -654,6 +657,33 @@ describe('restore and reset across devices', () => {
     expect(server.record('cards', 'old1')).toMatchObject({ data: card('old1'), deleted: false })
     await syncNow(b)
     expect((await b.cards.toArray()).map((c) => c.id).sort()).toEqual(['old1', 'old2'])
+  })
+
+  it('when the library cannot be queued again either, it stops syncing and says to export a backup', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] })
+    await a.cards.bulkPut([card('old1'), card('old2')])
+    startSync(a)
+    await vi.waitFor(() => expect(server.record('cards', 'old1')).toBeDefined())
+    await vi.waitFor(() => expect(getSyncStatus().state).toBe('idle'))
+
+    const write = vi.spyOn(a.docs, 'bulkAdd').mockRejectedValue(new Error('quota'))
+    const queue = vi.spyOn(a.outbox, 'bulkPut').mockRejectedValue(new Error('still quota'))
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const restored = restoreBackup(await backupOf([card('new')]), a)
+    await expect(restored).rejects.toThrow(/could not be queued.*export a backup/i)
+    await expect(restored).rejects.not.toThrow('Your library was kept')
+    write.mockRestore()
+    queue.mockRestore()
+    expect(logged).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ message: 'quota' }))
+    expect(logged).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ message: 'still quota' }))
+    logged.mockRestore()
+
+    // Sync stays off, so pulling the cloud's tombstones cannot empty this browser.
+    const requests = server.requests.length
+    await a.cards.put(card('old3'))
+    await vi.advanceTimersByTimeAsync(65_000)
+    expect(server.requests.slice(requests).filter((r) => r.includes('/api/sync/'))).toEqual([])
+    expect((await a.cards.toArray()).map((c) => c.id).sort()).toEqual(['old1', 'old2', 'old3'])
   })
 
   it('does not start a second restore while one runs', async () => {

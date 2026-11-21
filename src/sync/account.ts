@@ -39,10 +39,22 @@ export function useAccount(): Account | null | undefined {
 // ---- The first-sign-in merge, which the merge dialog shows ----
 
 export interface MergeProgress {
-  state: 'idle' | 'running' | 'failed' | 'done'
+  /** `offline`: a merge that could not reach the cloud was put off, and the app runs on this browser's data. */
+  state: 'idle' | 'running' | 'failed' | 'done' | 'offline'
   step?: string
   error?: string
+  /** A failed merge could not reach the cloud, so it can be put off until back online. */
+  offline?: boolean
   summary?: MergeSummary
+}
+
+/**
+ * Whether the app opens rather than the sign-in page: signed in, merged and no merge summary to
+ * show, or with a merge put off while offline. A merge that runs keeps it closed.
+ */
+export function opensApp(account: Account | null | undefined, merge: MergeProgress): boolean {
+  if (!account) return false
+  return merge.state === 'offline' || (account.merged && merge.state === 'idle')
 }
 
 let progress: MergeProgress = { state: 'idle' }
@@ -82,6 +94,7 @@ let merging: Promise<boolean> | undefined
  */
 export function runMerge(database: LernzeitDB = db): Promise<boolean> {
   merging ??= (async () => {
+    stopWaitingOnline?.()
     setProgress({ state: 'running' })
     try {
       const summary = await withLock(async () => {
@@ -92,7 +105,7 @@ export function runMerge(database: LernzeitDB = db): Promise<boolean> {
       setProgress(summary ? { state: 'done', summary } : { state: 'idle' })
       return true
     } catch (error) {
-      setProgress({ state: 'failed', error: failureMessage(error) })
+      setProgress({ state: 'failed', error: failureMessage(error), offline: error instanceof OfflineError })
       return false
     } finally {
       merging = undefined
@@ -101,13 +114,33 @@ export function runMerge(database: LernzeitDB = db): Promise<boolean> {
   return merging
 }
 
+let stopWaitingOnline: (() => void) | undefined
+
+/**
+ * Puts off a merge that could not reach the cloud: the app opens on this browser's data, with sync
+ * off (this browser is not merged yet), and the merge runs again when the browser is back online,
+ * or on the next start. Changes made meanwhile go up with the merge.
+ */
+export function continueOffline(database: LernzeitDB = db): void {
+  setProgress({ state: 'offline' })
+  if (typeof window === 'undefined' || stopWaitingOnline) return
+  const retry = () => void runMerge(database)
+  window.addEventListener('online', retry)
+  stopWaitingOnline = () => {
+    window.removeEventListener('online', retry)
+    stopWaitingOnline = undefined
+  }
+}
+
 /** Closes the merge summary. */
 export function finishMerge(): void {
+  stopWaitingOnline?.()
   setProgress({ state: 'idle' })
 }
 
 /** Gives up a sign-in whose merge did not finish. This browser's data stays as it was. */
 export async function cancelSignIn(database: LernzeitDB = db): Promise<void> {
+  stopWaitingOnline?.()
   await database.meta.delete(ACCOUNT_KEY)
   setProgress({ state: 'idle' })
   await logout().catch(() => {})

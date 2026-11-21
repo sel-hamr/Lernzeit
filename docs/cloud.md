@@ -28,20 +28,34 @@ With no connection the app works on its own copy: you can review, write, add car
 
 ### Changes the cloud refuses
 
-The cloud limits the size of what it accepts: about 1 MB for one record and 1.5 MB for one image. A change over the limit stays on the device and shows as **can't be uploaded** in the sidebar and under **Settings → Account**, with the reason. Everything else keeps syncing. Make the item smaller (a shorter doc, a smaller image) and the change goes up.
+The cloud limits the size of what it accepts: about 1 MB for one record and 1.5 MB for one image. A change over the limit stays on the device and shows as **can't be uploaded** in the sidebar and under **Settings → Account**, with the reason. Everything else keeps syncing. Make the item smaller (a shorter doc, a smaller image) and the change goes up. Each time the app starts, a refused change gets one more try, in case the cloud takes it now; if not, it shows as **can't be uploaded** again.
 
-If the cloud no longer has the bytes of an image, the card or doc that uses it syncs without the picture instead of stopping the sync.
+If the cloud no longer has the bytes of an image, the card or doc that uses it syncs without the picture instead of stopping the sync. Each time the app starts, it asks for the picture again and shows it once the bytes are back.
+
+A request that gets no answer gives up after 30 seconds (2 minutes for an image), and sync counts as offline until the next try.
 
 ## The first sign-in
 
 The first time a browser signs in, it merges what it already has into the cloud, and shows a summary.
 
 - Records that are only here are uploaded. Records that are only in the cloud are downloaded.
-- **Duplicates are folded.** Each browser installs the German starter on its own, with its own ids, so the same topic, decks, cards, stories, questions, grammar topics and docs can be on both sides. Topics match by name, decks by name inside the topic, and cards by their words inside the deck. The local copy is dropped and the cloud's is kept, and the extra items that only this browser has stay.
-- Where both sides have the same card, the copy with **more reviews** is kept, so your progress is not lost.
+- **The starter is shared.** Its decks, cards, stories, questions and grammar topics carry the same ids in every browser, so both sides hold the same records. Only the German topic (and images) get new ids in each browser.
+- **Duplicates are folded.** The same thing under different ids (the German topic, or a deck or card you added in both browsers) is folded into the cloud's copy: topics match by name, decks by name inside the topic, and cards by their words inside the deck. Stories, questions, grammar topics and docs with the same content fold too. The extra items that only this browser has stay.
+- **Practice progress keeps the more-practised side.** For each card's review state (also for drill and grammar-exercise scores) the side with more reviews or answers is kept, the later one on a tie, whichever browser changed it last. Every review log from both sides is kept.
 - A question you answered yourself folds only into a copy with the same answer.
+- **It only adds.** A first sign-in never deletes this browser's data: a record the cloud deleted (after **Delete all data**, or a delete on another device) comes back if this browser still has it.
+
+If the cloud can't be reached, the merge says so, and **Use offline for now** opens the app on this browser's data with sync off. The merge runs again when the browser is back online, or the next time the app starts.
 
 Do this once per browser. After that, the normal rule applies (newest change wins).
+
+### Merging two studied browsers
+
+When both browsers were used before signing in, the merge decides record by record:
+
+- **Practice progress** (reviews, review logs, drill and exercise scores) keeps the more-practised side, as above.
+- **Topic goals and settings keep the cloud's version.**
+- **A card, deck, story or grammar topic changed on both sides** (the same id) keeps one version whole, not a mix: the cloud's, unless this browser's edit is the later one. Edit it again afterwards if you wanted the other.
 
 ## What syncs and what stays on the device
 
@@ -80,7 +94,7 @@ npx wrangler d1 time-travel restore lernzeit --timestamp=<unix seconds or RFC333
 
 `info` shows the current bookmark. `--timestamp` takes Unix seconds (`1795264800`) or an RFC3339 time (`2026-11-21T08:30:00Z`); pick a moment before the mistake. You can restore only within the history window: 7 days on the free plan, 30 on the paid plan. You can also restore to a `--bookmark` from `info`.
 
-This changes the cloud, not the devices. A device that already has the newer data will upload it again on its next sync, so after a restore sign out of the other devices (**Remove** them) or use **Restore backup** on one of them to set the data you want.
+This changes the cloud, not the devices, and the devices resync by themselves. On its next sync each device sees that the cloud went back past what it had pulled (the cloud answers its pull with `409 { "resync": true }`) and merges its copy in again, as on a first sign-in: what it has that the restored cloud lacks goes back up, and it takes in the rest. So after undoing a bad **reset**, devices that kept their data put it back too. To undo a bad **restore** on every device, also use **Restore backup** on one device afterwards: it sets the library you choose everywhere.
 
 ## Change the owner password
 

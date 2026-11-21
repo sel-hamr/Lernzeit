@@ -2,14 +2,15 @@ import { useEffect } from 'react'
 import { LoaderCircle } from 'lucide-react'
 import { Dialog } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
-import { cancelSignIn, finishMerge, getMergeProgress, runMerge, useMergeProgress } from '@/sync/account'
+import { cancelSignIn, continueOffline, finishMerge, getMergeProgress, runMerge, useMergeProgress } from '@/sync/account'
 import { mergeSummaryText } from '@/sync/firstSignIn'
 
 /**
  * Blocks the app while this browser's library goes into the cloud on its first sign-in, then says
  * what was added and folded. A failed merge changed nothing here, so it can run again, or the
  * sign-in can be given up. Opening the app signed in but not yet merged (a closed tab, a failure)
- * starts the merge again.
+ * starts the merge again. A merge that could not reach the cloud can be put off, to use this
+ * browser's data meanwhile.
  */
 export function MergeDialog() {
   const progress = useMergeProgress()
@@ -40,6 +41,7 @@ export function MergeDialog() {
             <Button variant="ghost" onClick={() => void cancelSignIn()}>
               Back to sign-in
             </Button>
+            {progress.offline && <Button onClick={() => continueOffline()}>Use offline for now</Button>}
             <Button variant="primary" onClick={() => void runMerge()}>
               Try again
             </Button>
@@ -52,7 +54,10 @@ export function MergeDialog() {
       ) : failed ? (
         <div className="flex flex-col gap-2 text-body text-ink-2">
           <p role="alert">{progress.error}</p>
-          <p className="text-small text-muted">Nothing in this browser was changed.</p>
+          <p className="text-small text-muted">
+            Nothing in this browser was changed.
+            {progress.offline && ' You can use it offline meanwhile: it joins your cloud once you’re back online.'}
+          </p>
         </div>
       ) : (
         <div className="flex items-start gap-3 text-body text-ink-2" aria-live="polite">

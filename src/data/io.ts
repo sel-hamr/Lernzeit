@@ -2,7 +2,7 @@ import Papa from 'papaparse'
 import { isSynced, SYNCED_KV_KEYS, SYNC_TABLES, splitSettings } from '@lernzeit/core/sync'
 import { OfflineError, SignedOutError, resetCloud } from '@/sync/api'
 import { readAccount } from '@/sync/account'
-import { MISSING_IMAGES_KEY, syncNow, withLock } from '@/sync/engine'
+import { MISSING_IMAGES_KEY, stopSync, syncNow, withLock } from '@/sync/engine'
 import { applyRemote } from '@/sync/outbox'
 import { db, getSettings, KV_KEYS, newId, type LernzeitDB, type OutboxEntry } from '@/db/db'
 import type { Card, CardType, Conjugation, Deck, DeckDirections, Doc, DocFolder, DrillStat, ExerciseStat, Gender, GrammarTopic, KV, PracticeRun, Question, QuestionResponse, ReviewLog, Session, Settings, StoredImage, Story, Task, Topic, CardReview } from '@lernzeit/core/types'
@@ -459,7 +459,9 @@ async function queueAll(database: LernzeitDB, at: number): Promise<void> {
  * back in between. `write` adds the new library in the same local transaction; everything it needs
  * must be prepared before, since the cloud is emptied first. If the cloud cannot be reset (offline,
  * signed out, refused) nothing local changes and the error says why. If the local change then fails,
- * this device's library is queued for upload at once, which puts it back into the cloud.
+ * this device's library is queued for upload at once, which puts it back into the cloud. If even that
+ * fails, sync stops in this tab (a pull would apply the cloud's tombstones here) and the error says
+ * to export a backup.
  *
  * Kept: `meta` (this device's id, the account, the pull cursor: pulling the cloud's tombstones for
  * what is gone is harmless) and every kv key that does not sync, such as this device's settings.
@@ -491,11 +493,22 @@ async function replaceLibrary(database: LernzeitDB, task: string, failed: string
           await write()
           await queueAll(database, at)
         })
-      } catch {
+      } catch (error) {
+        console.error(`${failed} The cloud was emptied, then this browser's change failed:`, error)
         // The local change rolled back, so the old library is intact; the cloud is not. Put it back.
-        await applyRemote(database, () => queueAll(database, at)).catch(() => {})
+        try {
+          await applyRemote(database, () => queueAll(database, at))
+        } catch (queueError) {
+          console.error(`${failed} This browser's library could not be queued to upload again:`, queueError)
+          // A sync now would pull the cloud's tombstones and empty this browser too.
+          stopSync()
+          throw new Error(
+            `${failed} The cloud is empty and this browser's library could not be queued to upload again. Don't close this tab: export a backup in Settings → Your data now.`,
+            { cause: queueError },
+          )
+        }
         void syncNow(database).catch(() => {})
-        throw new Error(`${failed} Your library was kept.`)
+        throw new Error(`${failed} Your library was kept.`, { cause: error })
       }
     })
   } finally {

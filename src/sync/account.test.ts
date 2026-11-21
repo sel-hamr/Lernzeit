@@ -5,7 +5,7 @@ import { SYNC_TABLES } from '@lernzeit/core/sync'
 import type { Card } from '@lernzeit/core/types'
 import { createTestServer, type TestServer } from '@/test/syncServer'
 import { ApiError, setFetch } from './api'
-import { cancelSignIn, finishMerge, getMergeProgress, readAccount, runMerge, signIn, signOut, startAccountSync, stopAccountSync } from './account'
+import { cancelSignIn, finishMerge, getMergeProgress, opensApp, readAccount, runMerge, signIn, signOut, startAccountSync, stopAccountSync, continueOffline } from './account'
 import { syncNow } from './engine'
 import { getSyncStatus } from './status'
 
@@ -87,6 +87,55 @@ describe('signIn', () => {
     expect(await readAccount(database)).toBeNull()
     expect(await database.cards.count()).toBe(1)
     expect(getMergeProgress().state).toBe('idle')
+  })
+})
+
+describe('a merge that cannot reach the cloud', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('can be put off: the app opens on this browser’s data without syncing, and the merge runs once back online', async () => {
+    vi.stubGlobal('window', new EventTarget())
+    await database.cards.put(card('c1'))
+    await signIn(server.email, server.password, database)
+    server.offline = true
+    await database.meta.delete('merged')
+    expect(await runMerge(database)).toBe(false)
+    const account = await readAccount(database)
+    expect(getMergeProgress()).toMatchObject({ state: 'failed', offline: true })
+    expect(opensApp(account, getMergeProgress())).toBe(false)
+
+    continueOffline(database)
+    expect(getMergeProgress().state).toBe('offline')
+    expect(opensApp(account, getMergeProgress())).toBe(true)
+    // Still not merged, so the sync engine stays off.
+    expect(account?.merged).toBe(false)
+
+    server.offline = false
+    window.dispatchEvent(new Event('online'))
+    expect(getMergeProgress().state).toBe('running')
+    expect(opensApp(account, getMergeProgress())).toBe(false)
+    await vi.waitFor(() => expect(getMergeProgress().state).toBe('done'))
+    expect(await readAccount(database)).toEqual({ email: server.email, merged: true })
+  })
+
+  it('a merge that failed for another reason is not offered offline', async () => {
+    server.beforeRequest = (method, path) => (method === 'POST' && path === '/api/sync/push' ? Response.json({ error: 'D1 is down' }, { status: 500 }) : undefined)
+    await database.cards.put(card('c1'))
+    await signIn(server.email, server.password, database)
+    expect(getMergeProgress()).toMatchObject({ state: 'failed', offline: false })
+  })
+
+  it('the app opens only when merged with no merge to show, or with the merge put off', () => {
+    const merged = { email: server.email, merged: true }
+    const unmerged = { email: server.email, merged: false }
+    expect(opensApp(merged, { state: 'idle' })).toBe(true)
+    expect(opensApp(merged, { state: 'done' })).toBe(false)
+    expect(opensApp(unmerged, { state: 'idle' })).toBe(false)
+    expect(opensApp(unmerged, { state: 'running' })).toBe(false)
+    expect(opensApp(unmerged, { state: 'offline' })).toBe(true)
+    expect(opensApp(null, { state: 'offline' })).toBe(false)
   })
 })
 

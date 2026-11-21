@@ -10,7 +10,7 @@ import { StarterDialog } from './StarterDialog'
 import { TourEngine } from './Tour'
 import { LoginPage } from '@/features/login/LoginPage'
 import { MergeDialog } from '@/features/login/MergeDialog'
-import { startAccountSync, stopAccountSync, useAccount, useMergeProgress } from '@/sync/account'
+import { opensApp, startAccountSync, stopAccountSync, useAccount, useMergeProgress } from '@/sync/account'
 import { useFeatures } from './plugins'
 
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'))
@@ -38,12 +38,13 @@ function Pages() {
 
 /**
  * The app opens once this browser has an account and its library is in the cloud. That is read
- * from this browser alone, so offline it opens on its own data.
+ * from this browser alone, so offline it opens on its own data. A first merge that cannot reach the
+ * cloud can be put off: the app then opens on this browser's data, with sync off until it merges.
  */
 function Root() {
   const account = useAccount()
   const merge = useMergeProgress()
-  const signedIn = Boolean(account?.merged) && merge.state === 'idle'
+  const signedIn = opensApp(account, merge)
   const syncs = Boolean(account?.merged)
 
   useEffect(() => {
