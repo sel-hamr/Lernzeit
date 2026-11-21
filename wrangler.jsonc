@@ -1,5 +1,5 @@
 {
-  // Cloudflare serves the Vite build as static files; the app has no server code.
+  // The Lernzeit Worker: the Vite build as static files, plus the /api routes in worker/src.
   "name": "lernzeit",
   "compatibility_date": "2026-11-01",
   // The Worker serves the static files below and adds the /api routes (sign-in, sync, images).

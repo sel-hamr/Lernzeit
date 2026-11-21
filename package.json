@@ -17,6 +17,7 @@
     "preview": "vite preview",
     "start": "node bin/lz.ts",
     "mcp:setup": "node scripts/setup-mcp.ts",
+    "cloud:owner": "node scripts/cloud-owner.ts",
     "typecheck": "tsc -b && npm run typecheck -w mcp && npm run typecheck -w @lernzeit/core && npm run typecheck -w lernzeit-worker",
     "test": "vitest run && npm test -w mcp && npm test -w lernzeit-worker",
     "lint": "eslint ."
