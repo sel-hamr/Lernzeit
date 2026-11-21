@@ -151,3 +151,43 @@ export function parseTimeOfDay(value: string): number {
   const [h, m] = value.split(':').map(Number)
   return (h || 0) * 60 + (m || 0)
 }
+
+// ---- Dates in a named time zone (for code that does not run in the owner's zone, such as the Worker) ----
+
+const zoneFormats = new Map<string, Intl.DateTimeFormat>()
+
+/** The wall clock of `ms` in `timeZone`, as Y/M/D h:m:s. */
+function zoneParts(ms: number, timeZone: string) {
+  let format = zoneFormats.get(timeZone)
+  if (!format) {
+    format = new Intl.DateTimeFormat('en-US', {
+      timeZone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+    })
+    zoneFormats.set(timeZone, format)
+  }
+  const out: Record<string, number> = {}
+  for (const part of format.formatToParts(ms)) if (part.type !== 'literal') out[part.type] = Number(part.value)
+  return out as { year: number; month: number; day: number; hour: number; minute: number; second: number }
+}
+
+/** The calendar date of `ms` in `timeZone` as YYYY-MM-DD. */
+export function dateKeyIn(ms: number, timeZone: string): string {
+  const p = zoneParts(ms, timeZone)
+  return `${p.year}-${pad(p.month)}-${pad(p.day)}`
+}
+
+/** The instant of the next 00:00 in `timeZone` after `ms`. Right across daylight saving changes. */
+export function nextMidnightIn(ms: number, timeZone: string): number {
+  const p = zoneParts(ms, timeZone)
+  const wanted = Date.UTC(p.year, p.month - 1, p.day + 1) // the next midnight, as a wall clock read as UTC
+  let guess = wanted
+  // The zone's offset at the guess is only known from the guess itself, so settle it.
+  for (let i = 0; i < 4; i++) {
+    const g = zoneParts(guess, timeZone)
+    const offset = Date.UTC(g.year, g.month - 1, g.day, g.hour, g.minute, g.second) - guess
+    const next = wanted - offset
+    if (next === guess) break
+    guess = next
+  }
+  return guess
+}

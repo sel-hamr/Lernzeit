@@ -2,6 +2,7 @@ import Papa from 'papaparse'
 import { isSynced, SYNCED_KV_KEYS, SYNC_TABLES, splitSettings } from '@lernzeit/core/sync'
 import { OfflineError, SignedOutError, resetCloud } from '@/sync/api'
 import { readAccount } from '@/sync/account'
+import { MERGED_KEY } from '@/sync/firstSignIn'
 import { MISSING_IMAGES_KEY, stopSync, syncNow, withLock } from '@/sync/engine'
 import { applyRemote } from '@/sync/outbox'
 import { db, getSettings, KV_KEYS, newId, type LernzeitDB, type OutboxEntry } from '@/db/db'
@@ -460,7 +461,8 @@ async function queueAll(database: LernzeitDB, at: number): Promise<void> {
  * must be prepared before, since the cloud is emptied first. If the cloud cannot be reset (offline,
  * signed out, refused) nothing local changes and the error says why. If the local change then fails,
  * this device's library is queued for upload at once, which puts it back into the cloud. If even that
- * fails, sync stops in this tab (a pull would apply the cloud's tombstones here) and the error says
+ * fails, sync stops in this tab (a pull would apply the cloud's tombstones here), `meta.merged` is deleted so the
+ * next start merges rather than pulls, and the error says
  * to export a backup.
  *
  * Kept: `meta` (this device's id, the account, the pull cursor: pulling the cloud's tombstones for
@@ -502,6 +504,8 @@ async function replaceLibrary(database: LernzeitDB, task: string, failed: string
           console.error(`${failed} This browser's library could not be queued to upload again:`, queueError)
           // A sync now would pull the cloud's tombstones and empty this browser too.
           stopSync()
+          // Sync stays off past a reload too: the next start merges (which keeps this library) instead of pulling.
+          await database.meta.delete(MERGED_KEY).catch(() => {})
           throw new Error(
             `${failed} The cloud is empty and this browser's library could not be queued to upload again. Don't close this tab: export a backup in Settings → Your data now.`,
             { cause: queueError },

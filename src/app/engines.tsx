@@ -14,6 +14,8 @@ import { setBridgeStatus } from '@/bridge/status'
 import { useActiveTimer, usePendingNote, useSettings, useTopics } from '@/data/hooks'
 import { useTodayProgress } from '@/data/progress'
 import { completePhase, resolvePendingNote } from '@/data/timer'
+import { recordTimeZone } from '@/data/timeZone'
+import { useAccount } from '@/sync/account'
 import { showNotification } from '@/lib/notify'
 import { playEndSound } from '@/lib/sound'
 import { formatHM, formatMinutesShort, formatTimer, parseTimeOfDay } from '@lernzeit/core/time'
@@ -238,4 +240,13 @@ export function SessionNoteDialog() {
       </form>
     </Dialog>
   )
+}
+
+/** Once per start, when signed in: shares this browser's time zone so the Worker can date sessions. */
+export function TimeZoneEngine() {
+  const signedIn = Boolean(useAccount())
+  useEffect(() => {
+    if (signedIn) void recordTimeZone().catch(() => {})
+  }, [signedIn])
+  return null
 }

@@ -684,6 +684,8 @@ describe('restore and reset across devices', () => {
     await vi.advanceTimersByTimeAsync(65_000)
     expect(server.requests.slice(requests).filter((r) => r.includes('/api/sync/'))).toEqual([])
     expect((await a.cards.toArray()).map((c) => c.id).sort()).toEqual(['old1', 'old2', 'old3'])
+    // The next start merges (which keeps local data) instead of pulling the cloud's tombstones.
+    expect(await a.meta.get('merged')).toBeUndefined()
   })
 
   it('does not start a second restore while one runs', async () => {

@@ -433,6 +433,8 @@ export interface Settings {
   levels: StoryLevel[]
   /** Plugin ids of the features turned off in Settings. New features start on. */
   hiddenFeatures: string[]
+  /** The owner's IANA time zone (e.g. Europe/Berlin), written by the app when signed in; the Worker dates sessions with it. Shared, so it syncs. */
+  timeZone?: string
 }
 
 export interface KV {

@@ -15,6 +15,7 @@ import { savePracticeRun } from './practice'
 import type { PracticeRun } from '@lernzeit/core/types'
 import { DEFAULT_GROUP, deleteTopic, saveExerciseAnswer, saveTopic, STARTER_GRAMMAR_VERSION } from './grammar'
 import { createTask, setColumnOrder, toggleTaskDone } from './tasks'
+import { recordTimeZone } from './timeZone'
 import { exportBackup, importCsvRows, parseCardPack, parseCardsCsv, prepareCardPack, restoreBackup, writeCardPack } from './io'
 import { deleteStory, markStoryOpened, markStoryRead, parseLevel, saveStory } from './stories'
 import { recordGrammarTime, recordQuestionTime, recordReadingTime } from './timer'
@@ -861,5 +862,28 @@ describe('speech clips', () => {
     await database.images.clear() // images go through FileReader, which Node does not have
     await saveClip('v:a', wav(1), database)
     expect(Object.keys(await exportBackup(database))).not.toContain('clips')
+  })
+})
+
+describe('time zone setting', () => {
+  let database: LernzeitDB
+  beforeEach(() => {
+    database = new LernzeitDB(`tz-${Math.random()}`)
+  })
+
+  it('writes the browser zone when signed in and none is stored, and only when it differs', async () => {
+    await signedIn(database)
+    await recordTimeZone(database, 'Europe/Berlin')
+    expect((await getSettings(database)).timeZone).toBe('Europe/Berlin')
+    const row = await database.kv.get(KV_KEYS.settings)
+    await recordTimeZone(database, 'Europe/Berlin')
+    expect(await database.kv.get(KV_KEYS.settings)).toEqual(row)
+    await recordTimeZone(database, 'Asia/Tokyo')
+    expect((await getSettings(database)).timeZone).toBe('Asia/Tokyo')
+  })
+
+  it('writes nothing when signed out', async () => {
+    await recordTimeZone(database, 'Europe/Berlin')
+    expect((await getSettings(database)).timeZone).toBeUndefined()
   })
 })

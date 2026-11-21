@@ -4,7 +4,7 @@ import { FeedbackProvider } from '@/components/ui/feedback'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { UIProvider } from './ui'
 import { AppShell } from './layout/AppShell'
-import { BridgeEngine, ReminderEngine, SessionNoteDialog, ThemeSync, TimerEngine } from './engines'
+import { BridgeEngine, TimeZoneEngine, ReminderEngine, SessionNoteDialog, ThemeSync, TimerEngine } from './engines'
 import { useStarterUpdates } from './useStarterUpdates'
 import { StarterDialog } from './StarterDialog'
 import { TourEngine } from './Tour'
@@ -64,6 +64,7 @@ function Root() {
             <TimerEngine />
             <ReminderEngine />
             <BridgeEngine />
+            <TimeZoneEngine />
             <SessionNoteDialog />
             <StarterDialog />
             <TourEngine />

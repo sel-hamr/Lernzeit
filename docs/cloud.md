@@ -94,7 +94,7 @@ npx wrangler d1 time-travel restore lernzeit --timestamp=<unix seconds or RFC333
 
 `info` shows the current bookmark. `--timestamp` takes Unix seconds (`1795264800`) or an RFC3339 time (`2026-11-21T08:30:00Z`); pick a moment before the mistake. You can restore only within the history window: 7 days on the free plan, 30 on the paid plan. You can also restore to a `--bookmark` from `info`.
 
-This changes the cloud, not the devices, and the devices resync by themselves. On its next sync each device sees that the cloud went back past what it had pulled (the cloud answers its pull with `409 { "resync": true }`) and merges its copy in again, as on a first sign-in: what it has that the restored cloud lacks goes back up, and it takes in the rest. So after undoing a bad **reset**, devices that kept their data put it back too. To undo a bad **restore** on every device, also use **Restore backup** on one device afterwards: it sets the library you choose everywhere.
+This changes the cloud, not the devices, and the devices resync by themselves. On its next sync each device sees that the cloud went back past what it had pulled (the cloud answers its pull with `409 { "resync": true }`) and merges its copy in again, as on a first sign-in: what it has that the restored cloud lacks goes back up as whole records, and it takes in the rest. Edits to records that still exist in the restored cloud are rolled back: the cloud's older version wins for those. So after undoing a bad **reset**, devices that kept their data put it back too. To undo a bad **restore** on every device, also use **Restore backup** on one device afterwards: it sets the library you choose everywhere.
 
 ## Change the owner password
 
