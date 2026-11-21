@@ -23,6 +23,7 @@ import type {
   Topic,
 } from '@lernzeit/core/types'
 import { splitSettings } from '@lernzeit/core/sync'
+import { syncMiddleware } from '@/sync/outbox'
 
 /** A row changed locally and not yet sent to the cloud. */
 export interface OutboxEntry {
@@ -102,6 +103,13 @@ export class LernzeitDB extends Dexie {
       outbox: '[tbl+id], at',
       meta: 'key',
     })
+    // Every write to a synced table rewrites an outbox entry, and an index on `at` made each rewrite
+    // cost a scan in the test database (fake-indexeddb). The engine sorts the outbox itself.
+    this.version(10).stores({
+      outbox: '[tbl+id]',
+    })
+    // Records every local write to a synced table in `outbox` (src/sync/outbox.ts).
+    this.use(syncMiddleware)
   }
 }
 
