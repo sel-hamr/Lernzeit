@@ -47,6 +47,19 @@ export interface Owner {
   createdAt: number
 }
 
+/**
+ * Whether the address has used up its failed tries, without counting a new one. Lets a caller
+ * refuse before doing anything costly (the authorize page: a KV call); `checkPassword` still
+ * decides, atomically, for requests that get past it.
+ */
+export async function tooManyFailures(db: D1Database, ip: string): Promise<boolean> {
+  const row = await db
+    .prepare('SELECT COUNT(*) AS n FROM login_attempts WHERE ip = ? AND at > ?')
+    .bind(ip, Date.now() - ATTEMPT_WINDOW)
+    .first<{ n: number }>()
+  return (row?.n ?? 0) >= MAX_FAILED_ATTEMPTS
+}
+
 export type PasswordCheck =
   /** `forgetAttempt` takes this attempt off the rate limit again; run it with whatever the sign-in writes. */
   | { ok: true; owner: Owner; forgetAttempt: D1PreparedStatement }

@@ -48,6 +48,8 @@ export function oauthOptions(origin: string, hosts = redirectHosts(undefined)): 
     authorizeEndpoint: '/authorize',
     tokenEndpoint: '/token',
     clientRegistrationEndpoint: '/register',
+    // A registration nobody uses for 30 days expires; one in use is renewed by its token requests.
+    clientRegistrationTTL: 30 * 24 * 60 * 60,
     scopesSupported: [SCOPE],
     requiredScopes: [SCOPE],
     resourceMetadata: { resource: `${origin}${MCP_PATH}`, authorization_servers: [origin], resource_name: 'Lernzeit' },

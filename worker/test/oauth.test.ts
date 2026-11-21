@@ -123,6 +123,26 @@ class Browser {
   }
 }
 
+/**
+ * Counts the Worker's calls to its OAuth KV namespace (the test's `env` is the Worker's): writes are
+ * put and delete, the calls a free plan's daily limit counts.
+ */
+function watchKv(): { writes: () => number; calls: () => number; stop: () => void } {
+  const kv = env.OAUTH_KV as unknown as Record<string, (...args: unknown[]) => unknown>
+  const names = ['put', 'delete', 'get', 'list', 'getWithMetadata']
+  const originals = Object.fromEntries(names.map((name) => [name, kv[name]]))
+  let writes = 0
+  let calls = 0
+  for (const name of names) {
+    kv[name] = (...args: unknown[]) => {
+      calls++
+      if (name === 'put' || name === 'delete') writes++
+      return originals[name].apply(env.OAUTH_KV, args)
+    }
+  }
+  return { writes: () => writes, calls: () => calls, stop: () => names.forEach((name) => delete kv[name]) }
+}
+
 async function exchange(fields: Record<string, string>): Promise<Response> {
   return SELF.fetch(`${ORIGIN}/token`, {
     method: 'POST',
@@ -491,6 +511,102 @@ describe('OAuth rate limits', () => {
     expect((await env.OAUTH_KV.list()).keys.length).toBe(before)
     // Another browser on another address still gets the page.
     expect((await new Browser().open(authorizeUrl(clientId, challenge))).status).toBe(200)
+  })
+})
+
+describe('the authorize form under attack', () => {
+  it('KV calls are what this test watches', async () => {
+    const kv = watchKv()
+    try {
+      await new Browser().open(authorizeUrl(await register(), (await pkce()).challenge))
+      expect(kv.writes()).toBeGreaterThan(0)
+    } finally {
+      kv.stop()
+    }
+  })
+
+  it('after the 10th wrong password the form is gone: no new handle, and no KV call at all', async () => {
+    const clientId = await register()
+    const browser = new Browser()
+    await browser.open(authorizeUrl(clientId, (await pkce()).challenge))
+    const ip = freshIp()
+    for (let attempt = 1; attempt <= 10; attempt++) expect((await browser.allow('not the password', ip)).status).toBe(401)
+
+    const kv = watchKv()
+    try {
+      for (let attempt = 11; attempt <= 15; attempt++) {
+        const refused = await browser.allow(PASSWORD, ip)
+        expect(refused.status).toBe(429)
+        expect(browser.html).toContain('Too many attempts. Try again in 15 minutes.')
+        expect(browser.html).not.toMatch(/<form|name="handle"/)
+        expect(refused.headers.getSetCookie().filter((cookie) => !/Max-Age=0/i.test(cookie))).toEqual([])
+      }
+      expect(kv.calls()).toBe(0)
+    } finally {
+      kv.stop()
+    }
+  })
+
+  it('sending the form counts against the authorize limit, which refuses before any KV call', async () => {
+    const clientId = await register()
+    const browser = new Browser()
+    await browser.open(authorizeUrl(clientId, (await pkce()).challenge))
+    const ip = freshIp()
+    for (let n = 1; n <= 30; n++) {
+      const bogus = await SELF.fetch(`${ORIGIN}/authorize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'CF-Connecting-IP': ip },
+        body: new URLSearchParams({ handle: 'made-up', password: 'x', decision: 'allow' }),
+        redirect: 'manual',
+      })
+      expect(bogus.status).toBe(400)
+    }
+
+    const kv = watchKv()
+    try {
+      const refused = await browser.allow(PASSWORD, ip)
+      expect(refused.status).toBe(429)
+      expect(browser.html).toContain('Too many tries from this address. Try again in 15 minutes.')
+      expect(browser.html).not.toMatch(/<form|name="handle"/)
+      expect(kv.calls()).toBe(0)
+    } finally {
+      kv.stop()
+    }
+    // The handle was not touched, so the owner on another address can still allow.
+    expect((await browser.allow(PASSWORD)).status).toBe(302)
+  })
+
+  it('an error in the request redirects to an allowed client, with the error', async () => {
+    const clientId = await register()
+    const url = new URL(authorizeUrl(clientId, (await pkce()).challenge, 'st'))
+    url.searchParams.delete('code_challenge')
+    url.searchParams.delete('code_challenge_method')
+    const response = await SELF.fetch(url, { headers: { 'CF-Connecting-IP': freshIp() }, redirect: 'manual' })
+    expect(response.status).toBe(302)
+    const location = new URL(response.headers.get('Location')!)
+    expect(`${location.origin}${location.pathname}`).toBe(REDIRECT)
+    expect(location.searchParams.get('error')).toBeTruthy()
+    expect(location.searchParams.get('state')).toBe('st')
+  })
+
+  it('an error in the request of a client with a host off the allowlist shows the page, never a redirect', async () => {
+    // Made outside /register, as one from before the allowlist would be.
+    const client = await getOAuthApi(oauthOptions(ORIGIN), env).createClient({ clientName: 'Old', redirectUris: ['https://evil.com/cb'], tokenEndpointAuthMethod: 'none' })
+    const url = new URL(authorizeUrl(client.clientId, (await pkce()).challenge, 'st', 'https://evil.com/cb'))
+    url.searchParams.delete('code_challenge')
+    url.searchParams.delete('code_challenge_method')
+    const response = await SELF.fetch(url, { headers: { 'CF-Connecting-IP': freshIp() }, redirect: 'manual' })
+    expect(response.status).toBe(400)
+    expect(response.headers.get('Location')).toBeNull()
+    expect(response.headers.get('X-Frame-Options')).toBe('DENY')
+  })
+
+  it('a registration expires after 30 days unless it is used', async () => {
+    const response = await registerRequest([REDIRECT])
+    const body = await response.json<{ client_id_issued_at: number; client_secret_expires_at?: number }>()
+    const [key] = (await env.OAUTH_KV.list({ prefix: `client:${(body as unknown as { client_id: string }).client_id}` })).keys
+    expect(key.expiration).toBeGreaterThan(Date.now() / 1000 + 29 * 24 * 3600)
+    expect(key.expiration).toBeLessThanOrEqual(Date.now() / 1000 + 30 * 24 * 3600 + 5)
   })
 })
 

@@ -16,7 +16,7 @@ const HOUR = 60 * 60 * 1000
 
 /** At most 10 client registrations per address an hour. */
 export const REGISTER_LIMIT: Limit = { bucket: 'register', max: 10, windowMs: HOUR }
-/** At most 30 openings of the authorize page per address in 15 minutes. */
+/** At most 30 openings or submissions of the authorize page, together, per address in 15 minutes. */
 export const AUTHORIZE_LIMIT: Limit = { bucket: 'authorize', max: 30, windowMs: HOUR / 4 }
 
 /** Counts this request against `limit` and says whether it is still allowed. */

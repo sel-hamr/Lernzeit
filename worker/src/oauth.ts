@@ -14,7 +14,7 @@
  */
 import { AuthorizationError, CimdFetchError, insufficientScope, type ConsentDescription, type OAuthResourceContext } from '@cloudflare/workers-oauth-provider'
 import { Hono } from 'hono'
-import { TOO_MANY_ATTEMPTS, checkPassword, clientIp } from './auth.ts'
+import { TOO_MANY_ATTEMPTS, checkPassword, clientIp, tooManyFailures } from './auth.ts'
 import type { AppEnv, Env } from './env.ts'
 import { mcpFetch } from './mcp/handler.ts'
 import { authorizePage, errorPage } from './pages/authorize.ts'
@@ -81,18 +81,31 @@ authorize.use('/authorize', async (c, next) => {
   await next()
 })
 
+/**
+ * Opening the page and sending its form both touch KV (a stored request, a consumed handle), so
+ * together they are limited per address, in D1, before any KV call. Null while under the limit.
+ */
+async function authorizeLimited(db: D1Database, request: Request): Promise<Response | null> {
+  if (await withinLimit(db, AUTHORIZE_LIMIT, clientIp(request))) return null
+  return tooMany('Too many tries from this address. Try again in 15 minutes.')
+}
+
+/** A 429 page with no form, so it hands out no new handle to try again with. */
+function tooMany(message: string): Response {
+  const refused = showError(message, 429)
+  refused.headers.set('Retry-After', '900')
+  return refused
+}
+
 authorize.get('/authorize', async (c) => {
-  // Each opening writes the request to KV, so the page is limited per address before anything else.
-  if (!(await withinLimit(c.env.DB, AUTHORIZE_LIMIT, clientIp(c.req.raw)))) {
-    const refused = showError('Too many tries from this address. Try again in 15 minutes.', 429)
-    refused.headers.set('Retry-After', '900')
-    return refused
-  }
+  const limited = await authorizeLimited(c.env.DB, c.req.raw)
+  if (limited) return limited
   const oauth = c.env.OAUTH_PROVIDER
+  const hosts = redirectHosts(c.env.OAUTH_REDIRECT_HOSTS)
   try {
     const request = await oauth.parseAuthRequest(c.req.raw)
     // A client stored before the allowlist, or under another one, may still name another host.
-    if (!redirectAllowed(request.redirectUri, redirectHosts(c.env.OAUTH_REDIRECT_HOSTS))) {
+    if (!redirectAllowed(request.redirectUri, hosts)) {
       const host = new URL(request.redirectUri).host
       return showError(`This app wants access sent to ${host}, which Lernzeit does not allow.`, 400)
     }
@@ -100,8 +113,11 @@ authorize.get('/authorize', async (c) => {
     const consent = await oauth.beginConsent(request)
     return showConsent(details, consent.handle, consent.headers)
   } catch (error) {
-    // Redirecting is safe only once the provider has checked the client and its redirect URI.
-    if (error instanceof AuthorizationError && error.redirectTo) return Response.redirect(error.redirectTo, 302)
+    // Redirecting is safe only once the provider has checked the client and its redirect URI, and
+    // only to a host Lernzeit sends anything to.
+    if (error instanceof AuthorizationError && error.redirectTo && error.redirectUri && redirectAllowed(error.redirectUri, hosts)) {
+      return Response.redirect(error.redirectTo, 302)
+    }
     if (error instanceof AuthorizationError) return showError(error.description, 400)
     if (error instanceof CimdFetchError) return showError('This app could not be checked.', 400)
     throw error
@@ -114,6 +130,8 @@ authorize.post('/authorize', async (c) => {
   const decision = form?.get('decision')
   const password = form?.get('password')
   if (typeof handle !== 'string' || (decision !== 'allow' && decision !== 'cancel')) return showError(EXPIRED, 400)
+  const limited = await authorizeLimited(c.env.DB, c.req.raw)
+  if (limited) return limited
 
   const oauth = c.env.OAUTH_PROVIDER
   try {
@@ -122,18 +140,25 @@ authorize.post('/authorize', async (c) => {
       return new Response(null, { status: 302, headers: denied.headers })
     }
 
+    // Locked out: refuse before touching the handle, so the page costs no KV call and gives no new handle.
+    if (await tooManyFailures(c.env.DB, clientIp(c.req.raw))) return tooMany(TOO_MANY_ATTEMPTS)
+
     // Takes the request out of storage, so the handle works once whatever the password.
     const approved = await oauth.approveConsent(c.req.raw, handle, { scope: [SCOPE] })
     const check = await checkPassword(c.env.DB, clientIp(c.req.raw), { id: OWNER_ID }, typeof password === 'string' ? password : '')
+    if (!check.ok && check.reason === 'too_many') {
+      // No form and no new handle: trying again means opening the page again, which is limited too.
+      const refused = tooMany(TOO_MANY_ATTEMPTS)
+      for (const cookie of approved.headers.getSetCookie()) refused.headers.append('Set-Cookie', cookie)
+      return refused
+    }
     if (!check.ok) {
       // The page again, with a new handle for the next try.
       const details = await oauth.describeConsent(approved.request)
       const next = await oauth.beginConsent(approved.request)
       const headers = new Headers(approved.headers)
       for (const cookie of next.headers.getSetCookie()) headers.append('Set-Cookie', cookie)
-      return check.reason === 'too_many'
-        ? showConsent(details, next.handle, headers, TOO_MANY_ATTEMPTS, 429)
-        : showConsent(details, next.handle, headers, 'Wrong password', 401)
+      return showConsent(details, next.handle, headers, 'Wrong password', 401)
     }
 
     await check.forgetAttempt.run()
