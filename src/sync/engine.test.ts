@@ -453,6 +453,8 @@ describe('restore and reset across devices', () => {
     vi.setSystemTime(2_000)
     const result = await restoreBackup(await backupOf([card('c1'), card('c2')]), a)
     expect(result).toEqual({ cards: 2, sessions: 0, tasks: 0 })
+    // Restoring returns once the backup is stored here; the upload runs on its own.
+    await syncNow(a)
     expect(await a.outbox.count()).toBe(0)
     expect(server.record('cards', 'c1')).toMatchObject({ data: card('c1'), deleted: false })
     expect(server.record('cards', 'old')).toMatchObject({ deleted: true })
@@ -510,4 +512,57 @@ describe('restore and reset across devices', () => {
     expect(server.requests).toEqual([])
     expect(await a.cards.count()).toBe(1)
   })
+  it('restored rows beat the reset even when this clock runs an hour behind the server', async () => {
+    await b.cards.bulkPut([card('c1', 'Hund'), card('c2', 'Katze')])
+    await syncNow(b)
+    server.clockOffset = 3_600_000
+    await restoreBackup(await backupOf([card('c1', 'Pferd'), card('c3', 'Maus')]), a)
+    await syncNow(a)
+    expect(server.record('cards', 'c1')).toMatchObject({ data: card('c1', 'Pferd'), deleted: false })
+    expect(server.record('cards', 'c2')).toMatchObject({ deleted: true })
+
+    await syncNow(b)
+    await syncNow(a)
+    for (const database of [a, b]) {
+      expect((await database.cards.toArray()).map((c) => c.id).sort()).toEqual(['c1', 'c3'])
+    }
+    expect((await b.cards.get('c1'))?.german).toBe('Pferd')
+  })
+
+  it('refuses a backup with an id twice before touching the cloud', async () => {
+    await a.cards.put(card('keep'))
+    server.requests.length = 0
+    await expect(restoreBackup(await backupOf([card('c1'), card('c1')]), a)).rejects.toThrow('"cards" with the same id twice (c1)')
+    expect(server.requests).toEqual([])
+    expect(await a.cards.count()).toBe(1)
+  })
+
+  it('puts the old library back into the cloud when the local write fails after the cloud reset', async () => {
+    await a.cards.bulkPut([card('old1'), card('old2')])
+    await syncNow(a)
+    vi.setSystemTime(2_000)
+    const spy = vi.spyOn(a.docs, 'bulkAdd').mockRejectedValue(new Error('quota'))
+    await expect(restoreBackup(await backupOf([card('new')]), a)).rejects.toThrow('Restore failed. Your library was kept.')
+    spy.mockRestore()
+    expect(server.record('cards', 'old1')).toMatchObject({ deleted: true })
+    expect((await a.cards.toArray()).map((c) => c.id).sort()).toEqual(['old1', 'old2'])
+    expect((await a.outbox.toArray()).map((e) => `${e.tbl}/${e.id}`)).toEqual(expect.arrayContaining(['cards/old1', 'cards/old2']))
+
+    await syncNow(a)
+    expect(server.record('cards', 'old1')).toMatchObject({ data: card('old1'), deleted: false })
+    await syncNow(b)
+    expect((await b.cards.toArray()).map((c) => c.id).sort()).toEqual(['old1', 'old2'])
+  })
+
+  it('does not start a second restore while one runs', async () => {
+    let release!: () => void
+    server.beforeRequest = (_method, path) => (path === '/api/sync/reset' ? new Promise<void>((resolve) => (release = resolve)) : undefined)
+    const first = restoreBackup(await backupOf([card('c1')]), a)
+    await vi.waitFor(() => expect(release).toBeDefined())
+    await expect(restoreBackup(await backupOf([card('c2')]), a)).rejects.toThrow('already running')
+    release()
+    await first
+    expect((await a.cards.toArray()).map((c) => c.id)).toEqual(['c1'])
+  })
+
 })

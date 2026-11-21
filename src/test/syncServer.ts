@@ -41,6 +41,8 @@ export interface TestServer {
   password: string
   /** While true, every request fails as if the network were down. */
   offline: boolean
+  /** Milliseconds the server's clock runs ahead of this one; reset tombstones carry its time. */
+  clockOffset: number
   /** The most changes one pull hands out; lower it to test paging. */
   pageSize: number
   /**
@@ -98,9 +100,10 @@ export function createTestServer(): TestServer {
     email: 'owner@lernzeit.test',
     password: 'test-password',
     offline: false,
+    clockOffset: 0,
     pageSize: MAX_PULL_CHANGES,
     reset() {
-      const at = Date.now()
+      const at = Date.now() + server.clockOffset
       seq++
       for (const record of server.records.values()) {
         if (!record.deleted) Object.assign(record, { data: null, deleted: true, updatedAt: at, seq })

@@ -439,57 +439,103 @@ function cloudFailure(error: unknown, task: string): Error {
   return error instanceof Error ? error : new Error(String(error))
 }
 
+/** A restore or reset is running here: a second one would empty the cloud again under the first. */
+let replacing = false
+
+/** Queues every synced row of this device in the outbox at `at`. */
+async function queueAll(database: LernzeitDB, at: number): Promise<void> {
+  const entries: OutboxEntry[] = []
+  for (const tbl of SYNC_TABLES) {
+    for (const key of await database.table(tbl).toCollection().primaryKeys()) {
+      if (isSynced(tbl, String(key))) entries.push({ tbl, id: String(key), at })
+    }
+  }
+  await database.outbox.bulkPut(entries)
+}
+
 /**
  * Empties the cloud, then this device, as one change that is not recorded in the outbox (the other
  * devices learn of it from the cloud). Runs holding the sync lock, so no sync pushes the old library
- * back in between. `write` adds the new library in the same local transaction. If the cloud cannot be
- * reset (offline, signed out, refused) nothing local changes and the error says why.
+ * back in between. `write` adds the new library in the same local transaction; everything it needs
+ * must be prepared before, since the cloud is emptied first. If the cloud cannot be reset (offline,
+ * signed out, refused) nothing local changes and the error says why. If the local change then fails,
+ * this device's library is queued for upload at once, which puts it back into the cloud.
  *
  * Kept: `meta` (this device's id, the account, the pull cursor: pulling the cloud's tombstones for
  * what is gone is harmless) and every kv key that does not sync, such as this device's settings.
+ * The new rows wait in the outbox, stamped after the cloud's reset (its clock, not this device's),
+ * so the reset can never win over them. The caller starts the upload.
  */
-async function replaceLibrary(database: LernzeitDB, task: string, write?: () => Promise<void>): Promise<void> {
+async function replaceLibrary(database: LernzeitDB, task: string, failed: string, write?: () => Promise<void>): Promise<void> {
   if (!(await readAccount(database))) throw new Error(`Sign in to ${task}.`)
-  await withLock(async () => {
-    try {
-      await resetCloud()
-    } catch (error) {
-      throw cloudFailure(error, task)
-    }
-    await applyRemote(database, async () => {
-      await Promise.all([
-        ...SYNC_TABLES.filter((tbl) => tbl !== 'kv').map((tbl) => database.table(tbl).clear()),
-        database.kv.bulkDelete([...SYNCED_KV_KEYS]),
-        database.outbox.clear(),
-        database.meta.delete(MISSING_IMAGES_KEY),
-      ])
-      if (!write) return
-      await write()
-      // The new library is waiting to go up: an entry for each row.
-      const at = Date.now()
-      const entries: OutboxEntry[] = []
-      for (const tbl of SYNC_TABLES) {
-        for (const key of await database.table(tbl).toCollection().primaryKeys()) {
-          if (isSynced(tbl, String(key))) entries.push({ tbl, id: String(key), at })
-        }
+  if (replacing) throw new Error('A restore or reset is already running.')
+  replacing = true
+  try {
+    await withLock(async () => {
+      let resetAt: number
+      try {
+        resetAt = (await resetCloud()).at
+      } catch (error) {
+        throw cloudFailure(error, task)
       }
-      await database.outbox.bulkPut(entries)
+      const at = Math.max(Date.now(), resetAt + 1)
+      try {
+        await applyRemote(database, async () => {
+          await Promise.all([
+            ...SYNC_TABLES.filter((tbl) => tbl !== 'kv').map((tbl) => database.table(tbl).clear()),
+            database.kv.bulkDelete([...SYNCED_KV_KEYS]),
+            database.outbox.clear(),
+            database.meta.delete(MISSING_IMAGES_KEY),
+          ])
+          if (!write) return
+          await write()
+          await queueAll(database, at)
+        })
+      } catch {
+        // The local change rolled back, so the old library is intact; the cloud is not. Put it back.
+        await applyRemote(database, () => queueAll(database, at)).catch(() => {})
+        void syncNow(database).catch(() => {})
+        throw new Error(`${failed} Your library was kept.`)
+      }
     })
-  })
+  } finally {
+    replacing = false
+  }
+}
+
+/** Throws a readable error when a table of the backup holds one id twice. */
+function assertUniqueIds(backup: Backup): void {
+  const tables = {
+    topics: backup.topics, sessions: backup.sessions, decks: backup.decks, cards: backup.cards, reviews: backup.reviews,
+    reviewLogs: backup.reviewLogs, tasks: backup.tasks, stories: backup.stories, questions: backup.questions, responses: backup.responses,
+    drillStats: backup.drillStats, grammarTopics: backup.grammarTopics, exerciseStats: backup.exerciseStats, practiceRuns: backup.practiceRuns,
+    docFolders: backup.docFolders, docs: backup.docs, images: backup.images,
+  }
+  for (const [name, rows] of Object.entries(tables)) {
+    const seen = new Set<unknown>()
+    for (const row of rows ?? []) {
+      const id = (row as { id?: unknown } | null)?.id
+      if (typeof id !== 'string') continue
+      if (seen.has(id)) throw new Error(`The backup has "${name}" with the same id twice (${id}).`)
+      seen.add(id)
+    }
+  }
 }
 
 /**
  * Replaces the library on every device with the backup: the cloud is emptied first, then the backup
- * is written and synced up. When that sync fails the backup stays here and in the outbox; the sync
- * engine retries later. This device keeps its own settings (voice, theme, reminders).
+ * is written here and waits in the outbox; the upload to the cloud starts in the background through
+ * the sync engine, which retries it when it fails. Resolves once the backup is stored on this device.
+ * This device keeps its own settings (voice, theme, reminders).
  */
 export async function restoreBackup(raw: unknown, database: LernzeitDB = db): Promise<{ cards: number; sessions: number; tasks: number }> {
   assertBackup(raw)
   const backup = raw
+  assertUniqueIds(backup)
   const images: StoredImage[] = await Promise.all(
     backup.images.map(async (img) => ({ id: img.id, width: img.width, height: img.height, fit: img.fit, blob: await dataUrlToBlob(img.dataUrl) })),
   )
-  await replaceLibrary(database, 'restore a backup', async () => {
+  await replaceLibrary(database, 'restore a backup', 'Restore failed.', async () => {
     await database.topics.bulkAdd(backup.topics)
     await database.sessions.bulkAdd(backup.sessions)
     await database.decks.bulkAdd(backup.decks)
@@ -516,15 +562,15 @@ export async function restoreBackup(raw: unknown, database: LernzeitDB = db): Pr
     }
     await database.kv.bulkPut(kv)
   })
-  // A failed sync leaves the backup in the outbox for the engine's next try.
-  await syncNow(database).catch(() => {})
+  // The upload runs on its own; a failure leaves the backup in the outbox for the engine's next try.
+  void syncNow(database).catch(() => {})
   return { cards: backup.cards.length, sessions: backup.sessions.length, tasks: backup.tasks.length }
 }
 
 /** Deletes the library on every device; the app starts empty again. Needs a sign-in and the cloud. */
 export async function resetAllData(database: LernzeitDB = db) {
-  await replaceLibrary(database, 'reset your library')
-  await syncNow(database).catch(() => {})
+  await replaceLibrary(database, 'reset your library', 'Reset failed.')
+  void syncNow(database).catch(() => {})
 }
 
 export function downloadFile(name: string, content: string | Blob, type = 'application/json') {

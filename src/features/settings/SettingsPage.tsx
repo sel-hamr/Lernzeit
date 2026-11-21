@@ -180,6 +180,8 @@ export default function SettingsPage() {
   const { canInstall, install } = useInstallPrompt()
   const [permission, setPermission] = useState(notificationPermission())
   const restoreInput = useRef<HTMLInputElement>(null)
+  /** A restore or reset is running: both buttons wait. */
+  const [busy, setBusy] = useState<'restore' | 'reset' | null>(null)
   const { hash } = useLocation()
 
   // Links such as /settings#ai-connection open on that card. The cards above it grow as
@@ -219,11 +221,14 @@ export default function SettingsPage() {
       danger: true,
     })
     if (!ok) return
+    setBusy('restore')
     try {
       const result = await restoreBackup(parsed)
-      toast(`Restored ${count(result.cards, 'card')}, ${count(result.sessions, 'session')} and ${count(result.tasks, 'task')}`)
+      toast(`Restored ${count(result.cards, 'card')}, ${count(result.sessions, 'session')} and ${count(result.tasks, 'task')}. Uploading to your other devices…`)
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Restore failed', { tone: 'error' })
+    } finally {
+      setBusy(null)
     }
   }
 
@@ -236,10 +241,12 @@ export default function SettingsPage() {
       requireText: 'reset',
     })
     if (!ok) return
+    setBusy('reset')
     try {
       await resetAllData()
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Reset failed', { tone: 'error' })
+      setBusy(null)
       return
     }
     window.location.assign('/')
@@ -404,8 +411,8 @@ export default function SettingsPage() {
               <Button variant="primary" icon={<Download size={15} strokeWidth={1.8} />} onClick={() => void exportData()}>
                 Export backup
               </Button>
-              <Button variant="outline" icon={<HardDriveDownload size={15} strokeWidth={1.8} />} onClick={() => restoreInput.current?.click()}>
-                Restore backup
+              <Button variant="outline" icon={<HardDriveDownload size={15} strokeWidth={1.8} />} disabled={busy !== null} onClick={() => restoreInput.current?.click()}>
+                {busy === 'restore' ? 'Restoring…' : 'Restore backup'}
               </Button>
               <input
                 ref={restoreInput}
@@ -427,8 +434,8 @@ export default function SettingsPage() {
             <StorageInfo />
             <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
               <span className="text-small text-muted">Remove everything and start fresh.</span>
-              <Button variant="danger" size="sm" icon={<Trash2 size={15} strokeWidth={1.8} />} onClick={() => void reset()}>
-                Delete all data
+              <Button variant="danger" size="sm" icon={<Trash2 size={15} strokeWidth={1.8} />} disabled={busy !== null} onClick={() => void reset()}>
+                {busy === 'reset' ? 'Resetting…' : 'Delete all data'}
               </Button>
             </div>
           </Group>
