@@ -17,6 +17,13 @@ export interface FoldResult {
   upload: Library
   /** Local ids that were mapped onto a cloud record or dropped. */
   dropLocal: { tbl: SyncTable; id: string }[]
+  /**
+   * Uploads the fold chose over the cloud's record with the same id, such as a
+   * review with more logs. Push them with `updatedAt = max(uploadTime, the cloud
+   * row's updatedAt)` so newest-wins keeps them (a tie goes to the later arrival).
+   * Same ids the fold did not decide on are not listed: newest-wins settles those.
+   */
+  mustWin: { tbl: SyncTable; id: string }[]
   summary: {
     /** Uploaded records the cloud did not have. */
     added: Partial<Record<SyncTable, number>>
@@ -75,6 +82,7 @@ export function foldLibraries(local: Library, cloud: Library): FoldResult {
   const cloudIds = new Map(SYNC_TABLES.map((tbl) => [tbl, new Set(rows(cloud, tbl).map((r) => recordId(tbl, r)))]))
   const inCloud = (tbl: SyncTable, id: string) => cloudIds.get(tbl)!.has(id)
 
+  const mustWin: FoldResult['mustWin'] = []
   const removed = new Map<SyncTable, Set<string>>()
   const drop = (tbl: SyncTable, id: string) => {
     const set = removed.get(tbl) ?? new Set<string>()
@@ -172,6 +180,7 @@ export function foldLibraries(local: Library, cloud: Library): FoldResult {
       const keep = theirs !== undefined && score(theirs, 'cloud') >= best.score ? undefined : best
       for (const c of list) if (c !== keep || c.from !== id) drop(tbl, c.from)
       if (keep) out.push(keep.row)
+      if (keep && theirs !== undefined) mustWin.push({ tbl, id })
     }
     return out
   }
@@ -244,7 +253,7 @@ export function foldLibraries(local: Library, cloud: Library): FoldResult {
     kv: kv.map((r) => (r.key === 'activeTimer' && isRow(r.value) ? { ...r, value: byTopic(r.value) } : r)),
   }
 
-  const result: FoldResult = { upload: {}, dropLocal: [], summary: { added: {}, folded: {} } }
+  const result: FoldResult = { upload: {}, dropLocal: [], mustWin, summary: { added: {}, folded: {} } }
   for (const tbl of SYNC_TABLES) {
     const list = upload[tbl] ?? []
     if (list.length) result.upload[tbl] = list

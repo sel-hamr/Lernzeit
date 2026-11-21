@@ -85,10 +85,11 @@ describe('foldLibraries', () => {
   it('same starter ids are not folded', () => {
     const local: Library = { decks: [deck('d1', 'Basics')], cards: [card('c1', 'd1', 'Hund', 'dog')] }
     const cloud: Library = { decks: [deck('d1', 'Basics')], cards: [card('c1', 'd1', 'Hund', 'dog')] }
-    const { upload, dropLocal, summary } = foldLibraries(local, cloud)
+    const { upload, dropLocal, mustWin, summary } = foldLibraries(local, cloud)
     expect(summary.folded).toEqual({})
     expect(summary.added).toEqual({})
     expect(dropLocal).toEqual([])
+    expect(mustWin).toEqual([])
     expect(upload.cards).toEqual([card('c1', 'd1', 'Hund', 'dog')])
     expect(upload.decks).toEqual([deck('d1', 'Basics')])
   })
@@ -102,7 +103,8 @@ describe('foldLibraries', () => {
     cloud.reviews = [review('cC', 'dC', 'enToDe', 1)]
     cloud.reviewLogs = logs('lC', 'cC', 'dC', 'enToDe', 1)
 
-    const { upload, dropLocal, summary } = foldLibraries(local, cloud)
+    const { upload, dropLocal, mustWin, summary } = foldLibraries(local, cloud)
+    expect(mustWin).toEqual([{ tbl: 'reviews', id: 'cC:enToDe' }])
     expect(upload.decks ?? []).toEqual([])
     expect(upload.cards ?? []).toEqual([])
     expect(upload.reviews).toEqual([{ id: 'cC:enToDe', cardId: 'cC', deckId: 'dC', direction: 'enToDe', fsrs: fsrs(3, 3000), due: 0, state: 2 }])
@@ -126,11 +128,21 @@ describe('foldLibraries', () => {
     cloud.reviews = [review('cC', 'dC', 'enToDe', 1)]
     cloud.reviewLogs = logs('lC', 'cC', 'dC', 'enToDe', 1)
 
-    const { upload, dropLocal } = foldLibraries(local, cloud)
+    const { upload, dropLocal, mustWin } = foldLibraries(local, cloud)
+    expect(mustWin).toEqual([])
     expect(ids(upload.reviews)).not.toContain('cC:enToDe')
     expect(upload.reviews ?? []).toEqual([])
     expect(dropLocal).toContainEqual({ tbl: 'reviews', id: 'cL:enToDe' })
     expect(upload.reviewLogs).toEqual([{ ...logs('lL', 'cL', 'dL', 'enToDe', 1)[0], reviewId: 'cC:enToDe', cardId: 'cC', deckId: 'dC' }])
+  })
+
+  it('leaves a review with the same id on both sides to newest-wins', () => {
+    const local: Library = { cards: [card('c1', 'd1', 'Hund', 'dog')], reviews: [review('c1', 'd1', 'enToDe', 5)], reviewLogs: logs('l', 'c1', 'd1', 'enToDe', 5) }
+    const cloud: Library = { cards: [card('c1', 'd1', 'Hund', 'dog')], reviews: [review('c1', 'd1', 'enToDe', 1)] }
+    const { upload, mustWin, summary } = foldLibraries(local, cloud)
+    expect(upload.reviews).toEqual([review('c1', 'd1', 'enToDe', 5)])
+    expect(mustWin).toEqual([])
+    expect(summary.folded).toEqual({})
   })
 
   it('keeps a local review of a direction the cloud card never had', () => {
@@ -140,8 +152,10 @@ describe('foldLibraries', () => {
     cloud.cards = [card('cC', 'dC', 'der Hund', 'dog')]
     cloud.reviews = [review('cC', 'dC', 'enToDe', 4)]
     cloud.reviewLogs = logs('lC', 'cC', 'dC', 'enToDe', 4)
-    const { upload } = foldLibraries(local, cloud)
+    const { upload, mustWin } = foldLibraries(local, cloud)
     expect(ids(upload.reviews)).toEqual(['cC:deToEn'])
+    // The cloud had no row there, so nothing has to be pushed over one.
+    expect(mustWin).toEqual([])
   })
 
   it('a different card in a folded deck is added to the cloud deck', () => {
@@ -172,8 +186,9 @@ describe('foldLibraries', () => {
     local.drillStats = [drill('cL', 4, 2), drill('cL2', 1, 0)]
     cloud.cards = [card('cC', 'dC', 'der Hund', 'dog'), card('cC2', 'dC', 'die Katze', 'cat')]
     cloud.drillStats = [drill('cC', 1, 1), drill('cC2', 5, 0)]
-    const { upload, dropLocal, summary } = foldLibraries(local, cloud)
+    const { upload, dropLocal, mustWin, summary } = foldLibraries(local, cloud)
     expect(upload.drillStats).toEqual([{ ...drill('cL', 4, 2), id: 'cC:gender', cardId: 'cC' }])
+    expect(mustWin).toEqual([{ tbl: 'drillStats', id: 'cC:gender' }])
     expect(dropLocal).toEqual(expect.arrayContaining([{ tbl: 'drillStats', id: 'cL:gender' }, { tbl: 'drillStats', id: 'cL2:gender' }]))
     expect(summary.folded.drillStats).toBe(2)
   })
