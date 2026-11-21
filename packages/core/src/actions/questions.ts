@@ -1,14 +1,8 @@
 import { MAX_HINT_WORDS, MAX_QUESTION_CHARS, MAX_QUESTIONS_PER_CALL, MAX_SET_NAME, type CreateQuestionsParams, type CreateQuestionsResult } from '../protocol'
+import { normalizeQuestion } from '../questions'
 import type { Question } from '../types'
-import { AI_TAG, byId, invalid, key, parseLevel, type ActionContext } from './shared'
-
-/** Trimmed, without blanks or repeats (ignoring case). As the question editor saves words and tags. */
-function unique(items: string[]): string[] {
-  const seen = new Set<string>()
-  return items
-    .map((item) => item.trim().replace(/\s+/g, ' '))
-    .filter((item) => item && !seen.has(item.toLowerCase()) && seen.add(item.toLowerCase()))
-}
+import { parseLevel } from '../stories'
+import { AI_TAG, byId, invalid, key, type ActionContext } from './shared'
 
 export async function createQuestions({ set, questions }: CreateQuestionsParams, ctx: ActionContext): Promise<CreateQuestionsResult> {
   const name = set.trim().replace(/\s+/g, ' ')
@@ -37,17 +31,9 @@ export async function createQuestions({ set, questions }: CreateQuestionsParams,
       continue
     }
     seen.add(key(q.question))
-    const words = unique(q.words ?? [])
-    // As the question editor saves it. The user's own answer is theirs to write, so the AI never sets it.
+    // As the question editor saves a new question. The user's own answer is theirs to write, so the AI never sets it.
     const question: Question = {
-      set: setName.trim().replace(/\s+/g, ' ') || 'My questions',
-      question: q.question.trim(),
-      english: q.english?.trim() || undefined,
-      myAnswer: undefined,
-      suggested: q.suggested?.trim() || undefined,
-      words: words.length ? words : undefined,
-      level: parseLevel(q.level),
-      tags: unique([...(q.tags ?? []), AI_TAG]),
+      ...normalizeQuestion({ set: setName, question: q.question, english: q.english, suggested: q.suggested, words: q.words, level: q.level, tags: [...(q.tags ?? []), AI_TAG] }),
       id: ctx.newId(),
       createdAt: ctx.now,
       updatedAt: ctx.now,

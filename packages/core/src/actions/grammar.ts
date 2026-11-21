@@ -1,4 +1,4 @@
-import { exerciseProblem } from '../grammar'
+import { DEFAULT_GROUP, exerciseProblem, normalizeTopic, type TopicInput } from '../grammar'
 import {
   MAX_GRAMMAR_EXAMPLES_PER_CALL,
   MAX_GRAMMAR_EXERCISES_PER_CALL,
@@ -9,30 +9,8 @@ import {
   type GrammarTopicSummary,
 } from '../protocol'
 import type { GrammarTopic } from '../types'
-import { byId, invalid, key, parseLevel, type ActionContext } from './shared'
-
-/** Topics added without a section go here. */
-const DEFAULT_GROUP = 'My topics'
-
-type TopicInput = Pick<GrammarTopic, 'title' | 'english' | 'group' | 'level' | 'summary' | 'rule' | 'examples' | 'exercises' | 'drill'>
-
-/** As the topic editor saves a topic. */
-function normalizeTopic(input: TopicInput): TopicInput {
-  const clean = (s?: string) => s?.trim() || undefined
-  return {
-    title: input.title.trim().replace(/\s+/g, ' '),
-    english: clean(input.english),
-    group: input.group.trim().replace(/\s+/g, ' ') || DEFAULT_GROUP,
-    level: parseLevel(input.level),
-    summary: clean(input.summary),
-    rule: input.rule.trim(),
-    examples: input.examples.flatMap(({ de, en }) => (de.trim() ? [en?.trim() ? { de: de.trim(), en: en.trim() } : { de: de.trim() }] : [])),
-    exercises: input.exercises.flatMap(({ id, text, en, why }) =>
-      text.trim() ? [{ id, text: text.trim(), ...(en?.trim() ? { en: en.trim() } : {}), ...(why?.trim() ? { why: why.trim() } : {}) }] : [],
-    ),
-    drill: input.drill,
-  }
-}
+import { parseLevel } from '../stories'
+import { byId, invalid, key, type ActionContext } from './shared'
 
 /** Saves a topic as the editor does. Exercises that were removed take their scores with them. */
 function saveTopic(ctx: ActionContext, input: TopicInput, previous?: GrammarTopic): GrammarTopic {

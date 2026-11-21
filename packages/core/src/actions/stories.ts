@@ -1,8 +1,9 @@
 import { MAX_STORY_CHARS, MAX_STORY_SENTENCE, MAX_STORY_TITLE, MAX_STORY_WORD_TEXT, MAX_STORY_WORDS, type CreateStoryParams, type CreateStoryResult, type StorySummary } from '../protocol'
 import { countWords, splitParagraphs } from '../reader'
+import { normalizeStory, parseLevel, pickStoryTopic } from '../stories'
 import { placementProblem } from '../storyWords'
 import type { Gender, Story, StoryWord, Topic } from '../types'
-import { AI_TAG, byId, byOrder, cleanTags, findTopic, invalid, parseLevel, sortedDecks, type ActionContext } from './shared'
+import { AI_TAG, byId, byOrder, findTopic, invalid, sortedDecks, type ActionContext } from './shared'
 
 async function describeStory(ctx: ActionContext, story: Story): Promise<StorySummary> {
   const topic = story.topicId ? await ctx.store.get<Topic>('topics', story.topicId) : undefined
@@ -16,11 +17,9 @@ async function describeStory(ctx: ActionContext, story: Story): Promise<StorySum
   }
 }
 
-/** Reading time goes to the topic of the first deck that has one (the language's, out of the box), else the first topic. */
 async function defaultStoryTopicId(ctx: ActionContext): Promise<string | undefined> {
   const [decks, topics] = await Promise.all([sortedDecks(ctx), ctx.store.list<Topic>('topics')])
-  const active = topics.sort(byOrder).filter((t) => !t.archived)
-  return decks.map((d) => d.topicId).find((id) => active.some((t) => t.id === id)) ?? active[0]?.id
+  return pickStoryTopic(decks, topics.sort(byOrder))
 }
 
 const GENDERS: readonly Gender[] = ['der', 'die', 'das']
@@ -98,15 +97,17 @@ export async function createStory({ title, text, translation, level, tags, topic
     if (notes?.saved.length) ctx.store.put('stories', { ...existing, words: notes.saved, updatedAt: ctx.now })
     return { story: await describeStory(ctx, existing), created: false, ...report }
   }
-  // As the story editor saves it.
+  // As the story editor saves a new story.
   const story: Story = {
-    title: title.trim(),
-    text: text.trim(),
-    translation: translation?.trim() || undefined,
-    level: parseLevel(level),
-    topicId: (linked?.id ?? (await defaultStoryTopicId(ctx))) || undefined,
-    tags: cleanTags([...(tags ?? []), AI_TAG]),
-    ...(notes?.saved.length ? { words: notes.saved } : {}),
+    ...normalizeStory({
+      title,
+      text,
+      translation,
+      level,
+      topicId: linked?.id ?? (await defaultStoryTopicId(ctx)),
+      tags: [...(tags ?? []), AI_TAG],
+      words: notes?.saved,
+    }),
     id: ctx.newId(),
     createdAt: ctx.now,
     updatedAt: ctx.now,

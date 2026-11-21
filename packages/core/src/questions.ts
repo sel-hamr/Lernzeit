@@ -1,5 +1,6 @@
 import type { Question, QuestionResponse } from './types'
 import { checkAnswer, type DiffPart } from './answer'
+import { parseLevel } from './stories'
 
 /** Sets in the order their first question was added, each with its questions oldest first. */
 export function groupBySet<Q extends Pick<Question, 'set' | 'createdAt'>>(questions: Q[]): { set: string; questions: Q[] }[] {
@@ -89,4 +90,35 @@ export function hintWords(question: Pick<Question, 'id' | 'words' | 'myAnswer' |
     .filter(Boolean)
   const seen = new Set<string>()
   return [...(question.words ?? []), ...seededShuffle(answer, question.id)].filter((w) => !seen.has(w.toLowerCase()) && seen.add(w.toLowerCase()))
+}
+
+/* ---------------------------------------------------- Saving questions ---- */
+
+/** Questions added without a set go here. */
+export const DEFAULT_SET = 'My questions'
+
+export type QuestionInput = Pick<Question, 'set' | 'question' | 'english' | 'myAnswer' | 'suggested' | 'words' | 'level' | 'tags'>
+
+/** Trimmed, without blanks or repeats (ignoring case). */
+export function uniqueTexts(items: string[]): string[] {
+  const seen = new Set<string>()
+  return items
+    .map((item) => item.trim().replace(/\s+/g, ' '))
+    .filter((item) => item && !seen.has(item.toLowerCase()) && seen.add(item.toLowerCase()))
+}
+
+/** A question's fields as they are saved, by the question editor and the AI's create_questions alike. */
+export function normalizeQuestion(input: QuestionInput): QuestionInput {
+  const clean = (s?: string) => s?.trim() || undefined
+  const words = uniqueTexts(input.words ?? [])
+  return {
+    set: input.set.trim().replace(/\s+/g, ' ') || DEFAULT_SET,
+    question: input.question.trim(),
+    english: clean(input.english),
+    myAnswer: clean(input.myAnswer),
+    suggested: clean(input.suggested),
+    words: words.length ? words : undefined,
+    level: parseLevel(input.level),
+    tags: uniqueTexts(input.tags),
+  }
 }

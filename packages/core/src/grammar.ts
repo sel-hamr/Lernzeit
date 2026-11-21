@@ -1,6 +1,7 @@
 import type { Card, DrillStat, ExerciseStat, GrammarExercise, GrammarTopic, StoryLevel } from './types'
 import { checkAnswer, type CheckResult } from './answer'
 import { checkDrill, orderByNeed, pickQuestion, pickRound, scoreAfter, shuffle, spokenAnswer, type DrillQuestion, type DrillResult } from './drills'
+import { parseLevel } from './stories'
 import { DAY, MINUTE } from './time'
 
 /*
@@ -565,4 +566,29 @@ export function askClaudePrompt({
 /** Opens a new Claude chat with the message filled in. */
 export function claudeChatUrl(prompt: string): string {
   return `https://claude.ai/new?q=${encodeURIComponent(prompt)}`
+}
+
+/* ------------------------------------------------------- Saving topics ---- */
+
+/** Topics added without a section go here. */
+export const DEFAULT_GROUP = 'My topics'
+
+export type TopicInput = Pick<GrammarTopic, 'title' | 'english' | 'group' | 'level' | 'summary' | 'rule' | 'examples' | 'exercises' | 'drill'>
+
+/** A topic's fields as they are saved, by the topic editor and the AI's add_grammar alike. */
+export function normalizeTopic(input: TopicInput): TopicInput {
+  const clean = (s?: string) => s?.trim() || undefined
+  return {
+    title: input.title.trim().replace(/\s+/g, ' '),
+    english: clean(input.english),
+    group: input.group.trim().replace(/\s+/g, ' ') || DEFAULT_GROUP,
+    level: parseLevel(input.level),
+    summary: clean(input.summary),
+    rule: input.rule.trim(),
+    examples: input.examples.flatMap(({ de, en }) => (de.trim() ? [en?.trim() ? { de: de.trim(), en: en.trim() } : { de: de.trim() }] : [])),
+    exercises: input.exercises.flatMap(({ id, text, en, why }) =>
+      text.trim() ? [{ id, text: text.trim(), ...(en?.trim() ? { en: en.trim() } : {}), ...(why?.trim() ? { why: why.trim() } : {}) }] : [],
+    ),
+    drill: input.drill,
+  }
 }
