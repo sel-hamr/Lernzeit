@@ -4,9 +4,9 @@ import { Button } from '@/components/ui/Button'
 import { Segmented } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
 import { installLevels } from '@/data/languages'
-import type { StoryLevel } from '@/db/types'
+import type { StoryLevel } from '@lernzeit/core/types'
 import { levelSummary, loadPack, PACK, type LevelSummary, type PackContent } from '@/languages'
-import { count } from '@/lib/text'
+import { count } from '@lernzeit/core/text'
 
 /** Picks one of these levels of the German pack to install. */
 export function LevelDialog({ open, onClose, levels }: { open: boolean; onClose: () => void; levels: StoryLevel[] }) {

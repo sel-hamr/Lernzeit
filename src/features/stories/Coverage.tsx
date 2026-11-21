@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { Chip } from '@/components/ui/primitives'
-import type { Coverage, WordStatus } from '@/lib/reader'
+import type { Coverage, WordStatus } from '@lernzeit/core/reader'
 import { difficulty, percent } from './difficulty'
 
 const PARTS: { status: WordStatus; label: string; bar: string }[] = [

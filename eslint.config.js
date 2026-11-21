@@ -21,4 +21,9 @@ export default tseslint.config(
     files: ['mcp/**/*.ts', 'bin/**/*.ts', 'scripts/**/*.ts'],
     languageOptions: { globals: globals.node },
   },
+  {
+    // The shared core must run in the browser, in Node and in React Native: no browser globals.
+    files: ['packages/core/**/*.ts'],
+    languageOptions: { globals: Object.fromEntries(Object.keys(globals.browser).map((name) => [name, 'off'])) },
+  },
 )

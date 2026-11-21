@@ -22,10 +22,10 @@ import { Button } from '@/components/ui/Button'
 import { Dot, PageHeader, PriorityChip } from '@/components/ui/primitives'
 import { Segmented, TextSelect } from '@/components/ui/form'
 import { useUI } from '@/app/ui'
-import type { Priority, Task, TaskStatus, Topic } from '@/db/types'
+import type { Priority, Task, TaskStatus, Topic } from '@lernzeit/core/types'
 import { useTasks, useToday, useTopics } from '@/data/hooks'
 import { isDueToday, isOverdue, setColumnOrder, STATUS_LABEL, STATUSES } from '@/data/tasks'
-import { addDays, formatDayMonthShort } from '@/lib/time'
+import { addDays, formatDayMonthShort } from '@lernzeit/core/time'
 
 type Columns = Record<TaskStatus, string[]>
 

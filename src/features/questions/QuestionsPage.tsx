@@ -8,9 +8,9 @@ import { Chip, EmptyState, PageHeader, Section } from '@/components/ui/primitive
 import { useFeedback } from '@/components/ui/feedback'
 import { useLanguage, useLearningText, useQuestions, useResponses } from '@/data/hooks'
 import { addStarterContent } from '@/data/languages'
-import type { Question } from '@/db/types'
-import { groupBySet } from '@/lib/questions'
-import { count } from '@/lib/text'
+import type { Question } from '@lernzeit/core/types'
+import { groupBySet } from '@lernzeit/core/questions'
+import { count } from '@lernzeit/core/text'
 import { practicePath } from './paths'
 import { QuestionEditorDialog } from './QuestionEditor'
 

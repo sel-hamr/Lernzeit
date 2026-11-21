@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Card } from '@/db/types'
+import type { Card } from './types'
 import type { Knowledge } from './reader'
 import { buildStoryPrompt, ENOUGH_FAMILIAR, pickPromptWords, storyWordCount, themeLine } from './storyPrompt'
 

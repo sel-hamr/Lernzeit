@@ -1,5 +1,5 @@
-import { MAX_STORY_WORDS } from '@/bridge/protocol'
-import type { Card, StoryLevel } from '@/db/types'
+import { MAX_STORY_WORDS } from './protocol'
+import type { Card, StoryLevel } from './types'
 import { germanText } from './german'
 import type { Knowledge } from './reader'
 

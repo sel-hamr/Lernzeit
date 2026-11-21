@@ -1,10 +1,10 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import clsx from 'clsx'
 import { Check } from 'lucide-react'
-import type { Session, Topic } from '@/db/types'
-import type { DayResult } from '@/lib/goals'
+import type { Session, Topic } from '@lernzeit/core/types'
+import type { DayResult } from '@lernzeit/core/goals'
 import { topicVars } from '@/lib/colors'
-import { formatHours, parseDateKey, weekdayOf, WEEKDAY_SHORT } from '@/lib/time'
+import { formatHours, parseDateKey, weekdayOf, WEEKDAY_SHORT } from '@lernzeit/core/time'
 import { WHEEL_STEP, ZOOM_PX } from './weekZoom'
 
 /** One column per day with each session drawn as a block on a time axis. */

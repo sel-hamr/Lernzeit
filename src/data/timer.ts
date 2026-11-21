@@ -1,7 +1,7 @@
 import { db, getActiveTimer, getSettings, KV_KEYS, newId, type LernzeitDB } from '@/db/db'
-import type { ActiveTimer, Session, SessionSource, TimerMode } from '@/db/types'
-import { splitAtMidnight } from '@/lib/sessions'
-import { isPhaseComplete, pause, phaseEndAt, resume, studiedMinutes } from '@/lib/timer'
+import type { ActiveTimer, Session, SessionSource, TimerMode } from '@lernzeit/core/types'
+import { splitAtMidnight } from '@lernzeit/core/sessions'
+import { isPhaseComplete, pause, phaseEndAt, resume, studiedMinutes } from '@lernzeit/core/timer'
 
 /** Runs shorter than this are not worth a history entry. */
 export const MIN_SESSION_MINUTES = 0.5

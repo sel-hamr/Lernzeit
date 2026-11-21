@@ -1,4 +1,4 @@
-import type { Conjugation, Tense } from '@/db/types'
+import type { Conjugation, Tense } from './types'
 
 /*
  * A verb's conjugation, as written on the card. Each tense is one line of six

@@ -1,4 +1,4 @@
-import type { Card, Gender } from '@/db/types'
+import type { Card, Gender } from './types'
 
 const ARTICLE_RE = /^(der|die|das)\s+(.+)$/i
 

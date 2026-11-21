@@ -1,5 +1,5 @@
 import { createEmptyCard, fsrs, generatorParameters, Rating, State, type Card as FsrsCard, type Grade as FsrsGrade } from 'ts-fsrs'
-import type { Card, CardReview, Deck, Direction, Grade, StoredFsrs } from '@/db/types'
+import type { Card, CardReview, Deck, Direction, Grade, StoredFsrs } from './types'
 import { isNoun } from './german'
 import { DAY, HOUR, MINUTE } from './time'
 

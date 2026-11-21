@@ -1,7 +1,7 @@
 import { db, newId, type LernzeitDB } from '@/db/db'
-import type { Doc, DocFolder, DocStatus, StoredImage } from '@/db/types'
-import { DOC_ROOT, docImageIds, folderSubtree, titleFromMarkdown } from '@/lib/docs'
-import { foldText } from '@/lib/text'
+import type { Doc, DocFolder, DocStatus, StoredImage } from '@lernzeit/core/types'
+import { DOC_ROOT, docImageIds, folderSubtree, titleFromMarkdown } from '@lernzeit/core/docs'
+import { foldText } from '@lernzeit/core/text'
 
 export type DocInput = Pick<Doc, 'title' | 'body' | 'folderId' | 'tags'>
 

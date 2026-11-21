@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import type { Priority, TopicColor } from '@/db/types'
+import type { Priority, TopicColor } from '@lernzeit/core/types'
 
 /** Fixed order for new topics; adjacent pairs were checked for colour-blind separation. */
 export const TOPIC_COLORS: TopicColor[] = ['sage', 'blue', 'clay', 'teal', 'sand', 'lilac', 'rose', 'stone']

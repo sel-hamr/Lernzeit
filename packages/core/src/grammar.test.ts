@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Card, ExerciseStat, GrammarTopic } from '@/db/types'
+import type { Card, ExerciseStat, GrammarTopic } from './types'
 import {
   askClaudePrompt,
   buildReviewRound,

@@ -6,7 +6,7 @@ import { PRACTICE_RETURN } from './queue'
 import { STORY_THEMES } from './storyThemes'
 import { TOUR_STOPS, tourRoute, tourStops, tourTarget, type TourFacts, type TourStop } from './tour'
 
-const SRC = fileURLToPath(new URL('..', import.meta.url))
+const SRC = fileURLToPath(new URL('../../../src', import.meta.url))
 
 function sources(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

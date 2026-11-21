@@ -1,6 +1,6 @@
 import { db, type LernzeitDB } from '@/db/db'
-import type { DrillKind, DrillStat } from '@/db/types'
-import { nextStat } from '@/lib/drills'
+import type { DrillKind, DrillStat } from '@lernzeit/core/types'
+import { nextStat } from '@lernzeit/core/drills'
 
 /** Saves one drill answer to the card's stat for that drill. */
 export async function saveDrillAnswer(cardId: string, drill: DrillKind, correct: boolean, database: LernzeitDB = db): Promise<DrillStat> {

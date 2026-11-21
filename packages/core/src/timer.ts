@@ -1,4 +1,4 @@
-import type { ActiveTimer } from '@/db/types'
+import type { ActiveTimer } from './types'
 import { MINUTE } from './time'
 
 /** Active (unpaused) time in the current phase. */

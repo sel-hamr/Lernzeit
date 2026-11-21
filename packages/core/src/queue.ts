@@ -1,4 +1,4 @@
-import type { CardReview, Deck, Direction, Grade, ReviewLog } from '@/db/types'
+import type { CardReview, Deck, Direction, Grade, ReviewLog } from './types'
 import { State } from './srs'
 
 const DIRECTION_RANK: Record<Direction, number> = { imageToDe: 0, cloze: 0, enToDe: 1, deToEn: 2 }

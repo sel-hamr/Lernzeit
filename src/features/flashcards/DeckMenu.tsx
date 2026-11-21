@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { ArrowRight, Search } from 'lucide-react'
 import { Kbd } from '@/components/ui/primitives'
-import { filterByLabel } from '@/lib/tabs'
+import { filterByLabel } from '@lernzeit/core/tabs'
 
 export interface DeckTab {
   value: string

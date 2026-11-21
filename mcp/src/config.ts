@@ -1,4 +1,4 @@
-import { DEFAULT_PORT, LOCAL_ORIGINS } from '../../src/bridge/protocol.ts'
+import { DEFAULT_PORT, LOCAL_ORIGINS } from '@lernzeit/core/protocol'
 
 export interface ServerConfig {
   token: string

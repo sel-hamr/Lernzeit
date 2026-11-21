@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, KV_KEYS, type LernzeitDB } from '@/db/db'
-import { DEFAULT_PORT } from './protocol'
+import { DEFAULT_PORT } from '@lernzeit/core/protocol'
 
 /**
  * Settings → AI connection. It belongs to this browser, so it has its own kv

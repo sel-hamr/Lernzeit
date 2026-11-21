@@ -1,8 +1,8 @@
 import { useState, type KeyboardEvent, type RefObject } from 'react'
 import clsx from 'clsx'
 import { Volume2 } from 'lucide-react'
-import type { Gender } from '@/db/types'
-import type { Piece, WordStatus } from '@/lib/reader'
+import type { Gender } from '@lernzeit/core/types'
+import type { Piece, WordStatus } from '@lernzeit/core/reader'
 import { statusOf, type AnnotatedStory, type Vocabulary } from './vocabulary'
 import { useLearningText, useNativeText } from '@/data/hooks'
 

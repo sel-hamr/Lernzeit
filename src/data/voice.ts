@@ -1,4 +1,4 @@
-import type { Settings, VoiceEngine } from '@/db/types'
+import type { Settings, VoiceEngine } from '@lernzeit/core/types'
 import { browserSpeak, browserStop } from '@/lib/speech'
 import { isThorstenDownloaded, THORSTEN_VOICE, thorstenWav, warmUpThorsten } from '@/lib/thorsten'
 import { clipKey, readClip, saveClip } from './clips'

@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { LernzeitDB } from '@/db/db'
-import { DOC_ROOT, docImageUrl } from '@/lib/docs'
+import { DOC_ROOT, docImageUrl } from '@lernzeit/core/docs'
 import {
   countDocFolder,
   createDocFolder,

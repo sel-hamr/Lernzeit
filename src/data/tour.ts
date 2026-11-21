@@ -1,5 +1,5 @@
 import { db, getSettings, KV_KEYS, type LernzeitDB } from '@/db/db'
-import type { TourFacts } from '@/lib/tour'
+import type { TourFacts } from '@lernzeit/core/tour'
 
 /** Where the tour stands: never asked for, waiting to run, or done. */
 export type TourState = 'none' | 'pending' | 'seen'

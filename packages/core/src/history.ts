@@ -1,4 +1,4 @@
-import type { Session, Topic } from '@/db/types'
+import type { Session, Topic } from './types'
 import { dayResult, goalFor, isGoalHit, minutesOn, type DayResult, type MinutesIndex } from './goals'
 import { addDays, formatDayMonthShort, formatHM, formatMonthYear, parseDateKey, startOfWeek, weekdayOf, WEEKDAY_LONG } from './time'
 

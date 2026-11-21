@@ -1,4 +1,4 @@
-import type { Card, CardReview } from '@/db/types'
+import type { Card, CardReview } from './types'
 import { State } from './srs'
 
 /*

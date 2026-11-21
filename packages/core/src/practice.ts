@@ -1,4 +1,4 @@
-import type { CardReview, Direction, Grade, PracticeDeckTime, PracticeRun } from '@/db/types'
+import type { CardReview, Direction, Grade, PracticeDeckTime, PracticeRun } from './types'
 import { addDays, dateKey, formatDayMonthShort } from './time'
 
 export const ALL_DIRECTIONS: Direction[] = ['imageToDe', 'enToDe', 'deToEn', 'cloze']

@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
-import type { ActiveTimer, Session, Topic } from '@/db/types'
-import { goalFor, isGoalHit } from '@/lib/goals'
-import { MINUTE, startOfDayMs } from '@/lib/time'
-import { isPaused, studiedMinutes } from '@/lib/timer'
+import type { ActiveTimer, Session, Topic } from '@lernzeit/core/types'
+import { goalFor, isGoalHit } from '@lernzeit/core/goals'
+import { MINUTE, startOfDayMs } from '@lernzeit/core/time'
+import { isPaused, studiedMinutes } from '@lernzeit/core/timer'
 import { useActiveTimer, useNow, useSessionsBetween, useToday, useTopics } from './hooks'
 
 export interface TopicProgress {

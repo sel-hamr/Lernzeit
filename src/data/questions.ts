@@ -1,5 +1,5 @@
 import { db, newId, type LernzeitDB } from '@/db/db'
-import type { Question, QuestionResponse } from '@/db/types'
+import type { Question, QuestionResponse } from '@lernzeit/core/types'
 import { parseLevel } from './stories'
 
 /** Questions added without a set go here. */

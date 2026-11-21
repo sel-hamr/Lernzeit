@@ -1,8 +1,8 @@
 import clsx from 'clsx'
-import type { Topic } from '@/db/types'
-import type { MinutesIndex } from '@/lib/goals'
-import { dayHeat, heatmapWeeks } from '@/lib/history'
-import { formatDayMonthShort, formatHM, parseDateKey } from '@/lib/time'
+import type { Topic } from '@lernzeit/core/types'
+import type { MinutesIndex } from '@lernzeit/core/goals'
+import { dayHeat, heatmapWeeks } from '@lernzeit/core/history'
+import { formatDayMonthShort, formatHM, parseDateKey } from '@lernzeit/core/time'
 
 const LEVEL_BG = ['bg-heat-0', 'bg-heat-1', 'bg-heat-2', 'bg-heat-3', 'bg-heat-4']
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']

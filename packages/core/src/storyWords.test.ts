@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { StoryWord } from '@/db/types'
+import type { StoryWord } from './types'
 import { splitParagraphs } from './reader'
 import { indexStoryWords, placementProblem, storyWordAt } from './storyWords'
 

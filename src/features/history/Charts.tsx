@@ -2,10 +2,10 @@ import { useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Section, SectionHeader } from '@/components/ui/primitives'
 import { Segmented } from '@/components/ui/form'
-import type { ReviewLog, Session, Topic } from '@/db/types'
+import type { ReviewLog, Session, Topic } from '@lernzeit/core/types'
 import { dotColor } from '@/lib/colors'
-import { hoursByPeriod } from '@/lib/history'
-import { addDays, formatDayMonthShort } from '@/lib/time'
+import { hoursByPeriod } from '@lernzeit/core/history'
+import { addDays, formatDayMonthShort } from '@lernzeit/core/time'
 
 const axisTick = { fill: 'var(--color-muted)', fontSize: 11 }
 

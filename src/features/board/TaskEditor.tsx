@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/Button'
 import { Field, Input, Segmented, Select, Textarea } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
 import { db } from '@/db/db'
-import type { Priority, Task, TaskStatus } from '@/db/types'
+import type { Priority, Task, TaskStatus } from '@lernzeit/core/types'
 import { useTopics } from '@/data/hooks'
 import { createTask, deleteTask, restoreTask, STATUS_LABEL, STATUSES, updateTask } from '@/data/tasks'
 import type { TaskEditorRequest } from '@/app/ui'
-import { addDays, dateKey, formatDayMonth } from '@/lib/time'
+import { addDays, dateKey, formatDayMonth } from '@lernzeit/core/time'
 
 const PRIORITY_OPTIONS: { value: Priority; label: React.ReactNode }[] = [
   { value: 'high', label: <span className="text-red-ink">High</span> },

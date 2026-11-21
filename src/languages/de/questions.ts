@@ -1,5 +1,5 @@
 import type { StarterQuestion } from '@/data/questions'
-import type { StoryLevel } from '@/db/types'
+import type { StoryLevel } from '@lernzeit/core/types'
 
 type Entry = [n: number, question: string, english: string, suggested: string, words: string[]]
 

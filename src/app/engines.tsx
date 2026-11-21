@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, DEFAULT_SETTINGS, KV_KEYS } from '@/db/db'
-import type { Settings } from '@/db/types'
+import type { Settings } from '@lernzeit/core/types'
 import { storage } from '@/lib/browser'
 import { Dialog } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
@@ -16,8 +16,8 @@ import { useTodayProgress } from '@/data/progress'
 import { completePhase, resolvePendingNote } from '@/data/timer'
 import { showNotification } from '@/lib/notify'
 import { playEndSound } from '@/lib/sound'
-import { formatHM, formatMinutesShort, formatTimer, parseTimeOfDay } from '@/lib/time'
-import { elapsedMs, isPaused, isPhaseComplete, phaseEndAt, remainingMs } from '@/lib/timer'
+import { formatHM, formatMinutesShort, formatTimer, parseTimeOfDay } from '@lernzeit/core/time'
+import { elapsedMs, isPaused, isPhaseComplete, phaseEndAt, remainingMs } from '@lernzeit/core/timer'
 
 /**
  * Watches the running timer. Phases end by timestamp, so this also catches up

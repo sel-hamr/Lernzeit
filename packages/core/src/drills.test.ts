@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Card, DrillStat } from '@/db/types'
+import type { Card, DrillStat } from './types'
 import { diffChars } from './answer'
 import { checkDrill, drillQuestions, nextStat, pickQuestion, pickRound, requeue, spokenAnswer, type DrillQuestion } from './drills'
 

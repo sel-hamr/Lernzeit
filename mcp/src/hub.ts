@@ -17,7 +17,7 @@ import {
   type RejectReason,
   type ResponseMessage,
   type ServerMessage,
-} from '../../src/bridge/protocol.ts'
+} from '@lernzeit/core/protocol'
 
 export interface BrowserInfo {
   name: string

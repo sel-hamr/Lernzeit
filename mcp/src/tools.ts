@@ -26,8 +26,8 @@ import {
   type NewCard,
   type NewGrammarExercise,
   type NewQuestion,
-} from '../../src/bridge/protocol.ts'
-import type { StoryLevel, StoryWord } from '../../src/db/types.ts'
+} from '@lernzeit/core/protocol'
+import type { StoryLevel, StoryWord } from '@lernzeit/core/types'
 import type { BrowserHub } from './hub.ts'
 
 const browserField = z

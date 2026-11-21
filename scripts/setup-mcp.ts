@@ -17,7 +17,7 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
-import { DEFAULT_PORT } from '../src/bridge/protocol.ts'
+import { DEFAULT_PORT } from '@lernzeit/core/protocol'
 
 const SERVER_PATH = fileURLToPath(new URL('../mcp/src/index.ts', import.meta.url)).replaceAll('\\', '/')
 const NAME = 'lernzeit'

@@ -1,4 +1,4 @@
-import type { Card, DrillStat, ExerciseStat, GrammarExercise, GrammarTopic, StoryLevel } from '@/db/types'
+import type { Card, DrillStat, ExerciseStat, GrammarExercise, GrammarTopic, StoryLevel } from './types'
 import { checkAnswer, type CheckResult } from './answer'
 import { checkDrill, orderByNeed, pickQuestion, pickRound, scoreAfter, shuffle, spokenAnswer, type DrillQuestion, type DrillResult } from './drills'
 import { DAY, MINUTE } from './time'

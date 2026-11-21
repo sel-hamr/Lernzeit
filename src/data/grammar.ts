@@ -1,6 +1,6 @@
 import { db, newId, type LernzeitDB } from '@/db/db'
-import type { ExerciseStat, GrammarTopic } from '@/db/types'
-import { nextExerciseStat } from '@/lib/grammar'
+import type { ExerciseStat, GrammarTopic } from '@lernzeit/core/types'
+import { nextExerciseStat } from '@lernzeit/core/grammar'
 import { parseLevel } from './stories'
 
 /** Topics added without a section go here. */

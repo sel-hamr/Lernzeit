@@ -7,7 +7,8 @@
     "lz": "bin/lz.ts"
   },
   "workspaces": [
-    "mcp"
+    "mcp",
+    "packages/core"
   ],
   "scripts": {
     "dev": "vite",
@@ -15,7 +16,7 @@
     "preview": "vite preview",
     "start": "node bin/lz.ts",
     "mcp:setup": "node scripts/setup-mcp.ts",
-    "typecheck": "tsc -b && npm run typecheck -w mcp",
+    "typecheck": "tsc -b && npm run typecheck -w mcp && npm run typecheck -w @lernzeit/core",
     "test": "vitest run && npm test -w mcp",
     "lint": "eslint ."
   },
@@ -41,7 +42,6 @@
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
-    "ts-fsrs": "^5.4.2",
     "unified": "^11.0.5"
   },
   "devDependencies": {

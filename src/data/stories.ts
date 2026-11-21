@@ -1,5 +1,5 @@
 import { db, newId, type LernzeitDB } from '@/db/db'
-import type { Deck, Story, StoryLevel, Topic } from '@/db/types'
+import type { Deck, Story, StoryLevel, Topic } from '@lernzeit/core/types'
 
 /** Cards added from the reader get this tag, so they are easy to find in the Library. */
 export const STORY_TAG = 'story'

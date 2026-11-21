@@ -14,9 +14,9 @@ import { useDecks, useLearningText, useSettings, useTopics } from '@/data/hooks'
 import { pickStoryTopic } from '@/data/stories'
 import { useActiveStudyTime, type ActiveRun } from '@/data/studyTime'
 import { recordGrammarTime } from '@/data/timer'
-import type { Card, Gender, GrammarTopic } from '@/db/types'
+import type { Card, Gender, GrammarTopic } from '@lernzeit/core/types'
 import { isTypingTarget } from '@/lib/browser'
-import { PERSON_LABEL, requeue, TENSE_LABEL, type DrillResult } from '@/lib/drills'
+import { PERSON_LABEL, requeue, TENSE_LABEL, type DrillResult } from '@lernzeit/core/drills'
 import {
   askClaudePrompt,
   checkQuestion,
@@ -28,8 +28,8 @@ import {
   type ExerciseQuestion,
   type RoundItem,
   type RoundQuestion,
-} from '@/lib/grammar'
-import { germanText } from '@/lib/german'
+} from '@lernzeit/core/grammar'
+import { germanText } from '@lernzeit/core/german'
 import { speak, stopSpeaking, voiceOptions, warmUpVoice } from '@/data/voice'
 
 const GENDERS: Gender[] = ['der', 'die', 'das']

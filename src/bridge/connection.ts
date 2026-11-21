@@ -1,4 +1,4 @@
-import { CLOSE_REPLACED, parseServerMessage, PROTOCOL_VERSION, type AppMessage, type RequestMessage, type ResponseMessage } from './protocol'
+import { CLOSE_REPLACED, parseServerMessage, PROTOCOL_VERSION, type AppMessage, type RequestMessage, type ResponseMessage } from '@lernzeit/core/protocol'
 import type { BridgeStatus } from './status'
 
 /** Retries start fast and slow down, since each failed attempt logs an error in the console. */

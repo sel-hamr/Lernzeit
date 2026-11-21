@@ -4,7 +4,7 @@ import { createServer, type AddressInfo } from 'node:net'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { afterEach, describe, it } from 'node:test'
 import { WebSocket } from 'ws'
-import { BridgeError, CLOSE_REPLACED, PROTOCOL_VERSION, type BridgeErrorCode, type ServerMessage } from '../../src/bridge/protocol.ts'
+import { BridgeError, CLOSE_REPLACED, PROTOCOL_VERSION, type BridgeErrorCode, type ServerMessage } from '@lernzeit/core/protocol'
 import { BrowserHub, pickBrowser } from './hub.ts'
 
 const TOKEN = 'test-token'

@@ -1,4 +1,4 @@
-import type { Session, Topic, WeekGoals } from '@/db/types'
+import type { Session, Topic, WeekGoals } from './types'
 import { addDays, dateKey, weekdayOf, WEEKDAYS } from './time'
 
 export function sameGoals(a: WeekGoals, b: WeekGoals): boolean {

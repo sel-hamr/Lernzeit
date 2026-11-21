@@ -1,5 +1,5 @@
-import { MAX_DOC_TITLE } from '@/bridge/protocol'
-import type { Doc, DocFolder, DocStatus } from '@/db/types'
+import { MAX_DOC_TITLE } from './protocol'
+import type { Doc, DocFolder, DocStatus } from './types'
 import { foldText } from './text'
 
 /** The `folderId` of a doc and the `parentId` of a folder at the top level. IndexedDB cannot index null. */

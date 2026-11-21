@@ -12,11 +12,11 @@ import { useStreaks, useWordOfTheDay } from '@/data/stats'
 import { isDueToday, isOverdue, toggleTaskDone } from '@/data/tasks'
 import { useStartTimer } from '@/features/timer/useStartTimer'
 import { PRIORITY_ORDER } from '@/lib/colors'
-import { germanText } from '@/lib/german'
-import { formatPracticeTime, practiceTotals } from '@/lib/practice'
+import { germanText } from '@lernzeit/core/german'
+import { formatPracticeTime, practiceTotals } from '@lernzeit/core/practice'
 import { speak, voiceOptions } from '@/data/voice'
-import { dateKey, formatClock, formatDayMonthShort, formatHM, formatLongDate } from '@/lib/time'
-import { isPaused } from '@/lib/timer'
+import { dateKey, formatClock, formatDayMonthShort, formatHM, formatLongDate } from '@lernzeit/core/time'
+import { isPaused } from '@lernzeit/core/timer'
 
 function GoalRow({ row, running, onStart }: { row: TopicProgress; running: boolean; onStart: () => void }) {
   const { topic, goal, done, left, hit } = row

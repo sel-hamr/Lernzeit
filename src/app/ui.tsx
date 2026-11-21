@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
-import type { CardType, TaskStatus } from '@/db/types'
+import type { CardType, TaskStatus } from '@lernzeit/core/types'
 import { CardEditorDialog } from '@/features/flashcards/CardEditor'
 import { QuickAddDialog } from '@/features/flashcards/QuickAdd'
 import { TaskEditorDialog } from '@/features/board/TaskEditor'

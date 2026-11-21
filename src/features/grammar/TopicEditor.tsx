@@ -8,8 +8,8 @@ import { DEFAULT_GROUP, deleteTopic, saveTopic } from '@/data/grammar'
 import { useGrammarTopics, useLanguage, useLearningText } from '@/data/hooks'
 import { parseLevel, STORY_LEVELS } from '@/data/stories'
 import { newId } from '@/db/db'
-import type { GrammarTopic, TopicDrill } from '@/db/types'
-import { exerciseProblem, formatLines, groupTopics, mergeExercises, parseLines } from '@/lib/grammar'
+import type { GrammarTopic, TopicDrill } from '@lernzeit/core/types'
+import { exerciseProblem, formatLines, groupTopics, mergeExercises, parseLines } from '@lernzeit/core/grammar'
 
 /** The card drills a topic can add, as select values. */
 const DRILLS: { value: string; label: string; drill?: TopicDrill }[] = [

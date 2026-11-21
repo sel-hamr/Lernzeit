@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import type { Card, CardReview } from '@/db/types'
-import { indexMinutes, topicStreak, type Streak } from '@/lib/goals'
-import { State } from '@/lib/srs'
+import type { Card, CardReview } from '@lernzeit/core/types'
+import { indexMinutes, topicStreak, type Streak } from '@lernzeit/core/goals'
+import { State } from '@lernzeit/core/srs'
 import { useAllReviews, useAllSessions, useCards, useToday, useTopics } from './hooks'
 
 /** Current and longest goal streak per topic id. */

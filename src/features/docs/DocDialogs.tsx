@@ -3,8 +3,8 @@ import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { Field, Input, Select } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
-import type { DocFolder } from '@/db/types'
-import { DOC_ROOT, folderChoices } from '@/lib/docs'
+import type { DocFolder } from '@lernzeit/core/types'
+import { DOC_ROOT, folderChoices } from '@lernzeit/core/docs'
 
 /** Asks for a folder's name, to make or rename a folder. */
 export function FolderNameDialog({

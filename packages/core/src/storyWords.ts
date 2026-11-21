@@ -1,4 +1,4 @@
-import type { StoryWord } from '@/db/types'
+import type { StoryWord } from './types'
 import { lookupKey, tokenize, type Piece } from './reader'
 
 /*

@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
-import { fitTabs } from '@/lib/tabs'
+import { fitTabs } from '@lernzeit/core/tabs'
 import { DeckMenu, type DeckTab } from './DeckMenu'
 
 export type { DeckTab }

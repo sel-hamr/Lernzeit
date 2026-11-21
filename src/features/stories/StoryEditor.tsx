@@ -6,9 +6,9 @@ import { Field, Input, Select, Textarea } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
 import { useDecks, useLanguage, useLearningText, useTopics } from '@/data/hooks'
 import { deleteStory, parseLevel, pickStoryTopic, saveStory, STORY_LEVELS } from '@/data/stories'
-import type { Story } from '@/db/types'
-import { countWords, splitParagraphs } from '@/lib/reader'
-import { count } from '@/lib/text'
+import type { Story } from '@lernzeit/core/types'
+import { countWords, splitParagraphs } from '@lernzeit/core/reader'
+import { count } from '@lernzeit/core/text'
 
 /** Adds a story, or edits `story`. */
 export function StoryEditorDialog({

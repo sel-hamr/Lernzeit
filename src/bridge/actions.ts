@@ -1,5 +1,5 @@
 import { db, newId, type LernzeitDB } from '@/db/db'
-import type { Card, Deck, Doc, DocFolder, Gender, GrammarTopic, Story, StoryWord, Topic } from '@/db/types'
+import type { Card, Deck, Doc, DocFolder, Gender, GrammarTopic, Story, StoryWord, Topic } from '@lernzeit/core/types'
 import { createDeck, deleteCard, deleteDeck, moveCard } from '@/data/cards'
 import { ensureDocFolder, findDocFolder, saveDoc } from '@/data/docs'
 import { writeCardPack, type CardPack, type CardPackCard } from '@/data/io'
@@ -8,13 +8,13 @@ import { saveQuestion } from '@/data/questions'
 import { defaultStoryTopicId, parseLevel, saveStory } from '@/data/stories'
 import { createTask } from '@/data/tasks'
 import { logManualSession } from '@/data/topics'
-import { filterDocs, folderChoices, folderSubtree, folderTrail } from '@/lib/docs'
-import { splitArticle } from '@/lib/german'
-import { exerciseProblem } from '@/lib/grammar'
-import { countWords, splitParagraphs } from '@/lib/reader'
-import { placementProblem } from '@/lib/storyWords'
-import { foldText } from '@/lib/text'
-import { dateKey, MINUTE } from '@/lib/time'
+import { filterDocs, folderChoices, folderSubtree, folderTrail } from '@lernzeit/core/docs'
+import { splitArticle } from '@lernzeit/core/german'
+import { exerciseProblem } from '@lernzeit/core/grammar'
+import { countWords, splitParagraphs } from '@lernzeit/core/reader'
+import { placementProblem } from '@lernzeit/core/storyWords'
+import { foldText } from '@lernzeit/core/text'
+import { dateKey, MINUTE } from '@lernzeit/core/time'
 import {
   BridgeError,
   MAX_CARDS_PER_CALL,
@@ -77,7 +77,7 @@ import {
   type StorySummary,
   type TaskSummary,
   type TopicSummary,
-} from './protocol'
+} from '@lernzeit/core/protocol'
 
 /** Every card, story, question and doc added through the bridge gets this tag, so it is easy to find and check. */
 export const AI_TAG = 'ai'

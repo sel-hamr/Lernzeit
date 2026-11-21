@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { PracticeRun } from '@/db/types'
+import type { PracticeRun } from './types'
 import { addDeckTime, addRating, countRatings, formatLastPractised, formatPracticeTime, inPlan, percentCorrect, planHref, practiceTotals, readPlan, runPart, totalsByDeck } from './practice'
 
 describe('rating counts', () => {

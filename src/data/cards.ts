@@ -1,10 +1,10 @@
 import { db, newId, type LernzeitDB } from '@/db/db'
-import type { Card, CardReview, Deck, DeckDirections, Grade, ReviewLog } from '@/db/types'
-import { cleanConjugation } from '@/lib/conjugation'
-import { splitArticle } from '@/lib/german'
+import type { Card, CardReview, Deck, DeckDirections, Grade, ReviewLog } from '@lernzeit/core/types'
+import { cleanConjugation } from '@lernzeit/core/conjugation'
+import { splitArticle } from '@lernzeit/core/german'
 import { prepareImage } from '@/lib/image'
-import { applyGrade, directionsFor, newReview } from '@/lib/srs'
-import { dateKey } from '@/lib/time'
+import { applyGrade, directionsFor, newReview } from '@lernzeit/core/srs'
+import { dateKey } from '@lernzeit/core/time'
 
 export const INCOMPLETE_TAG = 'incomplete'
 

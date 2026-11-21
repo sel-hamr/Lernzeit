@@ -5,7 +5,7 @@
  * outside the Vite build, so it uses relative imports with extensions and only
  * erasable TypeScript.
  */
-import type { CardType, Conjugation, DocStatus, Gender, Priority, StoryLevel, StoryWord, TaskStatus } from '../db/types.ts'
+import type { CardType, Conjugation, DocStatus, Gender, Priority, StoryLevel, StoryWord, TaskStatus } from './types.ts'
 
 export const PROTOCOL_VERSION = 1
 export const DEFAULT_PORT = 47821

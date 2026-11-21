@@ -1,4 +1,4 @@
-import type { Question, QuestionResponse } from '@/db/types'
+import type { Question, QuestionResponse } from './types'
 import { checkAnswer, type DiffPart } from './answer'
 
 /** Sets in the order their first question was added, each with its questions oldest first. */

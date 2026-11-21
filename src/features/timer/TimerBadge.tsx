@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { useTodayProgress } from '@/data/progress'
-import { formatTimer } from '@/lib/time'
-import { isPaused, remainingMs, elapsedMs } from '@/lib/timer'
+import { formatTimer } from '@lernzeit/core/time'
+import { isPaused, remainingMs, elapsedMs } from '@lernzeit/core/timer'
 
 /** The running timer, at the end of the Focus timer link in the sidebar. */
 export function TimerBadge() {

@@ -4,7 +4,7 @@ import { LernzeitDB } from '@/db/db'
 import { saveStory } from '@/data/stories'
 import { seedGerman } from '@/test/fixtures'
 import { AI_TAG, handleRequest, runAction } from './actions'
-import { BridgeError, type BridgeErrorCode } from './protocol'
+import { BridgeError, type BridgeErrorCode } from '@lernzeit/core/protocol'
 
 let database: LernzeitDB
 let counter = 0

@@ -21,7 +21,7 @@ import type {
   Story,
   Task,
   Topic,
-} from './types'
+} from '@lernzeit/core/types'
 
 export class LernzeitDB extends Dexie {
   topics!: EntityTable<Topic, 'id'>

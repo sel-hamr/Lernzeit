@@ -1,8 +1,8 @@
 import { db, newId, type LernzeitDB } from '@/db/db'
-import type { Session, Topic, TopicColor, WeekGoals } from '@/db/types'
-import { withGoalChange } from '@/lib/goals'
-import { splitAtMidnight } from '@/lib/sessions'
-import { dateKey, MINUTE } from '@/lib/time'
+import type { Session, Topic, TopicColor, WeekGoals } from '@lernzeit/core/types'
+import { withGoalChange } from '@lernzeit/core/goals'
+import { splitAtMidnight } from '@lernzeit/core/sessions'
+import { dateKey, MINUTE } from '@lernzeit/core/time'
 
 export async function createTopic(input: { name: string; color: TopicColor; goals: WeekGoals }, database: LernzeitDB = db) {
   const now = Date.now()

@@ -11,7 +11,7 @@ import { LernzeitDB } from '@/db/db'
 import { seedGerman } from '@/test/fixtures'
 import { handleRequest } from './actions'
 import { connectBridge, type BridgeOptions } from './connection'
-import { BridgeError } from './protocol'
+import { BridgeError } from '@lernzeit/core/protocol'
 import type { BridgeStatus } from './status'
 
 const TOKEN = 'e2e-token'

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { DEFAULT_PORT } from '../../src/bridge/protocol.ts'
+import { DEFAULT_PORT } from '@lernzeit/core/protocol'
 import { readConfig } from './config.ts'
 
 describe('readConfig', () => {

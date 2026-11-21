@@ -1,4 +1,4 @@
-import { DEFAULT_PORT, LOCAL_ORIGINS } from './protocol'
+import { DEFAULT_PORT, LOCAL_ORIGINS } from '@lernzeit/core/protocol'
 
 /** Set by vite.config.ts in dev; empty in builds, which should not carry a local path. */
 declare const __MCP_SERVER_PATH__: string

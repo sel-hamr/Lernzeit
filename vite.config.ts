@@ -102,6 +102,6 @@ export default defineConfig(({ command }) => ({
   },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts', 'bin/**/*.test.ts', 'scripts/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'packages/core/src/**/*.test.ts', 'bin/**/*.test.ts', 'scripts/**/*.test.ts'],
   },
 }))

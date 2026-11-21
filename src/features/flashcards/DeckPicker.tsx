@@ -1,9 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { Check, ChevronDown, Search } from 'lucide-react'
-import { filterByLabel } from '@/lib/tabs'
-import { count } from '@/lib/text'
-import { toggleId } from '@/lib/deckPick'
+import { filterByLabel } from '@lernzeit/core/tabs'
+import { count } from '@lernzeit/core/text'
+import { toggleId } from '@lernzeit/core/deckPick'
 import type { DeckTab } from './DeckMenu'
 
 /** The panel keeps to this width at least, wider than a narrow field. */

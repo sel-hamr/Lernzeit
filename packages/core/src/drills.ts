@@ -1,4 +1,4 @@
-import type { Card, DrillKind, DrillStat, Gender, Tense } from '@/db/types'
+import type { Card, DrillKind, DrillStat, Gender, Tense } from './types'
 import { checkAnswer, diffChars, type CheckResult } from './answer'
 import { formsOf, isImpersonal, PERSONS, TENSES, type Person } from './conjugation'
 import { splitArticle } from './german'

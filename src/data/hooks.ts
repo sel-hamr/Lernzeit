@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, DEFAULT_SETTINGS, KV_KEYS } from '@/db/db'
-import type { ActiveTimer, Card, CardReview, Deck, Doc, DocFolder, DrillStat, ExerciseStat, GrammarTopic, ImageFit, PracticeRun, Question, QuestionResponse, ReviewLog, Session, Settings, Story, Task, Topic } from '@/db/types'
-import { buildQueue, usageToday } from '@/lib/queue'
+import type { ActiveTimer, Card, CardReview, Deck, Doc, DocFolder, DrillStat, ExerciseStat, GrammarTopic, ImageFit, PracticeRun, Question, QuestionResponse, ReviewLog, Session, Settings, Story, Task, Topic } from '@lernzeit/core/types'
+import { buildQueue, usageToday } from '@lernzeit/core/queue'
 import { onVoicesChanged, voicesFor } from '@/lib/speech'
-import { dateKey, nextMidnightMs } from '@/lib/time'
+import { dateKey, nextMidnightMs } from '@lernzeit/core/time'
 import { hasLearningData, LANGUAGE, type Language } from './languages'
 import type { PendingNote } from './timer'
 

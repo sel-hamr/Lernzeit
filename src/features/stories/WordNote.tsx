@@ -3,9 +3,9 @@ import clsx from 'clsx'
 import { Lightbulb, Volume2 } from 'lucide-react'
 import { useLanguage, useLearningText, useNativeText } from '@/data/hooks'
 import { Inline } from '@/features/grammar/RuleText'
-import { GENDER_LABEL } from '@/lib/german'
-import { lookupKey } from '@/lib/reader'
-import { baseFormText, type StoryWordMatch } from '@/lib/storyWords'
+import { GENDER_LABEL } from '@lernzeit/core/german'
+import { lookupKey } from '@lernzeit/core/reader'
+import { baseFormText, type StoryWordMatch } from '@lernzeit/core/storyWords'
 
 function Speaker({ label, size, onClick }: { label: string; size: 'md' | 'sm'; onClick: () => void }) {
   return (

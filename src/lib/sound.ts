@@ -1,4 +1,4 @@
-import type { EndSound } from '@/db/types'
+import type { EndSound } from '@lernzeit/core/types'
 
 /** Synthesised end-of-session sounds, so no audio files are needed offline. */
 

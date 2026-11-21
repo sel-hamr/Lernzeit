@@ -1,5 +1,5 @@
 import { db, newId, type LernzeitDB } from '@/db/db'
-import type { Task, TaskStatus } from '@/db/types'
+import type { Task, TaskStatus } from '@lernzeit/core/types'
 
 export const STATUSES: TaskStatus[] = ['backlog', 'todo', 'doing', 'done']
 export const STATUS_LABEL: Record<TaskStatus, string> = {

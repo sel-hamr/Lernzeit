@@ -1,5 +1,5 @@
 import type { ChipTone } from '@/components/ui/primitives'
-import type { Coverage } from '@/lib/reader'
+import type { Coverage } from '@lernzeit/core/reader'
 
 export function percent(part: number, total: number): number {
   return total ? Math.round((part / total) * 100) : 0

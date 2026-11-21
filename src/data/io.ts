@@ -1,10 +1,10 @@
 import Papa from 'papaparse'
 import { db, getSettings, KV_KEYS, newId, type LernzeitDB } from '@/db/db'
-import type { Card, CardType, Conjugation, Deck, DeckDirections, Doc, DocFolder, DrillStat, ExerciseStat, Gender, GrammarTopic, KV, PracticeRun, Question, QuestionResponse, ReviewLog, Session, Settings, StoredImage, Story, Task, Topic, CardReview } from '@/db/types'
-import { cleanConjugation } from '@/lib/conjugation'
-import { splitArticle } from '@/lib/german'
+import type { Card, CardType, Conjugation, Deck, DeckDirections, Doc, DocFolder, DrillStat, ExerciseStat, Gender, GrammarTopic, KV, PracticeRun, Question, QuestionResponse, ReviewLog, Session, Settings, StoredImage, Story, Task, Topic, CardReview } from '@lernzeit/core/types'
+import { cleanConjugation } from '@lernzeit/core/conjugation'
+import { splitArticle } from '@lernzeit/core/german'
 import { blobToDataUrl, dataUrlToBlob } from '@/lib/image'
-import { directionsFor, newReview } from '@/lib/srs'
+import { directionsFor, newReview } from '@lernzeit/core/srs'
 
 /* ---------------------------------------------------------------- CSV ---- */
 
