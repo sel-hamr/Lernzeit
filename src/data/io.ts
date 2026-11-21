@@ -1,4 +1,5 @@
 import Papa from 'papaparse'
+import { splitSettings } from '@lernzeit/core/sync'
 import { db, getSettings, KV_KEYS, newId, type LernzeitDB } from '@/db/db'
 import type { Card, CardType, Conjugation, Deck, DeckDirections, Doc, DocFolder, DrillStat, ExerciseStat, Gender, GrammarTopic, KV, PracticeRun, Question, QuestionResponse, ReviewLog, Session, Settings, StoredImage, Story, Task, Topic, CardReview } from '@lernzeit/core/types'
 import { cleanConjugation } from '@lernzeit/core/conjugation'
@@ -461,7 +462,11 @@ export async function restoreBackup(raw: unknown, database: LernzeitDB = db): Pr
     await database.docs.bulkAdd(backup.docs ?? [])
     await database.images.bulkAdd(images)
     const kv: KV[] = [{ key: KV_KEYS.seeded, value: Date.now() }]
-    if (backup.settings) kv.push({ key: KV_KEYS.settings, value: backup.settings })
+    if (backup.settings) {
+      const { shared, device } = splitSettings(backup.settings)
+      kv.push({ key: KV_KEYS.settings, value: shared })
+      if (Object.keys(device).length) kv.push({ key: KV_KEYS.deviceSettings, value: device })
+    }
     if (bridge) kv.push(bridge)
     await database.kv.bulkAdd(kv)
   })

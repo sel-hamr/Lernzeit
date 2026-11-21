@@ -1,3 +1,4 @@
+import { getDeviceId } from '@/sync/device'
 import { db, getActiveTimer, getSettings, KV_KEYS, newId, type LernzeitDB } from '@/db/db'
 import type { ActiveTimer, Session, SessionSource, TimerMode } from '@lernzeit/core/types'
 import { splitAtMidnight } from '@lernzeit/core/sessions'
@@ -60,6 +61,7 @@ export async function startTimer(
   database: LernzeitDB = db,
 ): Promise<void> {
   const settings = await getSettings(database)
+  const deviceId = await getDeviceId(database)
   await database.transaction('rw', timerTables(database), async () => {
     const existing = await getActiveTimer(database)
     if (existing) await finishRun(database, existing, Date.now())
@@ -76,6 +78,7 @@ export async function startTimer(
       cycle: 1,
       firstStartedAt: now,
       note: '',
+      deviceId,
     }
     await writeTimer(database, timer)
   })

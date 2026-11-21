@@ -58,6 +58,8 @@ export interface ActiveTimer {
   /** When the whole run began, for the page subtitle. */
   firstStartedAt: number
   note: string
+  /** The device that started the run; only it ends phases and rings. Missing on timers from before. */
+  deviceId?: string
 }
 
 /**

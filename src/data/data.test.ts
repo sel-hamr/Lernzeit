@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { getActiveTimer, KV_KEYS, LernzeitDB } from '@/db/db'
+import { getActiveTimer, getSettings, KV_KEYS, LernzeitDB, updateSettings } from '@/db/db'
+import { getDeviceId } from '@/sync/device'
 import { seedGerman } from '@/test/fixtures'
 import { loadPack, packLevels } from '@/languages'
 import { addStarterContent, addStarterConjugations, installLevels, syncStarterTopics } from './languages'
@@ -137,6 +138,43 @@ describe('card packs', () => {
     })
     await writeCardPack(await prepareCardPack(pack), {}, database)
     expect((await database.cards.get('v-1'))?.conjugation).toEqual({ present: 'schwimme, schwimmst, schwimmt, schwimmen, schwimmt, schwimmen' })
+  })
+})
+
+describe('device settings', () => {
+  it('keeps theme and voice in deviceSettings, away from the synced settings', async () => {
+    await updateSettings({ theme: 'dark', pomodoroFocus: 40 }, database)
+    expect((await database.kv.get(KV_KEYS.deviceSettings))?.value).toEqual({ theme: 'dark' })
+    expect((await database.kv.get(KV_KEYS.settings))?.value).toMatchObject({ pomodoroFocus: 40 })
+    expect((await database.kv.get(KV_KEYS.settings))?.value).not.toHaveProperty('theme')
+    expect(await getSettings(database)).toMatchObject({ theme: 'dark', pomodoroFocus: 40 })
+  })
+
+  it('reads device settings from the old settings row until deviceSettings exists', async () => {
+    await database.kv.put({ key: KV_KEYS.settings, value: { theme: 'dark', speechRate: 1.2 } })
+    expect(await getSettings(database)).toMatchObject({ theme: 'dark', speechRate: 1.2 })
+    await updateSettings({ theme: 'light' }, database)
+    expect(await getSettings(database)).toMatchObject({ theme: 'light', speechRate: 1.2 })
+  })
+
+  it('gives every concurrent first call the same device id', async () => {
+    const ids = await Promise.all([getDeviceId(database), getDeviceId(database), getDeviceId(database)])
+    expect(new Set(ids).size).toBe(1)
+    expect(await getDeviceId(database)).toBe(ids[0])
+  })
+
+  it('marks a new timer with the device that started it', async () => {
+    await startTimer({ topicId: await germanId(), mode: 'free' }, database)
+    expect((await getActiveTimer(database))?.deviceId).toBe(await getDeviceId(database))
+  })
+
+  it('saves the same session ids when another device stops the run', async () => {
+    await startTimer({ topicId: await germanId(), mode: 'free' }, database)
+    const timer = (await getActiveTimer(database))!
+    await database.kv.put({ key: KV_KEYS.activeTimer, value: { ...timer, deviceId: 'phone' } })
+    vi.setSystemTime(at(2026, 10, 14, 14, 32))
+    await stopTimer(database)
+    expect((await database.sessions.toArray()).map((s) => s.id)).toEqual([`${timer.runId}:${timer.cycle}:0`])
   })
 })
 

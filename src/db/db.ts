@@ -1,4 +1,4 @@
-import Dexie, { type EntityTable } from 'dexie'
+import Dexie, { type EntityTable, type Table } from 'dexie'
 import type {
   ActiveTimer,
   Card,
@@ -22,6 +22,20 @@ import type {
   Task,
   Topic,
 } from '@lernzeit/core/types'
+import { splitSettings } from '@lernzeit/core/sync'
+
+/** A row changed locally and not yet sent to the cloud. */
+export interface OutboxEntry {
+  tbl: string
+  id: string
+  at: number
+}
+
+/** Bookkeeping for this device: its id, sync cursors. */
+export interface MetaRow {
+  key: string
+  value: unknown
+}
 
 export class LernzeitDB extends Dexie {
   topics!: EntityTable<Topic, 'id'>
@@ -43,6 +57,8 @@ export class LernzeitDB extends Dexie {
   docFolders!: EntityTable<DocFolder, 'id'>
   docs!: EntityTable<Doc, 'id'>
   kv!: EntityTable<KV, 'key'>
+  outbox!: Table<OutboxEntry, [string, string]>
+  meta!: EntityTable<MetaRow, 'key'>
 
   constructor(name = 'lernzeit') {
     super(name)
@@ -82,6 +98,10 @@ export class LernzeitDB extends Dexie {
       docFolders: 'id, parentId',
       docs: 'id, folderId, openedAt, updatedAt, *tags',
     })
+    this.version(9).stores({
+      outbox: '[tbl+id], at',
+      meta: 'key',
+    })
   }
 }
 
@@ -110,6 +130,8 @@ export const DEFAULT_SETTINGS: Settings = {
 
 export const KV_KEYS = {
   settings: 'settings',
+  /** Settings that stay on this device: voice, theme, reminders. */
+  deviceSettings: 'deviceSettings',
   activeTimer: 'activeTimer',
   pendingNote: 'pendingNote',
   /** Set by the first-launch German seed from before language packs, and by restoring a backup. */
@@ -124,15 +146,30 @@ export const KV_KEYS = {
   tour: 'tour',
 } as const
 
+/** Defaults, then the shared settings, then this device's own. Old installs kept everything in `settings`, so it still answers for device keys not yet in `deviceSettings`. */
+export function mergeSettings(shared: unknown, device: unknown): Settings {
+  const s = (shared as Partial<Settings> | undefined) ?? {}
+  const d = (device as Partial<Settings> | undefined) ?? {}
+  const legacy = splitSettings(s).device
+  return { ...DEFAULT_SETTINGS, ...s, ...legacy, ...d }
+}
+
 export async function getSettings(database: LernzeitDB = db): Promise<Settings> {
-  const row = await database.kv.get(KV_KEYS.settings)
-  return { ...DEFAULT_SETTINGS, ...((row?.value as Partial<Settings>) ?? {}) }
+  const [shared, device] = await Promise.all([database.kv.get(KV_KEYS.settings), database.kv.get(KV_KEYS.deviceSettings)])
+  return mergeSettings(shared?.value, device?.value)
 }
 
 export async function updateSettings(patch: Partial<Settings>, database: LernzeitDB = db) {
+  const { shared, device } = splitSettings(patch)
   await database.transaction('rw', database.kv, async () => {
-    const current = await getSettings(database)
-    await database.kv.put({ key: KV_KEYS.settings, value: { ...current, ...patch } })
+    if (Object.keys(shared).length) {
+      const row = await database.kv.get(KV_KEYS.settings)
+      await database.kv.put({ key: KV_KEYS.settings, value: { ...(row?.value as object | undefined), ...shared } })
+    }
+    if (Object.keys(device).length) {
+      const row = await database.kv.get(KV_KEYS.deviceSettings)
+      await database.kv.put({ key: KV_KEYS.deviceSettings, value: { ...(row?.value as object | undefined), ...device } })
+    }
   })
 }
 

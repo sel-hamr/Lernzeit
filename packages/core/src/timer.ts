@@ -55,3 +55,8 @@ export function studiedMinutes(timer: ActiveTimer, now: number): number {
   const elapsed = elapsedMs(timer, now)
   return (length === undefined ? elapsed : Math.min(elapsed, length)) / MINUTE
 }
+
+/** Only the device that started a timer ends its phases and makes noise. Older timers belong to every device. */
+export function ownsTimer(timer: ActiveTimer, deviceId: string): boolean {
+  return !timer.deviceId || timer.deviceId === deviceId
+}

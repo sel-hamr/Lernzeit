@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, DEFAULT_SETTINGS, KV_KEYS } from '@/db/db'
-import type { Settings } from '@lernzeit/core/types'
+import { db, KV_KEYS, mergeSettings } from '@/db/db'
+import { getDeviceId } from '@/sync/device'
 import { storage } from '@/lib/browser'
 import { Dialog } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
@@ -17,7 +17,7 @@ import { completePhase, resolvePendingNote } from '@/data/timer'
 import { showNotification } from '@/lib/notify'
 import { playEndSound } from '@/lib/sound'
 import { formatHM, formatMinutesShort, formatTimer, parseTimeOfDay } from '@lernzeit/core/time'
-import { elapsedMs, isPaused, isPhaseComplete, phaseEndAt, remainingMs } from '@lernzeit/core/timer'
+import { elapsedMs, isPaused, isPhaseComplete, ownsTimer, phaseEndAt, remainingMs } from '@lernzeit/core/timer'
 
 /**
  * Watches the running timer. Phases end by timestamp, so this also catches up
@@ -28,9 +28,14 @@ export function TimerEngine() {
   const settings = useSettings()
   const topics = useTopics(true)
   const busy = useRef(false)
+  const [deviceId, setDeviceId] = useState<string>()
+  useEffect(() => {
+    void getDeviceId().then(setDeviceId)
+  }, [])
 
   useEffect(() => {
-    if (!timer) return
+    // Another device's timer is shown but never ended or announced here.
+    if (!timer || !deviceId || !ownsTimer(timer, deviceId)) return
     const topicName = topics.find((t) => t.id === timer.topicId)?.name ?? 'Study'
 
     const check = async () => {
@@ -65,7 +70,7 @@ export function TimerEngine() {
       if (exact) clearTimeout(exact)
       document.removeEventListener('visibilitychange', check)
     }
-  }, [timer, settings.endSound, topics])
+  }, [timer, deviceId, settings.endSound, topics])
 
   // Show the countdown in the browser tab title.
   useEffect(() => {
@@ -157,8 +162,8 @@ export function BridgeEngine() {
 /** Applies the theme preference and remembers it for the pre-paint script. */
 export function ThemeSync() {
   // null while loading: keep the theme the pre-paint script chose until the real setting arrives.
-  const row = useLiveQuery(() => db.kv.get(KV_KEYS.settings), [], null)
-  const theme = row === null ? null : ((row?.value as Partial<Settings> | undefined)?.theme ?? DEFAULT_SETTINGS.theme)
+  const rows = useLiveQuery(() => db.kv.bulkGet([KV_KEYS.settings, KV_KEYS.deviceSettings]), [], null)
+  const theme = rows === null ? null : mergeSettings(rows[0]?.value, rows[1]?.value).theme
   useEffect(() => {
     if (!theme) return
     const media = window.matchMedia('(prefers-color-scheme: dark)')
