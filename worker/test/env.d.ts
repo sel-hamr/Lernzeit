@@ -1,4 +1,4 @@
-import type { D1Migration } from '@cloudflare/vitest-pool-workers'
+import type { D1Migration } from '@cloudflare/vitest-plugin'
 import type { Env as WorkerEnv } from '../src/env.ts'
 
 // `env` from cloudflare:workers is typed by the global Cloudflare.Env: give it the Worker's bindings

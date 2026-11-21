@@ -1,9 +1,10 @@
 {
-  // Test-only config (the date is older than the root one: the test runtime bundles an older workerd): the same Worker and D1 binding as the root wrangler.jsonc, without static assets,
+  // Test-only config (nodejs_compat is for the test runner itself): the same Worker and D1 binding as the root wrangler.jsonc, without static assets,
   // so the tests do not need a built dist/. The id is a dummy; tests use a local in-memory database.
   "name": "lernzeit-test",
   "main": "src/index.ts",
-  "compatibility_date": "2026-08-01",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
   "d1_databases": [
     { "binding": "DB", "database_name": "lernzeit", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
   ]
