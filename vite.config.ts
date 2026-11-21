@@ -42,6 +42,21 @@ function cloudProxy(mode: string) {
   return { '/api': { target, changeOrigin: true } }
 }
 
+/**
+ * Navigations the service worker leaves to the network instead of answering them with the cached
+ * index.html: every path wrangler.jsonc sends to the Worker first (`run_worker_first`). Without
+ * them, a browser with the app installed would show the app where Claude opens the password page.
+ * Workbox tests each pattern against the path and query.
+ */
+export const NAVIGATE_FALLBACK_DENYLIST = [
+  /^\/api\//,
+  /^\/mcp(?:[/?]|$)/,
+  /^\/authorize(?:[/?]|$)/,
+  /^\/token(?:[/?]|$)/,
+  /^\/register(?:[/?]|$)/,
+  /^\/\.well-known\//,
+]
+
 export default defineConfig(({ mode }) => ({
   server: { proxy: cloudProxy(mode) },
   preview: { proxy: cloudProxy(mode) },
@@ -74,8 +89,7 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallback: '/index.html',
-        // The cloud's API is never answered with the app page.
-        navigateFallbackDenylist: [/^\/api\//],
+        navigateFallbackDenylist: NAVIGATE_FALLBACK_DENYLIST,
         // The Thorsten voice runtime (about 33 MB) is cached on first use, not at install,
         // so only people who turn the voice on download it. File names are hashed.
         runtimeCaching: [
@@ -110,6 +124,6 @@ export default defineConfig(({ mode }) => ({
   },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts', 'packages/core/src/**/*.test.ts', 'bin/**/*.test.ts', 'scripts/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'packages/core/src/**/*.test.ts', 'bin/**/*.test.ts', 'scripts/**/*.test.ts', 'vite.config.test.ts'],
   },
 }))
