@@ -3,6 +3,7 @@ import { SELF } from 'cloudflare:test'
 import { env } from 'cloudflare:workers'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { oauthOptions } from '../src/index.ts'
+import { DEFAULT_REDIRECT_HOSTS, redirectAllowed, redirectHosts } from '../src/redirects.ts'
 import { EMAIL, PASSWORD, clearSyncData, deviceToken, freshIp, login, seedOwner, sessionCookie } from './helpers.ts'
 
 const ORIGIN = 'https://x'
@@ -46,28 +47,33 @@ async function pkce(): Promise<{ verifier: string; challenge: string }> {
   return { verifier, challenge }
 }
 
-/** Registers a public client the way Claude does (RFC 7591) and returns its id. */
-async function register(name = 'Claude'): Promise<string> {
-  const response = await SELF.fetch(`${ORIGIN}/register`, {
+/** Sends a registration for a public client the way Claude does (RFC 7591). */
+function registerRequest(redirects: string[], ip = freshIp(), name = 'Claude'): Promise<Response> {
+  return SELF.fetch(`${ORIGIN}/register`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': ip },
     body: JSON.stringify({
       client_name: name,
-      redirect_uris: [REDIRECT],
+      redirect_uris: redirects,
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],
       token_endpoint_auth_method: 'none',
     }),
   })
+}
+
+/** Registers a public client and returns its id. */
+async function register(name = 'Claude', redirect = REDIRECT): Promise<string> {
+  const response = await registerRequest([redirect], freshIp(), name)
   expect(response.status).toBe(201)
   return (await response.json<{ client_id: string }>()).client_id
 }
 
-function authorizeUrl(clientId: string, challenge: string, state = 'state-123'): string {
+function authorizeUrl(clientId: string, challenge: string, state = 'state-123', redirect = REDIRECT): string {
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: clientId,
-    redirect_uri: REDIRECT,
+    redirect_uri: redirect,
     scope: 'lernzeit',
     state,
     code_challenge: challenge,
@@ -88,9 +94,11 @@ class Browser {
   jar = new CookieJar()
   handle = ''
   html = ''
+  /** Where the page is opened from, for the authorize page's own limit. */
+  ip = freshIp()
 
   async open(url: string): Promise<Response> {
-    const response = await SELF.fetch(url, { headers: { Cookie: this.jar.header }, redirect: 'manual' })
+    const response = await SELF.fetch(url, { headers: { Cookie: this.jar.header, 'CF-Connecting-IP': this.ip }, redirect: 'manual' })
     this.jar.take(response)
     this.html = await response.text()
     if (response.status === 200) this.handle = handleIn(this.html)
@@ -131,15 +139,17 @@ interface Tokens {
 }
 
 /** Registers a client, allows it with the owner's password and returns its tokens. */
-async function connect(name = 'Claude'): Promise<{ clientId: string; tokens: Tokens }> {
-  const clientId = await register(name)
+async function connect(name = 'Claude', redirect = REDIRECT): Promise<{ clientId: string; tokens: Tokens }> {
+  const clientId = await register(name, redirect)
   const { verifier, challenge } = await pkce()
   const browser = new Browser()
-  await browser.open(authorizeUrl(clientId, challenge))
+  await browser.open(authorizeUrl(clientId, challenge, 'state-123', redirect))
   const allowed = await browser.allow(PASSWORD)
   expect(allowed.status).toBe(302)
-  const code = new URL(allowed.headers.get('Location')!).searchParams.get('code')!
-  const response = await exchange({ grant_type: 'authorization_code', code, redirect_uri: REDIRECT, client_id: clientId, code_verifier: verifier, resource: RESOURCE })
+  const location = new URL(allowed.headers.get('Location')!)
+  expect(`${location.origin}${location.pathname}`).toBe(redirect)
+  const code = location.searchParams.get('code')!
+  const response = await exchange({ grant_type: 'authorization_code', code, redirect_uri: redirect, client_id: clientId, code_verifier: verifier, resource: RESOURCE })
   expect(response.status).toBe(200)
   return { clientId, tokens: await response.json<Tokens>() }
 }
@@ -230,7 +240,7 @@ describe('the authorize page', () => {
   })
 
   it('shows an error, and does not redirect, for an unknown client', async () => {
-    const response = await SELF.fetch(authorizeUrl('no-such-client', (await pkce()).challenge), { redirect: 'manual' })
+    const response = await SELF.fetch(authorizeUrl('no-such-client', (await pkce()).challenge), { headers: { 'CF-Connecting-IP': freshIp() }, redirect: 'manual' })
     expect(response.status).toBe(400)
     expect(response.headers.get('Location')).toBeNull()
     expect(response.headers.get('X-Frame-Options')).toBe('DENY')
@@ -386,6 +396,101 @@ describe('connecting Claude', () => {
     await env.DB.prepare('UPDATE owner SET created_at = created_at + 1').run()
     const { tokens } = await connect()
     expect((await mcp('tools/list', tokens.access_token)).status).toBe(200)
+  })
+})
+
+describe('redirect hosts', () => {
+  it.each([
+    'https://claude.ai/api/mcp/auth_callback',
+    'https://claude.com/api/mcp/auth_callback',
+    'http://localhost:33418/callback',
+    'http://127.0.0.1:5173/cb',
+    'http://[::1]:8000/cb',
+    'https://localhost/cb',
+  ])('registers and connects a client that calls back to %s', async (redirect) => {
+    const { tokens } = await connect('Claude', redirect)
+    expect((await mcp('tools/list', tokens.access_token)).status).toBe(200)
+  })
+
+  it.each([
+    'https://claude.ai.evil.com/cb',
+    'https://evilclaude.ai/cb',
+    'https://evil.com/cb',
+    'http://claude.ai/cb',
+    'https://claude.ai@evil.com/cb',
+    'https://sub.claude.ai/cb',
+    'http://localhost.evil.com/cb',
+    'http://127.0.0.2/cb',
+  ])('refuses to register a client that calls back to %s', async (redirect) => {
+    const response = await registerRequest([redirect])
+    expect(response.status).toBe(400)
+    const body = await response.json<{ error: string; error_description: string }>()
+    // Remote http and userinfo are already refused by the provider's own rules, before Lernzeit's list.
+    if (body.error === 'invalid_client_metadata') expect(body.error_description).toMatch(/redirect/i)
+    else {
+      expect(body.error).toBe('invalid_redirect_uri')
+      expect(body.error_description).toMatch(/does not send access to .*Allowed: https on claude\.ai, claude\.com/)
+    }
+  })
+
+  it('refuses a registration when any one of its redirect URIs is not allowed', async () => {
+    expect((await registerRequest([REDIRECT, 'https://evil.com/cb'])).status).toBe(400)
+  })
+
+  it('the authorize page refuses a client stored with another redirect host, and does not redirect there', async () => {
+    // A client made outside /register, as one from before the allowlist would be.
+    const client = await getOAuthApi(oauthOptions(ORIGIN), env).createClient({ clientName: 'Old', redirectUris: ['https://evil.com/cb'], tokenEndpointAuthMethod: 'none' })
+    const before = (await env.OAUTH_KV.list({ prefix: 'transaction:' })).keys.length
+    const response = await SELF.fetch(authorizeUrl(client.clientId, (await pkce()).challenge, 's', 'https://evil.com/cb'), {
+      headers: { 'CF-Connecting-IP': freshIp() },
+      redirect: 'manual',
+    })
+    expect(response.status).toBe(400)
+    expect(response.headers.get('Location')).toBeNull()
+    const html = await response.text()
+    expect(html).toContain('evil.com')
+    expect(html).not.toMatch(/name="password"/)
+    expect((await env.OAUTH_KV.list({ prefix: 'transaction:' })).keys.length).toBe(before)
+  })
+
+  it('reads the allowlist from OAUTH_REDIRECT_HOSTS', () => {
+    const hosts = redirectHosts(' Example.org , localhost ')
+    expect(hosts).toEqual(['example.org', 'localhost'])
+    expect(redirectAllowed('https://example.org/cb', hosts)).toBe(true)
+    expect(redirectAllowed('https://claude.ai/cb', hosts)).toBe(false)
+    expect(redirectAllowed('http://example.org/cb', hosts)).toBe(false)
+    expect(redirectAllowed('http://localhost:9/cb', hosts)).toBe(true)
+    expect(redirectHosts(undefined)).toEqual(redirectHosts(DEFAULT_REDIRECT_HOSTS))
+    expect(redirectHosts(' , ')).toEqual(redirectHosts(DEFAULT_REDIRECT_HOSTS))
+  })
+})
+
+describe('OAuth rate limits', () => {
+  it('the 11th registration from one address in an hour is a 429, before anything is stored', async () => {
+    const ip = freshIp()
+    for (let n = 1; n <= 10; n++) expect((await registerRequest([REDIRECT], ip)).status).toBe(201)
+    const before = (await env.OAUTH_KV.list()).keys.length
+    const refused = await registerRequest([REDIRECT], ip)
+    expect(refused.status).toBe(429)
+    expect((await refused.json<{ error_description: string }>()).error_description).toMatch(/Try again in an hour/)
+    expect((await env.OAUTH_KV.list()).keys.length).toBe(before)
+    // Another address is not affected.
+    expect((await registerRequest([REDIRECT])).status).toBe(201)
+  })
+
+  it('the 31st opening of the authorize page from one address in 15 minutes is a 429, before anything is stored', async () => {
+    const clientId = await register()
+    const { challenge } = await pkce()
+    const browser = new Browser()
+    for (let n = 1; n <= 30; n++) expect((await browser.open(authorizeUrl(clientId, challenge))).status).toBe(200)
+    const before = (await env.OAUTH_KV.list()).keys.length
+    const refused = await browser.open(authorizeUrl(clientId, challenge))
+    expect(refused.status).toBe(429)
+    expect(browser.html).toContain('Too many tries from this address. Try again in 15 minutes.')
+    expect(refused.headers.get('X-Frame-Options')).toBe('DENY')
+    expect((await env.OAUTH_KV.list()).keys.length).toBe(before)
+    // Another browser on another address still gets the page.
+    expect((await new Browser().open(authorizeUrl(clientId, challenge))).status).toBe(200)
   })
 })
 

@@ -18,6 +18,8 @@ import { TOO_MANY_ATTEMPTS, checkPassword, clientIp } from './auth.ts'
 import type { AppEnv, Env } from './env.ts'
 import { mcpFetch } from './mcp/handler.ts'
 import { authorizePage, errorPage } from './pages/authorize.ts'
+import { AUTHORIZE_LIMIT, withinLimit } from './rateLimit.ts'
+import { redirectAllowed, redirectHosts } from './redirects.ts'
 
 /** The owner's id in every table, and the OAuth user every grant belongs to. */
 export const OWNER_ID = 'owner'
@@ -80,9 +82,20 @@ authorize.use('/authorize', async (c, next) => {
 })
 
 authorize.get('/authorize', async (c) => {
+  // Each opening writes the request to KV, so the page is limited per address before anything else.
+  if (!(await withinLimit(c.env.DB, AUTHORIZE_LIMIT, clientIp(c.req.raw)))) {
+    const refused = showError('Too many tries from this address. Try again in 15 minutes.', 429)
+    refused.headers.set('Retry-After', '900')
+    return refused
+  }
   const oauth = c.env.OAUTH_PROVIDER
   try {
     const request = await oauth.parseAuthRequest(c.req.raw)
+    // A client stored before the allowlist, or under another one, may still name another host.
+    if (!redirectAllowed(request.redirectUri, redirectHosts(c.env.OAUTH_REDIRECT_HOSTS))) {
+      const host = new URL(request.redirectUri).host
+      return showError(`This app wants access sent to ${host}, which Lernzeit does not allow.`, 400)
+    }
     const details = await oauth.describeConsent(request)
     const consent = await oauth.beginConsent(request)
     return showConsent(details, consent.handle, consent.headers)

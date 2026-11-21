@@ -5,6 +5,8 @@ export interface Env {
   ASSETS: Fetcher
   /** The OAuth provider's store: registered clients, grants and tokens (only their hashes). */
   OAUTH_KV: KVNamespace
+  /** The hosts OAuth clients may redirect to, comma-separated (see redirects.ts); a default when unset. */
+  OAUTH_REDIRECT_HOSTS?: string
   /** Not a binding: the OAuth provider puts its helpers here before it calls the Hono app or /mcp. */
   OAUTH_PROVIDER: OAuthHelpers
 }

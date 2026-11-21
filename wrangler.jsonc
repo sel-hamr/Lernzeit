@@ -8,6 +8,11 @@
   ],
   // The OAuth grants, tokens and registered clients that let Claude use /mcp. The id is set at deploy.
   "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "<set at deploy>" }],
+  "vars": {
+    // Where an OAuth client may send access back to, comma-separated: exact hostnames over https,
+    // plus localhost, 127.0.0.1 and [::1] over http or https on any port (worker/src/redirects.ts).
+    "OAUTH_REDIRECT_HOSTS": "claude.ai,claude.com,localhost,127.0.0.1,[::1]"
+  },
   "assets": {
     "binding": "ASSETS",
     // The API, the MCP endpoint and the OAuth routes run the Worker first; every other request is
