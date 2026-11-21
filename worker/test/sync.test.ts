@@ -77,12 +77,12 @@ describe('sync push and pull', () => {
   })
 
   it('an older updatedAt does not replace a newer one; an equal one does', async () => {
-    await push([change('c1', 2000, { v: 'first' })])
-    expect(await push([change('c1', 1999, { v: 'older' })])).toEqual({ applied: 0 })
-    expect((await pull()).changes.map((c) => c.data)).toEqual([{ v: 'first' }])
+    await push([change('c1', 2000, { id: 'c1', v: 'first' })])
+    expect(await push([change('c1', 1999, { id: 'c1', v: 'older' })])).toEqual({ applied: 0 })
+    expect((await pull()).changes.map((c) => c.data)).toEqual([{ id: 'c1', v: 'first' }])
 
-    expect(await push([change('c1', 2000, { v: 'same time' })])).toEqual({ applied: 1 })
-    expect((await pull()).changes.map((c) => c.data)).toEqual([{ v: 'same time' }])
+    expect(await push([change('c1', 2000, { id: 'c1', v: 'same time' })])).toEqual({ applied: 1 })
+    expect((await pull()).changes.map((c) => c.data)).toEqual([{ id: 'c1', v: 'same time' }])
   })
 
   it('a tombstone comes back as deleted with null data', async () => {
@@ -141,15 +141,15 @@ describe('sync push and pull', () => {
     const laptop = await deviceToken('Laptop')
 
     // Newer first, older second.
-    await push([change('x', 2000, { by: 'phone' })], phone)
-    await push([change('x', 1000, { by: 'laptop' })], laptop)
+    await push([change('x', 2000, { id: 'x', by: 'phone' })], phone)
+    await push([change('x', 1000, { id: 'x', by: 'laptop' })], laptop)
     // Older first, newer second.
-    await push([change('y', 1000, { by: 'phone' })], phone)
-    await push([change('y', 2000, { by: 'laptop' })], laptop)
+    await push([change('y', 1000, { id: 'y', by: 'phone' })], phone)
+    await push([change('y', 2000, { id: 'y', by: 'laptop' })], laptop)
 
     const { changes } = await pull()
     const byId = Object.fromEntries(changes.map((c) => [c.id, c.data]))
-    expect(byId).toEqual({ x: { by: 'phone' }, y: { by: 'laptop' } })
+    expect(byId).toEqual({ x: { id: 'x', by: 'phone' }, y: { id: 'y', by: 'laptop' } })
   })
 
   it('synced kv keys are accepted', async () => {
@@ -213,11 +213,11 @@ describe('sync push refuses bad input', () => {
   })
 
   it('a record over MAX_RECORD_BYTES → 400', async () => {
-    await expect400([change('big', 1, { text: 'x'.repeat(1_000_001) })], /big/)
+    await expect400([change('big', 1, { id: 'big', text: 'x'.repeat(1_000_001) })], /big/)
   })
 
   it('a body over MAX_PUSH_BYTES → 413', async () => {
-    const changes = Array.from({ length: 4 }, (_, i) => change(`c${i}`, 1, { text: 'x'.repeat(400_000) }))
+    const changes = Array.from({ length: 4 }, (_, i) => change(`c${i}`, 1, { id: `c${i}`, text: 'x'.repeat(400_000) }))
     const response = await pushRaw(JSON.stringify({ changes }))
     expect(response.status).toBe(413)
     expect((await response.json<{ error: string }>()).error).toMatch(/at most 1500000 bytes/)
@@ -226,7 +226,7 @@ describe('sync push refuses bad input', () => {
 
   it('a push that would overflow what D1 takes in one value → 413', async () => {
     // Quotes are escaped once in the body and twice in what goes to D1.
-    const changes = Array.from({ length: 2 }, (_, i) => change(`c${i}`, 1, '"'.repeat(350_000)))
+    const changes = Array.from({ length: 2 }, (_, i) => change(`c${i}`, 1, { id: `c${i}`, text: '"'.repeat(350_000) }))
     const response = await pushRaw(JSON.stringify({ changes }))
     expect(response.status).toBe(413)
     expect((await response.json<{ error: string }>()).error).toMatch(/fewer changes/)
@@ -312,7 +312,7 @@ describe('sync reset', () => {
     // An existing tombstone is left as it was.
     expect(byId.gone).toEqual(goneBefore)
 
-    await push([change('a', at + 1, { back: true })])
+    await push([change('a', at + 1, { id: 'a', back: true })])
     const after = (await pull()).changes.find((c) => c.id === 'a')!
     expect(after).toMatchObject({ deleted: false, data: { back: true }, updatedAt: at + 1 })
   })
@@ -343,5 +343,28 @@ describe('sync responses', () => {
     expect(bad.status).toBe(400)
     expect(bad.headers.get('Cache-Control')).toBe('no-store')
     expect((await reset()).headers.get('Cache-Control')).toBe('no-store')
+  })
+})
+
+describe('sync push checks that data matches its id', () => {
+  async function refused(changes: unknown[], message: RegExp): Promise<void> {
+    const response = await pushRaw(JSON.stringify({ changes }))
+    expect(response.status).toBe(400)
+    expect((await response.json<{ error: string }>()).error).toMatch(message)
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+    expect((await pull()).changes).toEqual([])
+  }
+
+  it('data that is an array, a string or a number → 400 naming the change', async () => {
+    for (const data of [[], 'x', 5]) await refused([change('ok', 1), change('a', 1, data)], /^Change 1 /)
+  })
+
+  it('data with another id → 400', async () => {
+    await refused([change('a', 1, { id: 'other' })], /^Change 0 .*"a"/)
+    await refused([change('a', 1, { front: 'no id' })], /^Change 0 /)
+  })
+
+  it('a kv value whose key is not the change id → 400', async () => {
+    await refused([{ tbl: 'kv', id: 'settings', data: { key: 'seeded', value: 1 }, updatedAt: 1, deleted: false }], /^Change 0 .*key/)
   })
 })

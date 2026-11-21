@@ -15,42 +15,19 @@
  */
 import { Hono } from 'hono'
 import {
-  MAX_ID_LENGTH,
   MAX_PULL_CHANGES,
   MAX_PUSH_BYTES,
-  MAX_PUSH_CHANGES,
-  MAX_RECORD_BYTES,
-  SYNC_TABLES,
-  isSynced,
   type PullResponse,
   type PulledChange,
   type PushResponse,
   type SyncTable,
 } from '@lernzeit/core/sync'
 import { requireOwner } from './auth.ts'
+import { BUMP_COUNTER, ChangeError, applyChanges, validateChanges } from './changes.ts'
 import type { AppEnv } from './env.ts'
 import { requireJson } from './http.ts'
 
-/**
- * D1 takes strings of at most 2 MB. The push goes to D1 as one JSON string in which each record's
- * data is a JSON string again, so its escapes are escaped twice and it can outgrow the body.
- */
-const D1_MAX_VALUE_BYTES = 2_000_000
-
-const BUMP_COUNTER = 'INSERT INTO counters (owner, seq) VALUES (?1, 1) ON CONFLICT (owner) DO UPDATE SET seq = seq + 1'
 const CURRENT_SEQ = '(SELECT seq FROM counters WHERE owner = ?1)'
-
-const UPSERT_RECORDS = `INSERT INTO records (owner, tbl, id, data, updated_at, deleted, seq)
-SELECT ?1, j.value ->> 'tbl', j.value ->> 'id', j.value ->> 'data', j.value ->> 'updatedAt', j.value ->> 'deleted',
-       ${CURRENT_SEQ}
-FROM json_each(?2) AS j WHERE true
-ON CONFLICT (owner, tbl, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at,
-  deleted = excluded.deleted, seq = excluded.seq
-WHERE excluded.updated_at >= records.updated_at`
-
-/** The bytes of the images this push deleted go with them. */
-const DELETE_TOMBSTONED_BLOBS = `DELETE FROM blobs WHERE owner = ?1 AND id IN (SELECT id FROM records WHERE owner = ?1 AND tbl = 'images'
-  AND deleted = 1 AND seq = ${CURRENT_SEQ})`
 
 const TOMBSTONE_ALL = `UPDATE records SET data = NULL, deleted = 1, updated_at = ?2, seq = ${CURRENT_SEQ}
 WHERE owner = ?1 AND deleted = 0`
@@ -61,57 +38,12 @@ const CURSOR_CHECK = `SELECT ${CURRENT_SEQ} AS counter, (SELECT seq FROM records
 const PULL = `SELECT tbl, id, data, updated_at AS updatedAt, deleted, seq FROM records
 WHERE owner = ?1 AND (seq, tbl, id) > (?2, ?3, ?4) ORDER BY seq, tbl, id LIMIT ?5`
 
-/** A change as statement UPSERT_RECORDS reads it from the JSON array. */
-interface StoredChange {
-  tbl: SyncTable
-  id: string
-  data: string | null
-  updatedAt: number
-  deleted: 0 | 1
-}
-
 type Cursor = [seq: number, tbl: string, id: string]
 const START: Cursor = [0, '', '']
 
-const tables = new Set<string>(SYNC_TABLES)
 const encoder = new TextEncoder()
 
-class BadRequest extends Error {
-  constructor(
-    message: string,
-    readonly status: 400 | 413 = 400,
-  ) {
-    super(message)
-  }
-}
-
-/** The push's changes, checked and ready for D1. Throws BadRequest naming the first bad change. */
-function parseChanges(body: unknown): StoredChange[] {
-  if (typeof body !== 'object' || body === null || !Array.isArray((body as { changes?: unknown }).changes)) {
-    throw new BadRequest('Send { changes: [...] }.')
-  }
-  const changes = (body as { changes: unknown[] }).changes
-  if (changes.length > MAX_PUSH_CHANGES) throw new BadRequest(`Push at most ${MAX_PUSH_CHANGES} changes at a time.`)
-  return changes.map((change, i) => parseChange(change, i))
-}
-
-function parseChange(change: unknown, i: number): StoredChange {
-  const bad = (problem: string) => new BadRequest(`Change ${i} ${problem}`)
-  if (typeof change !== 'object' || change === null || Array.isArray(change)) throw bad('is not an object.')
-  const { tbl, id, data, updatedAt, deleted } = change as Record<string, unknown>
-  if (typeof tbl !== 'string' || !tables.has(tbl)) throw bad(`has an unknown table ${JSON.stringify(tbl)}.`)
-  if (typeof id !== 'string' || id.length === 0 || id.length > MAX_ID_LENGTH) throw bad(`needs an id of 1 to ${MAX_ID_LENGTH} characters.`)
-  if (!isSynced(tbl, id)) throw bad(`is the kv key "${id}", which does not sync.`)
-  if (typeof updatedAt !== 'number' || !Number.isSafeInteger(updatedAt) || updatedAt < 0) {
-    throw bad('needs updatedAt as a whole number of milliseconds, 0 or more.')
-  }
-  if (typeof deleted !== 'boolean') throw bad('needs deleted as true or false.')
-  if (deleted) return { tbl: tbl as SyncTable, id, data: null, updatedAt, deleted: 1 }
-  if (data === undefined || data === null) throw bad('needs data unless it is deleted.')
-  const text = JSON.stringify(data)
-  if (encoder.encode(text).byteLength > MAX_RECORD_BYTES) throw bad(`(${tbl}/${id}) is over ${MAX_RECORD_BYTES} bytes.`)
-  return { tbl: tbl as SyncTable, id, data: text, updatedAt, deleted: 0 }
-}
+class BadRequest extends Error {}
 
 /** base64url of the JSON of `[seq, tbl, id]`, without padding. */
 function encodeCursor(cursor: Cursor): string {
@@ -150,7 +82,8 @@ export const sync = new Hono<AppEnv>()
 sync.use('*', requireOwner)
 
 sync.onError((error, c) => {
-  if (error instanceof BadRequest) return c.json({ error: error.message }, error.status)
+  if (error instanceof BadRequest) return c.json({ error: error.message }, 400)
+  if (error instanceof ChangeError) return c.json({ error: error.message }, error.status)
   throw error
 })
 
@@ -166,22 +99,12 @@ sync.post('/push', requireJson, async (c) => {
   } catch {
     throw new BadRequest('That is not valid JSON.')
   }
-  const changes = parseChanges(body)
-  if (changes.length === 0) return c.json({ applied: 0 } satisfies PushResponse)
-
-  const payload = JSON.stringify(changes)
-  if (encoder.encode(payload).byteLength > D1_MAX_VALUE_BYTES) {
-    return c.json({ error: 'That push is too large to store at once. Push fewer changes at a time.' }, 413)
+  if (typeof body !== 'object' || body === null || !Array.isArray((body as { changes?: unknown }).changes)) {
+    throw new BadRequest('Send { changes: [...] }.')
   }
-
-  const db = c.env.DB
-  const owner = c.get('ownerId')
-  const [, upserted] = await db.batch([
-    db.prepare(BUMP_COUNTER).bind(owner),
-    db.prepare(UPSERT_RECORDS).bind(owner, payload),
-    db.prepare(DELETE_TOMBSTONED_BLOBS).bind(owner),
-  ])
-  return c.json({ applied: upserted.meta.changes } satisfies PushResponse)
+  const changes = validateChanges((body as { changes: unknown }).changes)
+  const { applied } = await applyChanges(c.env.DB, c.get('ownerId'), changes)
+  return c.json({ applied } satisfies PushResponse)
 })
 
 sync.get('/pull', async (c) => {

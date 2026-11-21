@@ -12,6 +12,7 @@ import {
   MAX_RECORD_BYTES,
   SYNC_TABLES,
   isSynced,
+  recordId,
   type PullResponse,
   type PulledChange,
   type SyncChange,
@@ -204,6 +205,11 @@ export function createTestServer(): TestServer {
       const { tbl, id, data, updatedAt, deleted } = change as Record<string, unknown>
       if (typeof tbl !== 'string' || !tables.has(tbl) || typeof id !== 'string' || !isSynced(tbl, id)) return json({ error: `Change ${i} is not synced.` }, 400)
       if (typeof updatedAt !== 'number' || typeof deleted !== 'boolean' || (!deleted && data == null)) return json({ error: `Change ${i} is malformed.` }, 400)
+      if (!deleted) {
+        // As the Worker: data is an object that names its own id (a kv row, its key).
+        if (typeof data !== 'object' || data === null || Array.isArray(data)) return json({ error: `Change ${i} needs data as an object.` }, 400)
+        if (recordId(tbl as SyncTable, data) !== id) return json({ error: `Change ${i} has data whose ${tbl === 'kv' ? 'key' : 'id'} is not "${id}".` }, 400)
+      }
       if (!deleted && encoder.encode(JSON.stringify(data)).byteLength > MAX_RECORD_BYTES) {
         return json({ error: `Change ${i} (${tbl}/${id}) is over ${MAX_RECORD_BYTES} bytes.` }, 400)
       }
