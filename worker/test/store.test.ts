@@ -1,8 +1,10 @@
 import { env } from 'cloudflare:workers'
 import type { Library } from '@lernzeit/core/fold'
-import { libraryStoreContract } from '@lernzeit/core/library.contract'
+import type { Filter } from '@lernzeit/core/library'
+import type { SyncTable } from '@lernzeit/core/sync'
+import { libraryStoreContract } from '@lernzeit/core/library.contract.test-utils'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createD1Store } from '../src/store.ts'
+import { createD1Store, whereClause } from '../src/store.ts'
 import { clearSyncData, countingDb, seedLibrary } from './helpers.ts'
 
 let owners = 0
@@ -131,16 +133,16 @@ describe('createD1Store', () => {
       decks: Array.from({ length: 60 }, (_, i) => ({ id: `d${i}`, name: `Deck ${i}` })),
       cards: Array.from({ length: 120 }, (_, i) => ({ id: `c${i}`, deckId: `d${i % 60}` })),
     })
-    const { db, batches } = countingDb()
+    const { db, queries: counted } = countingDb()
     const store = await createD1Store(db, owner)
-    expect(batches()).toBe(1) // the settings
+    expect(counted()).toBe(1) // the settings
 
     const counts = await Promise.all(Array.from({ length: 60 }, (_, i) => store.count('cards', { deckId: `d${i}` })))
     expect(counts).toEqual(Array(60).fill(2))
     const [decks, card] = await Promise.all([store.list('decks'), store.get('cards', 'c7'), store.count('topics')])
     expect(decks).toHaveLength(60)
     expect(card).toEqual({ id: 'c7', deckId: 'd7' })
-    expect(batches()).toBe(3)
+    expect(counted()).toBe(3)
   })
 
   it('fails every read of a batch when D1 fails it', async () => {
@@ -187,5 +189,56 @@ describe('createD1Store time zone', () => {
     store.remove('kv', 'settings')
     await store.commit()
     expect((await createD1Store(env.DB, owner)).timeZone).toBe('UTC')
+  })
+})
+
+describe('the D1 store’s indexes', () => {
+  /** SQLite's plan for a store read: one line per step. */
+  async function plan(select: string, tbl: SyncTable, filter: Filter): Promise<string[]> {
+    const where = whereClause('owner', tbl, filter)
+    const rows = await env.DB.prepare(`EXPLAIN QUERY PLAN ${select} FROM records WHERE ${where.sql}`).bind(...where.params).all<{ detail: string }>()
+    return rows.results.map((row) => row.detail)
+  }
+
+  // Every filter the tool actions read by (packages/core/src/actions), and its index in migrations/0002_json_indexes.sql.
+  const indexed: [SyncTable, string, string][] = [
+    ['cards', 'deckId', 'records_cards_deck_id'],
+    ['cards', 'imageId', 'records_cards_image_id'],
+    ['reviews', 'cardId', 'records_reviews_card_id'],
+    ['reviewLogs', 'cardId', 'records_review_logs_card_id'],
+    ['drillStats', 'cardId', 'records_drill_stats_card_id'],
+    ['docFolders', 'parentId', 'records_doc_folders_parent_id'],
+    ['docs', 'folderId', 'records_docs_folder_id'],
+    ['tasks', 'status', 'records_tasks_status'],
+  ]
+
+  it('looks a filtered read up in its index instead of scanning the table', async () => {
+    for (const [tbl, field, index] of indexed) {
+      for (const select of ['SELECT data', 'SELECT COUNT(*) AS n']) {
+        for (const value of ['x', null]) {
+          const steps = await plan(select, tbl, { [field]: value })
+          expect(steps, `${select} ${tbl}.${field} = ${value}`).toEqual([`SEARCH records USING INDEX ${index} (owner=? AND <expr>=?)`])
+        }
+      }
+    }
+  })
+
+  it('shows the plan for a card’s reviews', async () => {
+    expect(await plan('SELECT data', 'reviews', { cardId: 'c1' })).toEqual(['SEARCH records USING INDEX records_reviews_card_id (owner=? AND <expr>=?)'])
+  })
+
+  it('refuses a table it does not know, as the table goes into the SQL', () => {
+    expect(() => whereClause('owner', "cards' OR 1=1 --" as SyncTable)).toThrow(/table/)
+  })
+})
+
+describe('countingDb', () => {
+  it('counts statements run on their own as well as batches', async () => {
+    const { db, queries } = countingDb()
+    await db.prepare('SELECT 1').first()
+    await db.prepare('SELECT ?1').bind(1).all()
+    await db.prepare('SELECT 1').raw()
+    await db.batch([db.prepare('SELECT 1'), db.prepare('SELECT 2')])
+    expect(queries()).toBe(4)
   })
 })

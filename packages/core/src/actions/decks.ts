@@ -1,4 +1,4 @@
-import type { CreateDeckParams, CreateDeckResult, DeckSummary, DeleteDeckParams, DeleteDeckResult } from '../protocol'
+import { MAX_CARDS_PER_CALL, MAX_DECK_DELETE_CARDS, type CreateDeckParams, type CreateDeckResult, type DeckSummary, type DeleteDeckParams, type DeleteDeckResult } from '../protocol'
 import type { Card, Deck, Topic } from '../types'
 import { deleteUnusedImages, removeProgress } from './cards'
 import { byId, findDeck, findTopic, invalid, key, sortedDecks, type ActionContext } from './shared'
@@ -44,6 +44,12 @@ export async function deleteDeck({ deck: deckRef, cardCount }: DeleteDeckParams,
   if (!Number.isInteger(cardCount) || cardCount < 0) throw invalid('cardCount must be the number of cards in the deck, from list_decks.')
   const deck = await findDeck(ctx, deckRef)
   const cards = await ctx.store.list<Card>('cards', { deckId: deck.id })
+  // One commit stores every tombstone at once, so a call deletes a deck of at most so many cards.
+  if (cards.length > MAX_DECK_DELETE_CARDS) {
+    throw invalid(
+      `"${deck.name}" has ${cards.length} cards, more than delete_deck deletes at once (${MAX_DECK_DELETE_CARDS}). Nothing was deleted. Delete its cards first with delete_cards, up to ${MAX_CARDS_PER_CALL} per call, then delete the deck.`,
+    )
+  }
   if (cards.length !== cardCount) {
     throw invalid(`"${deck.name}" has ${cards.length} ${cards.length === 1 ? 'card' : 'cards'}, not ${cardCount}. Nothing was deleted; tell the user the real number and ask again.`)
   }

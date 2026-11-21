@@ -73,6 +73,23 @@ describe('delete_deck', () => {
     expect(await runAction(store, 'delete_deck', { deck: deck.id, cardCount: 0 })).toEqual({ deck: 'Empty', deletedCards: 0 })
   })
 
+  it('deletes a deck of 500 cards, and refuses a bigger one, saying to empty it with delete_cards first', async () => {
+    const { deck } = await runAction(store, 'create_deck', { name: 'Huge' })
+    const fill = (from: number, to: number) => {
+      for (let i = from; i < to; i++) store.put('cards', { id: `huge-${i}`, deckId: deck.id, type: 'word', german: `W${i}`, english: `w${i}`, tags: [], createdAt: 1, updatedAt: 1 })
+    }
+    fill(0, 501)
+    await store.commit()
+    const before = store.committed.length
+    const error = await expectCode(runAction(store, 'delete_deck', { deck: 'Huge', cardCount: 501 }), 'invalid_input')
+    expect(error.message).toBe('"Huge" has 501 cards, more than delete_deck deletes at once (500). Nothing was deleted. Delete its cards first with delete_cards, up to 100 per call, then delete the deck.')
+    expect(store.committed).toHaveLength(before)
+
+    await runAction(store, 'delete_cards', { deck: 'Huge', cards: ['huge-500'] })
+    expect(await runAction(store, 'delete_deck', { deck: 'Huge', cardCount: 500 })).toEqual({ deck: 'Huge', deletedCards: 500 })
+    expect(await store.count('cards', { deckId: deck.id })).toBe(0)
+  })
+
   it('keeps the deck when cardCount does not match, or is not a count', async () => {
     const before = store.committed.length
     const error = await expectCode(runAction(store, 'delete_deck', { deck: 'Food', cardCount: 1 }), 'invalid_input')

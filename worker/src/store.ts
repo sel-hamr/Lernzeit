@@ -1,30 +1,44 @@
 /**
  * The owner's library in D1, as the AI tools read and write it (`LibraryStore` in core
- * library.ts, whose memory store has the same behaviour; library.contract.ts tests both).
+ * library.ts, whose memory store has the same behaviour; library.contract.test-utils.ts tests both).
  *
  * Reads go to the live `records` rows with the filter compiled to SQL, so a tool reads only the
- * rows it asks for. The reads a tool asks for together (a `Promise.all`, or a handler's reads
- * before its first await) go to D1 as one batch: D1 counts a batch as one query, and a request
- * may make only 50 on the Free plan. Writes are staged, readable at once, and stored by
- * `commit()` through `applyChanges`, the same path a device's push takes: newest `updatedAt`
- * wins, so a browser edit stamped after the tool's write still wins when it is pushed.
+ * rows it asks for; the filters the tools use have partial indexes (migrations/0002_json_indexes.sql).
+ * The reads a tool asks for together (a `Promise.all`, or a handler's reads before its first
+ * await) go to D1 as one batch. The design relies on D1 counting a batch as one query against a
+ * request's limit, which is 50 on the Free plan (https://developers.cloudflare.com/d1/platform/limits/),
+ * so a call's query count must not grow with the number of cards it touches.
+ *
+ * Writes are staged, readable at once, and stored by `commit()` through `applyChanges`, the same
+ * path a device's push takes: newest `updatedAt` wins, so a browser edit stamped after the tool's
+ * write still wins when it is pushed.
  */
-import type { Filter, LibraryReader, LibraryStore } from '@lernzeit/core/library'
-import { stageWrites } from '@lernzeit/core/library'
-import { MAX_PUSH_CHANGES, type SyncChange, type SyncTable } from '@lernzeit/core/sync'
+import { checkFilter, stageWrites, type Filter, type LibraryReader, type LibraryStore } from '@lernzeit/core/library'
+import { MAX_PUSH_CHANGES, SYNC_TABLES, type SyncChange, type SyncTable } from '@lernzeit/core/sync'
 import type { Settings } from '@lernzeit/core/types'
 import { applyChanges, validateChanges } from './changes.ts'
 
 /** A filter field goes into the SQL as a JSON path, so it must be a plain name. */
 const FIELD_NAME = /^[A-Za-z][A-Za-z0-9]*$/
 
+const tables = new Set<string>(SYNC_TABLES)
+
 /**
  * The SQL that picks the owner's live rows of `tbl` matching `filter`, with its parameters.
- * `null` matches a missing field too; booleans compare as JSON stores them, as 1 and 0.
+ *
+ * Its text is what the partial indexes of migrations/0002_json_indexes.sql match, so keep the two
+ * in step: the table as a literal (`tbl = 'reviews'`, so SQLite can tell an index's `WHERE tbl =
+ * 'reviews' AND deleted = 0` applies), `deleted = 0`, and each field as `json_extract(data, '$.x')`.
+ *
+ * Each filter value compares with the field's own JSON type: strings and numbers are bound as they
+ * are and booleans as 1 and 0, which is how json_extract returns JSON true and false. `null`
+ * matches a missing field too.
  */
-function whereClause(owner: string, tbl: SyncTable, filter: Filter = {}): { sql: string; params: (string | number)[] } {
-  const params: (string | number)[] = [owner, tbl]
-  const parts = ['owner = ?1', 'tbl = ?2', 'deleted = 0']
+export function whereClause(owner: string, tbl: SyncTable, filter: Filter = {}): { sql: string; params: (string | number)[] } {
+  if (!tables.has(tbl)) throw new Error(`There is no table ${JSON.stringify(tbl)}.`)
+  checkFilter(filter)
+  const params: (string | number)[] = [owner]
+  const parts = ['owner = ?1', `tbl = '${tbl}'`, 'deleted = 0']
   for (const [field, value] of Object.entries(filter)) {
     if (!FIELD_NAME.test(field)) throw new Error(`Cannot filter on the field ${JSON.stringify(field)}: use letters and digits only.`)
     const path = `json_extract(data, '$.${field}')`

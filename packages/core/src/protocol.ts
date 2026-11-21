@@ -10,6 +10,8 @@ import type { CardType, Conjugation, DocStatus, Gender, Priority, StoryLevel, St
 export const PROTOCOL_VERSION = 1
 export const DEFAULT_PORT = 47821
 export const MAX_CARDS_PER_CALL = 100
+/** Most cards delete_deck deletes with the deck. A bigger deck is emptied with delete_cards first. */
+export const MAX_DECK_DELETE_CARDS = 500
 /** Most cards list_cards returns at once; `offset` pages through the rest. */
 export const MAX_CARDS_PER_LIST = 200
 export const MAX_STUDY_MINUTES = 12 * 60

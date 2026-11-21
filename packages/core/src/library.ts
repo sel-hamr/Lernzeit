@@ -6,8 +6,22 @@
 import type { Library } from './fold'
 import { recordId, type SyncChange, type SyncTable } from './sync'
 
-/** Equality on top-level JSON fields. `null` also matches a field that is missing. */
+/**
+ * Equality on top-level JSON fields, each compared with a value of the field's own type: a
+ * boolean field with true or false, a number with a number (`'0'` does not match 0). `null` also
+ * matches a field that is missing. A value of any other kind, `undefined` included, is refused.
+ */
 export type Filter = Record<string, string | number | boolean | null>
+
+/** Throws when a filter value is not a string, number, boolean or null (say `undefined`). */
+export function checkFilter(filter?: Filter): void {
+  for (const [field, value] of Object.entries(filter ?? {})) {
+    const kind = typeof value
+    if (value !== null && kind !== 'string' && kind !== 'number' && kind !== 'boolean') {
+      throw new Error(`Cannot filter "${field}" on ${value === undefined ? 'undefined' : `a ${kind}`}: use a string, number, boolean, or null for a missing field.`)
+    }
+  }
+}
 
 export interface LibraryReader {
   /** Live rows, staged writes applied. In no particular order. */
@@ -55,38 +69,51 @@ export function stageWrites(base: LibraryReader): LibraryReader & {
   changes(): StagedChange[]
   clear(): void
 } {
+  // Every change in the order its record was first touched, and the same changes by table, so a
+  // read only looks at the staged rows of its own table.
   const staged = new Map<string, StagedChange>()
+  const byTable = new Map<SyncTable, Map<string, StagedChange>>()
   const keyOf = (tbl: SyncTable, id: string) => `${tbl}\u0000${id}`
-  const touches = (tbl: SyncTable) => [...staged.values()].some((c) => c.tbl === tbl)
+  const stagedIn = (tbl: SyncTable) => byTable.get(tbl)
+  const stage = (change: StagedChange) => {
+    staged.set(keyOf(change.tbl, change.id), change)
+    let table = byTable.get(change.tbl)
+    if (!table) byTable.set(change.tbl, (table = new Map()))
+    table.set(change.id, change)
+  }
 
   async function list<T>(tbl: SyncTable, filter?: Filter): Promise<T[]> {
     const rows = await base.list<T>(tbl, filter)
-    if (!touches(tbl)) return rows
-    const kept = rows.filter((row) => !staged.has(keyOf(tbl, recordId(tbl, row as object))))
-    const fresh = [...staged.values()].filter((c) => c.tbl === tbl && c.data && matchesFilter(c.data, filter)).map((c) => copy<T>(c.data))
+    const table = stagedIn(tbl)
+    if (!table?.size) return rows
+    const kept = rows.filter((row) => !table.has(recordId(tbl, row as object)))
+    const fresh: T[] = []
+    for (const change of table.values()) if (change.data && matchesFilter(change.data, filter)) fresh.push(copy<T>(change.data))
     return [...kept, ...fresh]
   }
 
   return {
     list,
     async get<T>(tbl: SyncTable, id: string): Promise<T | undefined> {
-      const change = staged.get(keyOf(tbl, id))
+      const change = stagedIn(tbl)?.get(id)
       if (change) return change.data ? copy<T>(change.data) : undefined
       return base.get<T>(tbl, id)
     },
     async count(tbl: SyncTable, filter?: Filter): Promise<number> {
-      return touches(tbl) ? (await list(tbl, filter)).length : base.count(tbl, filter)
+      return stagedIn(tbl)?.size ? (await list(tbl, filter)).length : base.count(tbl, filter)
     },
     put(tbl, row) {
       const data = copy<object>(row)
-      const id = recordId(tbl, data)
-      staged.set(keyOf(tbl, id), { tbl, id, data })
+      stage({ tbl, id: recordId(tbl, data), data })
     },
     remove(tbl, id) {
-      staged.set(keyOf(tbl, id), { tbl, id, data: null })
+      stage({ tbl, id, data: null })
     },
     changes: () => [...staged.values()],
-    clear: () => staged.clear(),
+    clear: () => {
+      staged.clear()
+      byTable.clear()
+    },
   }
 }
 
@@ -107,6 +134,7 @@ export function createMemoryStore(seed: Library = {}, options: { timeZone?: stri
 
   const stored: LibraryReader = {
     async list<T>(tbl: SyncTable, filter?: Filter) {
+      checkFilter(filter)
       return [...table(tbl).values()].filter((row) => matchesFilter(row, filter)).map((row) => copy<T>(row))
     },
     async get<T>(tbl: SyncTable, id: string) {
@@ -114,6 +142,7 @@ export function createMemoryStore(seed: Library = {}, options: { timeZone?: stri
       return row ? copy<T>(row) : undefined
     },
     async count(tbl: SyncTable, filter?: Filter) {
+      checkFilter(filter)
       return [...table(tbl).values()].filter((row) => matchesFilter(row, filter)).length
     },
   }

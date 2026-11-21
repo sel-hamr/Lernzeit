@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Library } from './fold'
 import { createMemoryStore } from './library'
-import { libraryStoreContract } from './library.contract'
+import { libraryStoreContract } from './library.contract.test-utils'
 
 libraryStoreContract('the memory store', async (seed: Library) => {
   const store = createMemoryStore(seed)
@@ -74,6 +74,19 @@ describe('createMemoryStore', () => {
       ['kv', 'settings', false],
     ])
     expect(await store.get('kv', 'settings')).toEqual({ key: 'settings', value: 2 })
+  })
+
+  it('commits in the order the records were first touched, across tables', async () => {
+    const store = createMemoryStore()
+    store.put('cards', { id: 'c1', german: 'a' })
+    store.put('decks', { id: 'd1', name: 'D' })
+    store.put('kv', { key: 'settings', value: 1 })
+    store.remove('decks', 'd1')
+    store.put('cards', { id: 'c2', german: 'b' })
+    store.put('cards', { id: 'c1', german: 'c' })
+    await store.commit()
+    expect(store.committed.map((c) => `${c.tbl}/${c.id}/${c.deleted}`)).toEqual(['cards/c1/false', 'decks/d1/true', 'kv/settings/false', 'cards/c2/false'])
+    expect(store.committed[0].data).toEqual({ id: 'c1', german: 'c' })
   })
 
   it('hands out copies, so changing a row does not change the store', async () => {

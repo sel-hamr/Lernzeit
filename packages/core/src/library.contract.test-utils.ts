@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import type { Library } from './fold'
-import type { LibraryReader, LibraryStore } from './library'
+import type { Filter, LibraryReader, LibraryStore } from './library'
 
 export interface OpenedStore {
   store: LibraryStore
@@ -77,6 +77,34 @@ export function libraryStoreContract(name: string, open: OpenStore): void {
       expect(await store.count('cards', { deckId: 'nope' })).toBe(0)
       expect(await store.list('decks', { order: '0' })).toEqual([])
       expect(await store.list('decks', { name: 'one' })).toEqual([])
+    })
+
+    it('refuses a filter value that is undefined or not a plain value', async () => {
+      const { store } = await open(seed())
+      const bad = [{ deckId: undefined }, { deckId: { id: 'd1' } }, { deckId: ['d1'] }] as unknown as Filter[]
+      for (const filter of bad) {
+        await expect(store.list('cards', filter)).rejects.toThrow(/deckId/)
+        await expect(store.count('cards', filter)).rejects.toThrow(/deckId/)
+      }
+      // Also once the table has staged writes, which the overlay reads itself.
+      store.put('cards', { id: 'c9', deckId: 'd1' })
+      await expect(store.list('cards', bad[0])).rejects.toThrow(/undefined/)
+      await expect(store.count('cards', bad[0])).rejects.toThrow(/undefined/)
+    })
+
+    it('commits the last write of each record, whatever came between', async () => {
+      const { store, reopen } = await open(seed())
+      store.put('cards', { id: 'c9', deckId: 'd1', german: 'Baum' })
+      store.remove('decks', 'd2')
+      store.put('cards', { id: 'c9', deckId: 'd2', german: 'Baum' })
+      store.remove('cards', 'c1')
+      store.put('decks', { id: 'd2', name: 'Zwei' })
+      expect(ids(await store.list('cards', { deckId: 'd2' }))).toEqual(['c3', 'c9'])
+      await store.commit()
+      const stored = await reopen()
+      expect(await stored.get('cards', 'c9')).toEqual({ id: 'c9', deckId: 'd2', german: 'Baum' })
+      expect(await stored.get('decks', 'd2')).toEqual({ id: 'd2', name: 'Zwei' })
+      expect(await stored.get('cards', 'c1')).toBeUndefined()
     })
 
     it('reads its staged writes at once, and stores none of them before the commit', async () => {

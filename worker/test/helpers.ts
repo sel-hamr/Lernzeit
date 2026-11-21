@@ -68,15 +68,31 @@ export async function seedLibrary(owner: string, library: Library, updatedAt = 1
   await applyChanges(env.DB, owner, changes)
 }
 
-/** The D1 binding, counting its `batch` calls: D1 counts each batch as one query against a request's limit. */
-export function countingDb(db: D1Database = env.DB): { db: D1Database; batches: () => number } {
-  let batches = 0
+/**
+ * The D1 binding, counting the queries made through it as D1 counts them against a request's
+ * limit: each `batch` is one, and so is each statement run on its own (`first`, `all`, `run`, `raw`).
+ */
+export function countingDb(db: D1Database = env.DB): { db: D1Database; queries: () => number } {
+  let queries = 0
+  const counted = (statement: D1PreparedStatement): D1PreparedStatement => {
+    const methods = statement as unknown as Record<string, (...args: unknown[]) => unknown>
+    for (const method of ['first', 'all', 'run', 'raw']) {
+      const run = methods[method].bind(statement)
+      methods[method] = (...args) => {
+        queries++
+        return run(...args)
+      }
+    }
+    const bind = statement.bind.bind(statement)
+    statement.bind = (...values) => counted(bind(...values))
+    return statement
+  }
   const wrapped = {
-    prepare: (sql: string) => db.prepare(sql),
+    prepare: (sql: string) => counted(db.prepare(sql)),
     batch: (statements: D1PreparedStatement[]) => {
-      batches++
+      queries++
       return db.batch(statements)
     },
   }
-  return { db: wrapped as unknown as D1Database, batches: () => batches }
+  return { db: wrapped as unknown as D1Database, queries: () => queries }
 }

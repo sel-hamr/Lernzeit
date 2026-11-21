@@ -182,9 +182,9 @@ describe('D1 queries per tool call', () => {
   }
 
   async function queries<A extends Parameters<typeof runAction>[1]>(action: A, params: Parameters<typeof runAction<A>>[2]): Promise<number> {
-    const { db, batches } = countingDb()
+    const { db, queries: counted } = countingDb()
     await runAction(await createD1Store(db, OWNER, { now: () => 5000 }), action, params)
-    return batches()
+    return counted()
   }
 
   let cards: { id: string }[]
