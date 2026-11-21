@@ -8,6 +8,7 @@ import { Hono, type Context } from 'hono'
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
 import { createMiddleware } from 'hono/factory'
 import type { AppEnv } from './env.ts'
+import { requireJson } from './http.ts'
 import { PBKDF2_ITERATIONS, verifyPassword, type StoredPassword } from './password.ts'
 
 export const SESSION_COOKIE = 'lz_session'
@@ -40,9 +41,12 @@ interface Session {
 
 /** The token the request carries: a Bearer header (devices) or the session cookie (the web app). */
 function presentedToken(c: Context<AppEnv>): string | undefined {
-  const bearer = /^Bearer\s+(\S+)$/i.exec(c.req.header('Authorization') ?? '')
-  const token = bearer ? bearer[1] : getCookie(c, SESSION_COOKIE)
+  const token = bearerToken(c) ?? getCookie(c, SESSION_COOKIE)
   return token && token.length <= MAX_TOKEN_LENGTH ? token : undefined
+}
+
+function bearerToken(c: Context<AppEnv>): string | undefined {
+  return /^Bearer\s+(\S+)$/i.exec(c.req.header('Authorization') ?? '')?.[1]
 }
 
 /** The owner the request's token belongs to, or null. Marks the token used, at most once an hour. */
@@ -91,18 +95,12 @@ function parseLogin(body: unknown): LoginRequest | null {
 
 export const auth = new Hono<AppEnv>()
 
-// Answers about sign-in, and tokens above all, must never be cached.
-auth.use('*', async (c, next) => {
-  await next()
-  c.header('Cache-Control', 'no-store')
-})
-
 auth.get('/status', async (c) => {
   const session = await findSession(c)
   return c.json(session ? { signedIn: true, email: session.email } : { signedIn: false })
 })
 
-auth.post('/login', async (c) => {
+auth.post('/login', requireJson, async (c) => {
   const login = parseLogin(await c.req.json().catch(() => null))
   if (!login) return c.json({ error: 'Send an email and a password.' }, 400)
 
@@ -153,9 +151,16 @@ auth.post('/login', async (c) => {
   return c.json({ email: owner.email })
 })
 
+// Signs out both the Bearer token and the cookie when a request carries both.
 auth.post('/logout', async (c) => {
-  const token = presentedToken(c)
-  if (token) await c.env.DB.prepare('DELETE FROM auth_tokens WHERE token_hash = ?').bind(await sha256Hex(token)).run()
+  const tokens = new Set<string>()
+  for (const token of [bearerToken(c), getCookie(c, SESSION_COOKIE)]) {
+    if (token && token.length <= MAX_TOKEN_LENGTH) tokens.add(token)
+  }
+  if (tokens.size > 0) {
+    const hashes = await Promise.all([...tokens].map(sha256Hex))
+    await c.env.DB.batch(hashes.map((hash) => c.env.DB.prepare('DELETE FROM auth_tokens WHERE token_hash = ?').bind(hash)))
+  }
   deleteCookie(c, SESSION_COOKIE, COOKIE_OPTIONS)
   return c.json({ ok: true })
 })

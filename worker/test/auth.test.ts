@@ -2,50 +2,12 @@ import { SELF } from 'cloudflare:test'
 import { env } from 'cloudflare:workers'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { hashPassword } from '../src/password.ts'
+import { EMAIL, FIXED_SALT, PASSWORD, freshIp, login, seedOwner, sessionCookie } from './helpers.ts'
 
-const EMAIL = 'owner@example.com'
-const PASSWORD = 'correct horse 1'
-const FIXED_SALT = 'AAECAwQFBgcICQoLDA0ODw==' // the bytes 0..15
 // The same constant is asserted in scripts/cloud-owner.test.ts under Node, so both runtimes agree.
 const FIXED_HASH = 'ecl4blu17pBoxkrH63Kux00yUmxC0OKrKmdgPsjX0+A='
 
-let nextIp = 1
-/** Each test signs in from its own address, so the rate limit of one test never trips another. */
-function freshIp(): string {
-  return `203.0.113.${nextIp++}`
-}
-
-function login(body: unknown, ip = freshIp()): Promise<Response> {
-  return SELF.fetch('https://x/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': ip },
-    body: JSON.stringify(body),
-  })
-}
-
-/** `lz_session=<value>` from a Set-Cookie header, ready to send back as a Cookie header. */
-function sessionCookie(response: Response): string {
-  const header = response.headers.get('Set-Cookie') ?? ''
-  const match = /lz_session=([^;]*)/.exec(header)
-  if (!match) throw new Error(`no lz_session cookie in "${header}"`)
-  return `lz_session=${match[1]}`
-}
-
-beforeEach(async () => {
-  const stored = await hashPassword(PASSWORD, FIXED_SALT)
-  await env.DB.batch([
-    env.DB.prepare('DELETE FROM owner'),
-    env.DB.prepare('DELETE FROM auth_tokens'),
-    env.DB.prepare('INSERT INTO owner (id, email, pass_hash, pass_salt, iterations, created_at) VALUES (?, ?, ?, ?, ?, ?)').bind(
-      'owner',
-      EMAIL,
-      stored.hash,
-      stored.salt,
-      stored.iterations,
-      Date.now(),
-    ),
-  ])
-})
+beforeEach(seedOwner)
 
 describe('password hashing in Workers', () => {
   it('makes the same hash for a fixed salt as Node does', async () => {
@@ -127,8 +89,41 @@ describe('sign-in', () => {
   it('a body without an email or password is a 400', async () => {
     const response = await login({ email: EMAIL })
     expect(response.status).toBe(400)
-    const broken = await SELF.fetch('https://x/api/auth/login', { method: 'POST', body: '{nope' })
+    const broken = await SELF.fetch('https://x/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': freshIp() },
+      body: '{nope',
+    })
     expect(broken.status).toBe(400)
+  })
+
+  it('login without a JSON Content-Type → 415, and with a charset it is fine', async () => {
+    const body = JSON.stringify({ email: EMAIL, password: PASSWORD })
+    for (const type of [undefined, 'text/plain', 'application/x-www-form-urlencoded']) {
+      const headers: Record<string, string> = { 'CF-Connecting-IP': freshIp() }
+      if (type) headers['Content-Type'] = type
+      const response = await SELF.fetch('https://x/api/auth/login', { method: 'POST', headers, body })
+      expect(response.status).toBe(415)
+      expect(await response.json()).toEqual({ error: 'Send JSON (Content-Type: application/json).' })
+      expect(response.headers.get('Cache-Control')).toBe('no-store')
+    }
+    const withCharset = await SELF.fetch('https://x/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'Application/JSON; charset=utf-8', 'CF-Connecting-IP': freshIp() },
+      body,
+    })
+    expect(withCharset.status).toBe(200)
+  })
+
+  it('logout with both a Bearer token and a cookie signs both out', async () => {
+    const cookie = sessionCookie(await login({ email: EMAIL, password: PASSWORD }))
+    const { token } = await (await login({ email: EMAIL, password: PASSWORD, device: { name: 'Pixel 8' } })).json<{ token: string }>()
+    const logout = await SELF.fetch('https://x/api/auth/logout', { method: 'POST', headers: { Cookie: cookie, Authorization: `Bearer ${token}` } })
+    expect(logout.status).toBe(200)
+    expect((await SELF.fetch('https://x/api/auth/devices', { headers: { Cookie: cookie } })).status).toBe(401)
+    expect((await SELF.fetch('https://x/api/auth/devices', { headers: { Authorization: `Bearer ${token}` } })).status).toBe(401)
+    const left = await env.DB.prepare('SELECT COUNT(*) AS n FROM auth_tokens').first<{ n: number }>()
+    expect(left?.n).toBe(0)
   })
 
   it('11th failed attempt from one IP → 429', async () => {
