@@ -32,7 +32,7 @@ export function subscribeSyncStatus(listener: () => void): () => void {
   return () => listeners.delete(listener)
 }
 
-/** A local change the cloud cannot take as it is. It waits in the outbox until the record changes. */
+/** A local change the cloud cannot take as it is. It waits in the outbox until the record changes, and gets one more try each time the app starts. */
 export interface StuckChange {
   tbl: string
   id: string

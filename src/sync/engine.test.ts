@@ -153,7 +153,7 @@ describe('syncNow', () => {
     expect(await syncNow(b)).toEqual({ pushed: 0, pulled: 1 })
     expect(await b.cards.get('c1')).toBeDefined()
     expect(await b.images.get('i1')).toBeUndefined()
-    expect(await b.meta.get('missingImages')).toEqual({ key: 'missingImages', value: ['i1'] })
+    expect(await b.meta.get('missingImages')).toEqual({ key: 'missingImages', value: [{ id: 'i1', width: 40, height: 30, fit: 'cover', type: 'image/png' }] })
     expect(await cursorOf(b)).toBe((await server.fetch('/api/sync/pull?cursor=').then((r) => r.json())).cursor)
     expect(getSyncStatus().state).toBe('idle')
     // Pulled again later, with its bytes back, it is applied and no longer missing.
@@ -367,6 +367,67 @@ describe('changes the cloud refuses', () => {
     expect(await a.outbox.count()).toBe(1)
     expect(await stuckChanges(a)).toEqual([])
     expect(getSyncStatus()).toMatchObject({ state: 'error', error: 'D1 is down' })
+  })
+})
+
+describe('on each start', () => {
+  const started = async (database: LernzeitDB) => {
+    const before = server.requests.length
+    startSync(database)
+    await vi.waitFor(() => expect(server.requests.slice(before)).toContain('GET /api/sync/pull'))
+    await vi.waitFor(() => expect(getSyncStatus().state).not.toBe('syncing'))
+    stopSync()
+  }
+
+  it('a change the cloud refused gets one more try, and is parked again if still refused', async () => {
+    server.refuseChange = (change) => (change.id === 'c1' ? 'is not allowed today.' : undefined)
+    await a.cards.put(card('c1'))
+    await syncNow(a)
+    expect(await stuckChanges(a)).toEqual([{ tbl: 'cards', id: 'c1', reason: expect.stringContaining('not allowed today') }])
+    // Still refused: parked again, with the reason.
+    await started(a)
+    expect(server.requests.filter((r) => r === 'POST /api/sync/push')).toHaveLength(2)
+    expect(await stuckChanges(a)).toHaveLength(1)
+    // The cloud takes it now.
+    server.refuseChange = undefined
+    await syncNow(a)
+    expect(server.record('cards', 'c1')).toBeUndefined()
+    await started(a)
+    expect(server.record('cards', 'c1')).toMatchObject({ data: card('c1'), deleted: false })
+    expect(await a.outbox.count()).toBe(0)
+  })
+
+  it('an image whose bytes the cloud did not have is fetched again, and applied once they are back', async () => {
+    await a.images.put({ id: 'i1', blob: new Blob(['png bytes'], { type: 'image/png' }), width: 40, height: 30, fit: 'cover' })
+    await syncNow(a)
+    const bytes = server.blobs.get('i1')!
+    server.blobs.delete('i1')
+    await syncNow(b)
+    expect(await b.images.get('i1')).toBeUndefined()
+
+    // Still gone: it stays noted.
+    await started(b)
+    expect(server.requests).toContain('GET /api/images/i1')
+    expect((await b.meta.get('missingImages'))?.value).toHaveLength(1)
+
+    server.blobs.set('i1', bytes)
+    await started(b)
+    const image = await b.images.get('i1')
+    expect(image).toMatchObject({ id: 'i1', width: 40, height: 30, fit: 'cover' })
+    expect(await image?.blob.text()).toBe('png bytes')
+    expect((await b.meta.get('missingImages'))?.value).toEqual([])
+    // Applied from the cloud, so nothing goes back up.
+    expect(await b.outbox.count()).toBe(0)
+  })
+
+  it('a missing image this device has since written or deleted itself is no longer noted', async () => {
+    await b.meta.put({ key: 'missingImages', value: [{ id: 'i1', width: 1, height: 1, fit: 'cover', type: 'image/png' }, 'old-id'] })
+    await b.images.put({ id: 'i1', blob: new Blob(['mine'], { type: 'image/png' }), width: 2, height: 2, fit: 'contain' })
+    await started(b)
+    expect(await (await b.images.get('i1'))?.blob.text()).toBe('mine')
+    expect(server.requests).not.toContain('GET /api/images/i1')
+    // An id noted by an older version, without its record, stays as it is.
+    expect((await b.meta.get('missingImages'))?.value).toEqual(['old-id'])
   })
 })
 

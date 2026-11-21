@@ -29,7 +29,7 @@ import {
 import { count } from '@lernzeit/core/text'
 import type { Settings, StoredImage } from '@lernzeit/core/types'
 import { getImage, pull, push, putImage } from './api'
-import { CURSOR_KEY, IMAGE_REFUSALS, MISSING_IMAGES_KEY, PUSH_REFUSALS, acceptable, refusal, refusedBy } from './engine'
+import { CURSOR_KEY, IMAGE_REFUSALS, MISSING_IMAGES_KEY, PUSH_REFUSALS, acceptable, refusal, refusedBy, type MissingImage } from './engine'
 import { applyRemote } from './outbox'
 
 /** `meta` key set once this browser's library is in the cloud. Until then the sync engine must not run. */
@@ -362,7 +362,7 @@ function replaceLocal(
       if (list) list.push(row)
       else puts.set(tbl, [row])
     }
-    const missingImages = new Set<string>()
+    const missingImages: MissingImage[] = []
     for (const change of live) {
       if (change.tbl !== 'images') {
         add(change.tbl, change.data)
@@ -371,7 +371,7 @@ function replaceLocal(
       const meta = change.data as ImageMeta
       const bytes = downloaded.get(change.id) ?? localImages.get(change.id)?.blob
       if (!bytes) {
-        if (missing.has(change.id)) missingImages.add(change.id)
+        if (missing.has(change.id)) missingImages.push(meta)
         continue
       }
       add('images', { id: meta.id, width: meta.width, height: meta.height, fit: meta.fit, blob: new Blob([bytes], { type: meta.type }) } satisfies StoredImage)
@@ -394,7 +394,7 @@ function replaceLocal(
     await database.meta.bulkPut([
       { key: MERGED_KEY, value: true },
       { key: CURSOR_KEY, value: cursor },
-      ...(missingImages.size ? [{ key: MISSING_IMAGES_KEY, value: [...missingImages] }] : []),
+      ...(missingImages.length ? [{ key: MISSING_IMAGES_KEY, value: missingImages }] : []),
     ])
   })
 }

@@ -38,8 +38,14 @@ export interface SyncResult {
 const LOCK = 'lernzeit-sync'
 /** `meta` key of the position in the server's changes this device has pulled up to. */
 export const CURSOR_KEY = 'cursor'
-/** Ids of pulled image records whose bytes the server no longer has, so they could not be shown here. */
+/**
+ * Pulled image records whose bytes the server no longer had, so they could not be shown here: each
+ * as its record (`ImageMeta`), so it can be applied once the bytes are back. Older versions kept only
+ * the id, which stays as it is.
+ */
 export const MISSING_IMAGES_KEY = 'missingImages'
+export type MissingImage = ImageMeta | string
+const missingId = (image: MissingImage) => (typeof image === 'string' ? image : image.id)
 /** A sync starts this long after the last local change, so a burst of edits goes up together. */
 const LOCAL_CHANGE_DELAY = 2_000
 /** How often a visible tab syncs to pick up other devices' changes. */
@@ -125,7 +131,7 @@ async function readRows(database: LernzeitDB, records: { tbl: string; id: string
 
 /**
  * Each entry's record as it is now, read with the entry in one transaction so the two agree, and
- * the entries the cloud would refuse. Entries parked before are left out until their record changes.
+ * the entries the cloud would refuse. Entries parked before are left out until their record changes or the app starts again.
  */
 function readOutgoing(database: LernzeitDB, queued: OutboxEntry[]): Promise<{ outgoing: Outgoing[]; refused: Refused[] }> {
   return database.transaction('r', [...SYNC_TABLES, database.outbox], async () => {
@@ -285,7 +291,7 @@ export function acceptable(change: PulledChange): boolean {
 
 /**
  * Writes one page and its cursor in one transaction. An image whose bytes the server no longer has
- * is left out and its id kept in `meta.missingImages`. Returns how many changes it wrote.
+ * is left out and its record kept in `meta.missingImages`. Returns how many changes it wrote.
  */
 function applyPage(database: LernzeitDB, page: PullResponse, blobs: Map<string, Blob>, missing: Set<string>): Promise<number> {
   return applyRemote(database, async () => {
@@ -293,8 +299,8 @@ function applyPage(database: LernzeitDB, page: PullResponse, blobs: Map<string, 
     const keys = changes.map((change): [string, string] => [change.tbl, change.id])
     const entries = await database.outbox.bulkGet(keys)
     const images = await database.images.bulkGet(changes.map((change) => (change.tbl === 'images' ? change.id : '')))
-    const listed = (await database.meta.get(MISSING_IMAGES_KEY))?.value as string[] | undefined
-    const missingImages = new Set(listed)
+    const listed = (await database.meta.get(MISSING_IMAGES_KEY))?.value as MissingImage[] | undefined
+    const missingImages = new Map(listed?.map((image) => [missingId(image), image]))
 
     const puts = new Map<string, unknown[]>()
     const deletes = new Map<string, string[]>()
@@ -313,7 +319,7 @@ function applyPage(database: LernzeitDB, page: PullResponse, blobs: Map<string, 
         const downloaded = blobs.get(change.id)
         const blob = downloaded ? new Blob([downloaded], { type: meta.type }) : images[i]?.blob
         if (!blob && missing.has(change.id)) {
-          missingImages.add(change.id)
+          missingImages.set(change.id, meta)
           return
         }
         // Nothing to show: undo the page, so it is pulled again next time.
@@ -329,11 +335,58 @@ function applyPage(database: LernzeitDB, page: PullResponse, blobs: Map<string, 
       ...[...deletes].map(([tbl, ids]) => database.table(tbl).bulkDelete(ids)),
       database.outbox.bulkDelete(settled),
       database.meta.put({ key: CURSOR_KEY, value: page.cursor }),
-      listed || missingImages.size ? database.meta.put({ key: MISSING_IMAGES_KEY, value: [...missingImages] }) : undefined,
+      listed || missingImages.size ? database.meta.put({ key: MISSING_IMAGES_KEY, value: [...missingImages.values()] }) : undefined,
     ])
     return [...puts.values(), ...deletes.values()].reduce((sum, list) => sum + list.length, 0)
   })
 }
+
+// ---- Once per start ----
+
+/**
+ * Takes the parked marks off the outbox, so each change the cloud refused goes up once more; one it
+ * still refuses is parked again. The cloud's limits can change, and the change is the owner's data.
+ */
+async function unpark(database: LernzeitDB): Promise<void> {
+  await database.outbox.filter((entry) => entry.stuck !== undefined).modify((entry) => void delete entry.stuck)
+}
+
+/**
+ * Fetches the bytes of the images noted in `meta.missingImages` again and applies the records whose
+ * bytes are back. An image this device has written or deleted since (it is here, or waits in the
+ * outbox) is no longer noted: this device's version stands. Ids without their record stay noted.
+ */
+async function retryMissingImages(database: LernzeitDB): Promise<void> {
+  const noted = ((await database.meta.get(MISSING_IMAGES_KEY))?.value as MissingImage[] | undefined) ?? []
+  if (noted.length === 0) return
+  const ids = noted.map(missingId)
+  const [here, pending] = await Promise.all([database.images.bulkGet(ids), database.outbox.bulkGet(ids.map((id) => ['images', id]))])
+  const changedHere = new Set(ids.filter((_, i) => here[i] !== undefined || pending[i] !== undefined))
+  const found = new Map<string, Blob>()
+  for (const image of noted) {
+    if (typeof image === 'string' || changedHere.has(image.id)) continue
+    try {
+      found.set(image.id, await getImage(image.id))
+    } catch (error) {
+      if (!refusedBy(error, [404])) throw error
+    }
+  }
+  await applyRemote(database, async () => {
+    const keep: MissingImage[] = []
+    const puts: StoredImage[] = []
+    for (const image of noted) {
+      if (changedHere.has(missingId(image))) continue
+      const bytes = typeof image === 'string' ? undefined : found.get(image.id)
+      if (typeof image === 'string' || !bytes) keep.push(image)
+      else puts.push({ id: image.id, width: image.width, height: image.height, fit: image.fit, blob: new Blob([bytes], { type: image.type }) })
+    }
+    await database.images.bulkPut(puts)
+    await database.meta.put({ key: MISSING_IMAGES_KEY, value: keep })
+  })
+}
+
+/** The databases whose next sync is the first since startSync. */
+const firstSinceStart = new Set<string>()
 
 // ---- One sync at a time ----
 
@@ -356,7 +409,9 @@ function statusFor(error: unknown): SyncStatus {
 
 async function run(database: LernzeitDB): Promise<SyncResult> {
   setSyncStatus({ state: 'syncing' })
+  const first = firstSinceStart.delete(database.name)
   try {
+    if (first) await unpark(database)
     let pushed = 0
     let pushFailure: unknown
     try {
@@ -368,6 +423,15 @@ async function run(database: LernzeitDB): Promise<SyncResult> {
       pushFailure = error ?? new Error('The push failed.')
     }
     const pulled = await pullAll(database).catch((error) => (error instanceof ResyncNeededError ? resync(database) : Promise.reject(error)))
+    if (first) {
+      try {
+        await retryMissingImages(database)
+      } catch (error) {
+        // Tried again on the next sync.
+        firstSinceStart.add(database.name)
+        throw error
+      }
+    }
     if (pushFailure !== undefined) throw pushFailure
     setSyncStatus({ state: 'idle', lastSyncedAt: Date.now() })
     return { pushed, pulled }
@@ -425,9 +489,14 @@ export function syncNow(database: LernzeitDB = db): Promise<SyncResult> {
 
 let stopTriggers: (() => void) | undefined
 
-/** Syncs now, when the browser comes online, when the tab becomes visible, 2 s after the last local change and every 60 s while visible. */
+/**
+ * Syncs now, when the browser comes online, when the tab becomes visible, 2 s after the last local
+ * change and every 60 s while visible. The first sync also retries what earlier syncs set aside:
+ * changes the cloud refused, and images whose bytes it did not have.
+ */
 export function startSync(database: LernzeitDB = db): void {
   if (stopTriggers) return
+  firstSinceStart.add(database.name)
   // Failures show in the sync status.
   const sync = () => void syncNow(database).catch(noop)
   const visible = () => typeof document === 'undefined' || document.visibilityState === 'visible'

@@ -298,6 +298,15 @@ describe('mergeIntoCloud', () => {
     expect(await (await b.images.get('i1'))?.blob.text()).toBe('png bytes')
   })
 
+  it('an image whose bytes the cloud lost is noted with its record, so a later start can fetch it again', async () => {
+    await a.images.put(image('i1'))
+    await mergeIntoCloud(a)
+    server.blobs.delete('i1')
+    await mergeIntoCloud(b)
+    expect(await b.images.get('i1')).toBeUndefined()
+    expect((await b.meta.get('missingImages'))?.value).toEqual([imageMeta(image('i1'))])
+  })
+
   it("moves this browser's device settings out of the shared settings before merging", async () => {
     await a.kv.put({ key: 'settings', value: { pomodoroFocus: 40, theme: 'light', remindersEnabled: true } })
     await mergeIntoCloud(a)
