@@ -1,4 +1,10 @@
+import CardPage from '../app/card/[id]'
+import CardEditPage from '../app/card/edit'
+import ImportCsvPage from '../app/import-csv'
+import HistoryPage from '../app/more/history'
 import MenuPage from '../app/more/[id]'
+import PracticePage from '../app/practice'
+import PracticeHistoryPage from '../app/practice-history'
 import RootLayout from '../app/_layout'
 import SearchPage from '../app/search'
 import SettingsPage from '../app/settings'
@@ -18,6 +24,12 @@ export const routes = {
   '(tabs)/stories': Stories,
   '(tabs)/timer': Timer,
   'more/[id]': MenuPage,
+  'more/history': HistoryPage,
+  'card/[id]': CardPage,
+  'card/edit': CardEditPage,
+  practice: PracticePage,
+  'practice-history': PracticeHistoryPage,
+  'import-csv': ImportCsvPage,
   search: SearchPage,
   settings: SettingsPage,
   'sign-in': SignIn,

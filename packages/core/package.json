@@ -11,6 +11,10 @@
     "typecheck": "tsc"
   },
   "dependencies": {
-    "ts-fsrs": "^5.4.2"
+    "ts-fsrs": "^5.4.2",
+    "papaparse": "^5.7.0"
+  },
+  "devDependencies": {
+    "@types/papaparse": "^5.5.2"
   }
 }

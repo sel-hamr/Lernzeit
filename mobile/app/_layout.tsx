@@ -81,6 +81,11 @@ function Screens() {
           <Stack.Screen name="more/[id]" />
           <Stack.Screen name="more/history" />
           <Stack.Screen name="search" />
+          <Stack.Screen name="card/[id]" />
+          <Stack.Screen name="card/edit" />
+          <Stack.Screen name="practice" />
+          <Stack.Screen name="practice-history" />
+          <Stack.Screen name="import-csv" />
           <Stack.Screen name="settings" />
         </Stack.Protected>
         <Stack.Protected guard={!signedIn}>

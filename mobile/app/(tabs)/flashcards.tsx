@@ -1,5 +1,5 @@
-import { Placeholder } from '../../src/components/Placeholder'
+import { CardsScreen } from '../../src/cards/CardsScreen'
 
 export default function Flashcards() {
-  return <Placeholder title="Flashcards" />
+  return <CardsScreen />
 }
