@@ -156,6 +156,8 @@ export const KV_KEYS = {
   starterOffer: 'starterOffer',
   /** The tour of the app: 'pending' while it should run, 'seen' once it was finished or closed. */
   tour: 'tour',
+  /** The owner's IANA time zone, which syncs so the Worker can date sessions (src/data/timeZone.ts). */
+  timeZone: 'timeZone',
 } as const
 
 /** Defaults, then the shared settings, then this device's own. Old installs kept everything in `settings`, so it still answers for device keys not yet in `deviceSettings`. */

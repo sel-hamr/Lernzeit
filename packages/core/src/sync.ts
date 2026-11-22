@@ -28,8 +28,12 @@ export const SYNC_TABLES = [
 
 export type SyncTable = (typeof SYNC_TABLES)[number]
 
-/** The kv keys that sync. Every other key stays on its device. */
-export const SYNCED_KV_KEYS = ['settings', 'activeTimer', 'seeded', 'starterConjugations', 'starterGrammar', 'starterOffer'] as const
+/**
+ * The kv keys that sync. Every other key stays on its device. `timeZone` is the owner's IANA zone
+ * (e.g. "Europe/Berlin"), written by the app when signed in; the Worker dates sessions with it. It
+ * is a record of its own, not a setting, so writing it never rewrites the shared settings.
+ */
+export const SYNCED_KV_KEYS = ['settings', 'activeTimer', 'seeded', 'starterConjugations', 'starterGrammar', 'starterOffer', 'timeZone'] as const
 
 /** Settings that belong to one device: its voices, its look and its reminders. */
 export const DEVICE_SETTING_KEYS = [

@@ -15,7 +15,6 @@
  */
 import { checkFilter, stageWrites, type Filter, type LibraryReader, type LibraryStore } from '@lernzeit/core/library'
 import { MAX_PUSH_CHANGES, SYNC_TABLES, type SyncChange, type SyncTable } from '@lernzeit/core/sync'
-import type { Settings } from '@lernzeit/core/types'
 import { applyChanges, validateChanges } from './changes.ts'
 
 /** A filter field goes into the SQL as a JSON path, so it must be a plain name. */
@@ -108,8 +107,8 @@ function knownTimeZone(zone: unknown): string | undefined {
 }
 
 /**
- * The owner's library in D1, for one tool call. Its `timeZone` is the one in the synced settings
- * (`kv/settings`), or UTC when they have none Intl knows.
+ * The owner's library in D1, for one tool call. Its `timeZone` is the synced `kv/timeZone`, or
+ * UTC when there is none Intl knows.
  *
  * Make one store per call, as `runAction` expects, and do not reuse it: `commit()` takes the staged
  * writes off the store before it writes them, so when it throws they are gone rather than left for
@@ -118,8 +117,8 @@ function knownTimeZone(zone: unknown): string | undefined {
  */
 export async function createD1Store(db: D1Database, owner: string, options: { now?: () => number } = {}): Promise<LibraryStore> {
   const stored = storedReader(db, owner)
-  const settings = await stored.get<{ value?: Partial<Settings> }>('kv', 'settings')
-  const timeZone = knownTimeZone(settings?.value?.timeZone) ?? 'UTC'
+  const zone = await stored.get<{ value?: unknown }>('kv', 'timeZone')
+  const timeZone = knownTimeZone(zone?.value) ?? 'UTC'
   const staging = stageWrites(stored)
   const now = options.now ?? (() => Date.now())
 

@@ -5,13 +5,15 @@ describe('what syncs', () => {
   it('lists the synced tables with kv last', () => {
     expect(SYNC_TABLES).toHaveLength(18)
     expect(SYNC_TABLES[SYNC_TABLES.length - 1]).toBe('kv')
-    expect(SYNCED_KV_KEYS).toHaveLength(6)
+    expect(SYNCED_KV_KEYS).toHaveLength(7)
     expect(DEVICE_SETTING_KEYS).toHaveLength(6)
   })
 
   it('syncs whole tables, and kv only for its synced keys', () => {
     expect(isSynced('kv', 'tour')).toBe(false)
     expect(isSynced('kv', 'settings')).toBe(true)
+    // The owner's time zone has a record of its own, so writing it never rewrites the settings.
+    expect(isSynced('kv', 'timeZone')).toBe(true)
     expect(isSynced('cards', 'x')).toBe(true)
     expect(isSynced('clips', 'x')).toBe(false)
     expect(isSynced('outbox', 'x')).toBe(false)

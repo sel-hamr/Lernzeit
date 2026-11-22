@@ -901,19 +901,40 @@ describe('time zone setting', () => {
     database = new LernzeitDB(`tz-${Math.random()}`)
   })
 
-  it('writes the browser zone when signed in and none is stored, and only when it differs', async () => {
+  const zoneRow = () => database.kv.get(KV_KEYS.timeZone)
+  const outboxKeys = async () => (await database.outbox.toArray()).map((entry) => `${entry.tbl}/${entry.id}`)
+
+  it('writes the browser zone into its own record when signed in, and only when it differs', async () => {
     await signedIn(database)
+    await updateSettings({ pomodoroFocus: 40 }, database)
+    const settings = await database.kv.get(KV_KEYS.settings)
+    await database.outbox.clear()
+
     await recordTimeZone(database, 'Europe/Berlin')
-    expect((await getSettings(database)).timeZone).toBe('Europe/Berlin')
-    const row = await database.kv.get(KV_KEYS.settings)
+    expect(await zoneRow()).toEqual({ key: 'timeZone', value: 'Europe/Berlin' })
+    // The shared settings are not written, so this device cannot undo another one's settings change.
+    expect(await database.kv.get(KV_KEYS.settings)).toEqual(settings)
+    expect(await outboxKeys()).toEqual(['kv/timeZone'])
+
+    await database.outbox.clear()
     await recordTimeZone(database, 'Europe/Berlin')
-    expect(await database.kv.get(KV_KEYS.settings)).toEqual(row)
+    expect(await outboxKeys()).toEqual([])
     await recordTimeZone(database, 'Asia/Tokyo')
-    expect((await getSettings(database)).timeZone).toBe('Asia/Tokyo')
+    expect(await zoneRow()).toEqual({ key: 'timeZone', value: 'Asia/Tokyo' })
+    expect(await outboxKeys()).toEqual(['kv/timeZone'])
+  })
+
+  it('moves a zone from the old settings field into its own record, leaving the settings alone', async () => {
+    await signedIn(database)
+    await database.kv.put({ key: KV_KEYS.settings, value: { timeZone: 'Europe/Berlin', pomodoroFocus: 40 } })
+    const settings = await database.kv.get(KV_KEYS.settings)
+    await recordTimeZone(database, 'Europe/Berlin')
+    expect(await zoneRow()).toEqual({ key: 'timeZone', value: 'Europe/Berlin' })
+    expect(await database.kv.get(KV_KEYS.settings)).toEqual(settings)
   })
 
   it('writes nothing when signed out', async () => {
     await recordTimeZone(database, 'Europe/Berlin')
-    expect((await getSettings(database)).timeZone).toBeUndefined()
+    expect(await zoneRow()).toBeUndefined()
   })
 })

@@ -159,34 +159,34 @@ describe('createD1Store', () => {
 })
 
 describe('createD1Store time zone', () => {
-  const settings = (value: object) => ({ kv: [{ key: 'settings', value }] })
+  const zone = (value: unknown) => ({ kv: [{ key: 'timeZone', value }] })
 
-  it('reads the owner’s time zone from the synced settings', async () => {
+  it('reads the owner’s time zone from its own synced record, kv/timeZone', async () => {
     const owner = freshOwner()
-    await seedLibrary(owner, settings({ theme: 'dark', timeZone: 'Europe/Berlin' }))
+    await seedLibrary(owner, { kv: [{ key: 'timeZone', value: 'Europe/Berlin' }, { key: 'settings', value: { theme: 'dark', timeZone: 'Asia/Tokyo' } }] })
     expect((await createD1Store(env.DB, owner)).timeZone).toBe('Europe/Berlin')
   })
 
-  it('falls back to UTC when no time zone is set', async () => {
+  it('falls back to UTC when no time zone is set, whatever the settings say', async () => {
     const owner = freshOwner()
     expect((await createD1Store(env.DB, owner)).timeZone).toBe('UTC')
-    await seedLibrary(owner, settings({ theme: 'dark' }))
+    await seedLibrary(owner, { kv: [{ key: 'settings', value: { theme: 'dark', timeZone: 'Europe/Berlin' } }] })
     expect((await createD1Store(env.DB, owner)).timeZone).toBe('UTC')
   })
 
   it('falls back to UTC when the time zone is not one Intl knows', async () => {
-    for (const timeZone of ['Mars/Olympus', '', 42, null]) {
+    for (const timeZone of ['Mars/Olympus', '', 42, null, { zone: 'Europe/Berlin' }]) {
       const owner = freshOwner()
-      await seedLibrary(owner, settings({ timeZone }))
+      await seedLibrary(owner, zone(timeZone))
       expect((await createD1Store(env.DB, owner)).timeZone).toBe('UTC')
     }
   })
 
-  it('falls back to UTC when the settings were deleted', async () => {
+  it('falls back to UTC when the time zone was deleted', async () => {
     const owner = freshOwner()
-    await seedLibrary(owner, settings({ timeZone: 'Europe/Berlin' }))
+    await seedLibrary(owner, zone('Europe/Berlin'))
     const store = await createD1Store(env.DB, owner)
-    store.remove('kv', 'settings')
+    store.remove('kv', 'timeZone')
     await store.commit()
     expect((await createD1Store(env.DB, owner)).timeZone).toBe('UTC')
   })

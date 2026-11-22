@@ -98,8 +98,8 @@ describe('the tool actions on D1', () => {
     expect(await pullAll()).toEqual(before)
   })
 
-  it('logs study time on the owner’s local date, from the time zone in the synced settings', async () => {
-    await seedLibrary(OWNER, { ...fixtureLibrary(), kv: [{ key: 'settings', value: { timeZone: 'Europe/Berlin' } }] })
+  it('logs study time on the owner’s local date, from the synced time zone', async () => {
+    await seedLibrary(OWNER, { ...fixtureLibrary(), kv: [{ key: 'timeZone', value: 'Europe/Berlin' }] })
     // 00:30 on 16 October in Berlin, still 15 October in UTC.
     const now = Date.parse('2026-10-16T00:30:00+02:00')
     const logged = await runAction(await store(now), 'log_study_time', { topic: 'German', minutes: 60 })
@@ -111,7 +111,7 @@ describe('the tool actions on D1', () => {
     ])
   })
 
-  it('logs study time on the UTC date when the settings have no time zone', async () => {
+  it('logs study time on the UTC date when no time zone is synced', async () => {
     await seedLibrary(OWNER, fixtureLibrary())
     const now = Date.parse('2026-10-16T00:30:00+02:00')
     const logged = await runAction(await store(now), 'log_study_time', { topic: 'German', minutes: 30 })

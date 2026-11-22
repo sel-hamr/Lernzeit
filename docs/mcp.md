@@ -56,7 +56,7 @@ Details worth knowing:
 
 Claude writes to the cloud database. The app syncs on a timer (about once a minute while it is visible) and when you open it, so what Claude saved appears on its own. **Settings → Account → Sync now** brings it in at once. If a device is offline, it catches up later.
 
-Dates and times Claude saves (study sessions, due dates) use the time zone of the device that started most recently, since the Worker has no time zone of its own.
+Dates and times Claude saves (study sessions, due dates) use the time zone of the signed-in device that started most recently (it syncs as its own record, `kv/timeZone`), since the Worker has no time zone of its own. With none synced yet, they are in UTC.
 
 ## Disconnecting
 
