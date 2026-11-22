@@ -5,6 +5,15 @@ import { MINUTE } from './time'
 const berlin = (iso: string) => Date.parse(`${iso}+02:00`)
 
 describe('splitAtMidnight in a time zone', () => {
+  it('ends, with one part per day, across a night whose clocks skip 00:00', () => {
+    // 23:00 to 02:00 in Santiago on 2026-09-05/06, where 00:00 to 01:00 does not happen: two hours.
+    const parts = splitAtMidnight(Date.UTC(2026, 8, 6, 3, 0), Date.UTC(2026, 8, 6, 5, 0), undefined, 'America/Santiago')
+    expect(parts).toEqual([
+      { start: Date.UTC(2026, 8, 6, 3, 0), end: Date.UTC(2026, 8, 6, 4, 0), date: '2026-09-05', minutes: 60 },
+      { start: Date.UTC(2026, 8, 6, 4, 0), end: Date.UTC(2026, 8, 6, 5, 0), date: '2026-09-06', minutes: 60 },
+    ])
+  })
+
   it('splits at the zone’s midnight and dates each part in the zone', () => {
     const parts = splitAtMidnight(berlin('2026-10-14T23:30:00'), berlin('2026-10-15T00:30:00'), undefined, 'Europe/Berlin')
     expect(parts).toEqual([

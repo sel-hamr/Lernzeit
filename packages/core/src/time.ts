@@ -176,18 +176,29 @@ export function dateKeyIn(ms: number, timeZone: string): string {
   return `${p.year}-${pad(p.month)}-${pad(p.day)}`
 }
 
-/** The instant whose wall clock in `timeZone` is `wall` (a wall clock read as UTC). Settles daylight saving changes. */
+/** How far the wall clock of `timeZone` is ahead of UTC at `ms`, in ms (whole seconds). */
+function zoneOffset(ms: number, timeZone: string): number {
+  const p = zoneParts(ms, timeZone)
+  return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - Math.floor(ms / 1000) * 1000
+}
+
+/**
+ * The instant whose wall clock in `timeZone` is `wall` (a wall clock read as UTC). Settles daylight
+ * saving changes. A wall clock the zone skips (its clocks went on over it, as Santiago's do over
+ * 00:00 one night a year) moves on by the gap, as JavaScript dates do: 00:30 reads as 01:30, and
+ * the skipped midnight as the moment the clocks went on, when that day starts.
+ */
 function fromWallClock(wall: number, timeZone: string): number {
   let guess = wall
   // The zone's offset at the guess is only known from the guess itself, so settle it.
   for (let i = 0; i < 4; i++) {
-    const g = zoneParts(guess, timeZone)
-    const offset = Date.UTC(g.year, g.month - 1, g.day, g.hour, g.minute, g.second) - guess
-    const next = wall - offset
-    if (next === guess) break
+    const next = wall - zoneOffset(guess, timeZone)
+    if (next === guess) return guess
     guess = next
   }
-  return guess
+  // No instant has that wall clock: the guesses take turns either side of the gap. The later one is
+  // past it, the earlier one before it (for a skipped midnight, still the day before).
+  return Math.max(guess, wall - zoneOffset(guess, timeZone))
 }
 
 /** The instant of the next 00:00 in `timeZone` after `ms`. Right across daylight saving changes. */

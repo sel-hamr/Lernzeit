@@ -21,6 +21,15 @@ describe('time zones', () => {
     expect(nextMidnightIn(Date.UTC(2026, 2, 28, 23, 0), 'Europe/Berlin')).toBe(Date.UTC(2026, 2, 29, 22, 0))
   })
 
+  it('starts the day when the clocks go on, in a zone whose clocks skip 00:00', () => {
+    // 2026-09-06 in Santiago: 00:00 -04 is 01:00 -03, so the day starts at 04:00 UTC, at 01:00.
+    expect(nextMidnightIn(Date.UTC(2026, 8, 5, 16, 0), 'America/Santiago')).toBe(Date.UTC(2026, 8, 6, 4, 0))
+    expect(nextMidnightIn(Date.UTC(2026, 8, 6, 3, 30), 'America/Santiago')).toBe(Date.UTC(2026, 8, 6, 4, 0))
+    expect(dateKeyIn(Date.UTC(2026, 8, 6, 4, 0), 'America/Santiago')).toBe('2026-09-06')
+    // A wall clock in the skipped hour moves on by the hour, as JavaScript dates do: 00:30 is 01:30.
+    expect(parseLocalDateTimeIn('2026-09-06T00:30', 'America/Santiago')).toBe(Date.UTC(2026, 8, 6, 4, 30))
+  })
+
   it('is right across the Berlin autumn change (a 25 hour day)', () => {
     // 2026-10-25: CEST -> CET at 03:00. Midnight on the 25th is 22:00 UTC on the 24th; on the 26th it is 23:00 UTC on the 25th.
     expect(nextMidnightIn(Date.UTC(2026, 9, 24, 12, 0), 'Europe/Berlin')).toBe(Date.UTC(2026, 9, 24, 22, 0))

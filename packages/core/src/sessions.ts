@@ -25,7 +25,9 @@ export function splitAtMidnight(start: number, end: number, activeMinutes?: numb
   const parts: SessionPart[] = []
   let cursor = start
   while (cursor < end) {
-    const boundary = Math.min(nextMidnight(cursor), end)
+    const midnight = nextMidnight(cursor)
+    // A boundary that does not move on would never end the loop: the rest goes to this day.
+    const boundary = midnight > cursor ? Math.min(midnight, end) : end
     const share = (boundary - cursor) / MINUTE / wallMinutes
     parts.push({ start: cursor, end: boundary, date: dateOf(cursor), minutes: round2(active * share) })
     cursor = boundary
