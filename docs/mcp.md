@@ -81,5 +81,5 @@ To use another MCP app, such as one hosted at `app.example.com`, add the host an
 ## Limits
 
 - Everything saved by Claude goes to the cloud; a browser that is signed out or has never synced does not get it until it signs in.
-- The authorize page and client registration are rate limited per address, so a stranger cannot fill your storage.
+- The authorize page and client registration are rate limited per address, so a stranger cannot fill your storage, and all addresses together get 200 of these sign-in steps a day. That keeps them far below the free plan's 1,000 KV writes a day, which connected apps also need to refresh their tokens. Past it, the page says "Too many sign-in attempts today. Try again tomorrow."; apps already connected keep working.
 - An app you stop using expires: a registration nobody uses for 30 days is removed, and so is a connection whose tokens are not refreshed for 30 days. An app in use stays connected: every refresh (about once an hour while Claude works with Lernzeit) gives it 30 more days.

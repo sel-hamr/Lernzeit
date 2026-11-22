@@ -6,7 +6,7 @@ import { noStore } from './http.ts'
 import { grants, mcpInfo } from './grants.ts'
 import { images } from './images.ts'
 import { MCP_PATH, SCOPE, authorize, mcpApi } from './oauth.ts'
-import { REGISTER_LIMIT, withinLimit } from './rateLimit.ts'
+import { BUDGET_SPENT, REGISTER_LIMIT, withinLimit, withinSignInBudget } from './rateLimit.ts'
 import { describeRedirectHosts, redirectAllowed, redirectHosts } from './redirects.ts'
 import { sync } from './sync.ts'
 
@@ -86,14 +86,17 @@ function providerFor(origin: string, hostsSetting: string | undefined): OAuthPro
   return providers.get(key) ?? null
 }
 
-/** Registration is open to anyone, so it is limited per address before the provider stores anything. */
+/**
+ * Registration is open to anyone, so it is limited per address, and then by the daily budget of all
+ * addresses together, before the provider stores anything.
+ */
 async function registrationLimited(request: Request, env: Env): Promise<Response | null> {
   if (request.method !== 'POST' || new URL(request.url).pathname !== '/register') return null
-  if (await withinLimit(env.DB, REGISTER_LIMIT, clientIp(request))) return null
-  return Response.json(
-    { error: 'too_many_requests', error_description: 'Too many registrations from this address. Try again in an hour.' },
-    { status: 429, headers: { 'Retry-After': '3600', 'Cache-Control': 'no-store' } },
-  )
+  const refuse = (description: string) =>
+    Response.json({ error: 'too_many_requests', error_description: description }, { status: 429, headers: { 'Retry-After': '3600', 'Cache-Control': 'no-store' } })
+  if (!(await withinLimit(env.DB, REGISTER_LIMIT, clientIp(request)))) return refuse('Too many registrations from this address. Try again in an hour.')
+  if (!(await withinSignInBudget(env.DB))) return refuse(BUDGET_SPENT)
+  return null
 }
 
 export default {

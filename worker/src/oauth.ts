@@ -18,7 +18,7 @@ import { TOO_MANY_ATTEMPTS, checkPassword, clientIp, tooManyFailures } from './a
 import type { AppEnv, Env } from './env.ts'
 import { mcpFetch } from './mcp/handler.ts'
 import { authorizePage, errorPage } from './pages/authorize.ts'
-import { AUTHORIZE_LIMIT, withinLimit } from './rateLimit.ts'
+import { AUTHORIZE_LIMIT, BUDGET_SPENT, withinLimit, withinSignInBudget } from './rateLimit.ts'
 import { redirectAllowed, redirectHosts } from './redirects.ts'
 
 /** The owner's id in every table, and the OAuth user every grant belongs to. */
@@ -91,10 +91,18 @@ async function authorizeLimited(db: D1Database, request: Request): Promise<Respo
 }
 
 /** A 429 page with no form, so it hands out no new handle to try again with. */
-function tooMany(message: string): Response {
+function tooMany(message: string, retryAfter = 900): Response {
   const refused = showError(message, 429)
-  refused.headers.set('Retry-After', '900')
+  refused.headers.set('Retry-After', String(retryAfter))
   return refused
+}
+
+/**
+ * Handing out a handle (beginConsent) writes to KV, so it is counted against the daily budget of all
+ * addresses (rateLimit.ts) first. Null while there is budget left.
+ */
+async function budgetSpent(db: D1Database): Promise<Response | null> {
+  return (await withinSignInBudget(db)) ? null : tooMany(BUDGET_SPENT, 3600)
 }
 
 authorize.get('/authorize', async (c) => {
@@ -109,6 +117,8 @@ authorize.get('/authorize', async (c) => {
       const host = new URL(request.redirectUri).host
       return showError(`This app wants access sent to ${host}, which Lernzeit does not allow.`, 400)
     }
+    const spent = await budgetSpent(c.env.DB)
+    if (spent) return spent
     const details = await oauth.describeConsent(request)
     const consent = await oauth.beginConsent(request)
     return showConsent(details, consent.handle, consent.headers)
@@ -153,6 +163,11 @@ authorize.post('/authorize', async (c) => {
       return refused
     }
     if (!check.ok) {
+      const spent = await budgetSpent(c.env.DB)
+      if (spent) {
+        for (const cookie of approved.headers.getSetCookie()) spent.headers.append('Set-Cookie', cookie)
+        return spent
+      }
       // The page again, with a new handle for the next try.
       const details = await oauth.describeConsent(approved.request)
       const next = await oauth.beginConsent(approved.request)

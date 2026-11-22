@@ -19,6 +19,23 @@ export const REGISTER_LIMIT: Limit = { bucket: 'register', max: 10, windowMs: HO
 /** At most 30 openings or submissions of the authorize page, together, per address in 15 minutes. */
 export const AUTHORIZE_LIMIT: Limit = { bucket: 'authorize', max: 30, windowMs: HOUR / 4 }
 
+/**
+ * At most 200 KV-writing sign-in steps a day from all addresses together: a client registration, an
+ * opening of the authorize page, and a new page after a wrong password. Each costs a KV write or
+ * two, and the free plan allows 1,000 a day for everything, tokens included; the per-address limits
+ * alone would let one address spend them all (30 openings per 15 minutes is 2,880 a day), and with
+ * them Claude's refreshes. Counted only for hits the per-address limit let through.
+ */
+export const SIGN_IN_BUDGET: Limit = { bucket: 'sign-in-day', max: 200, windowMs: 24 * HOUR }
+
+/** What a refused hit says once the budget is spent. */
+export const BUDGET_SPENT = 'Too many sign-in attempts today. Try again tomorrow.'
+
+/** Counts one KV-writing sign-in step against SIGN_IN_BUDGET and says whether it is still allowed. */
+export function withinSignInBudget(db: D1Database): Promise<boolean> {
+  return withinLimit(db, SIGN_IN_BUDGET, 'all')
+}
+
 /** Counts this request against `limit` and says whether it is still allowed. */
 export async function withinLimit(db: D1Database, limit: Limit, ip: string): Promise<boolean> {
   const now = Date.now()

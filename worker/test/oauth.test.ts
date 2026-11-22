@@ -3,6 +3,7 @@ import { SELF } from 'cloudflare:test'
 import { env } from 'cloudflare:workers'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { oauthOptions } from '../src/index.ts'
+import { REGISTER_LIMIT, SIGN_IN_BUDGET } from '../src/rateLimit.ts'
 import { DEFAULT_REDIRECT_HOSTS, redirectAllowed, redirectHosts } from '../src/redirects.ts'
 import { EMAIL, PASSWORD, clearSyncData, deviceToken, freshIp, login, seedOwner, sessionCookie } from './helpers.ts'
 import {
@@ -24,6 +25,8 @@ import {
 beforeEach(async () => {
   await seedOwner()
   await clearSyncData()
+  // The daily budget is shared by every address, so each test starts with all of it.
+  await env.DB.prepare('DELETE FROM oauth_hits WHERE bucket = ?').bind(SIGN_IN_BUDGET.bucket).run()
 })
 
 /**
@@ -388,6 +391,69 @@ describe('OAuth rate limits', () => {
     expect((await env.OAUTH_KV.list()).keys.length).toBe(before)
     // Another browser on another address still gets the page.
     expect((await new Browser().open(authorizeUrl(clientId, challenge))).status).toBe(200)
+  })
+})
+
+describe('the daily budget of sign-in attempts, across every address', () => {
+  const TODAY = 'Too many sign-in attempts today. Try again tomorrow.'
+
+  /** Spends the budget but `left` hits, as if many addresses had opened the page today. */
+  async function spendBudget(left: number) {
+    const now = Date.now()
+    const spent = await env.DB.prepare('SELECT COUNT(*) AS n FROM oauth_hits WHERE bucket = ?').bind(SIGN_IN_BUDGET.bucket).first<{ n: number }>()
+    const rows = Array.from({ length: SIGN_IN_BUDGET.max - left - (spent?.n ?? 0) }, () => env.DB.prepare('INSERT INTO oauth_hits (bucket, ip, at) VALUES (?, ?, ?)').bind(SIGN_IN_BUDGET.bucket, 'all', now))
+    if (rows.length) await env.DB.batch(rows)
+  }
+
+  it('is a few hundred a day, a fraction of the 1,000 KV writes a day the free plan allows', () => {
+    expect(SIGN_IN_BUDGET.max).toBe(200)
+    expect(SIGN_IN_BUDGET.windowMs).toBe(24 * 60 * 60 * 1000)
+  })
+
+  it('once spent, the authorize page is a 429 from any address, before any KV write', async () => {
+    const clientId = await register()
+    const { challenge } = await pkce()
+    await spendBudget(1)
+    expect((await new Browser().open(authorizeUrl(clientId, challenge))).status).toBe(200)
+
+    const kv = watchKv()
+    try {
+      const browser = new Browser()
+      const refused = await browser.open(authorizeUrl(clientId, challenge))
+      expect(refused.status).toBe(429)
+      expect(browser.html).toContain(TODAY)
+      expect(browser.html).not.toMatch(/<form|name="handle"/)
+      expect(kv.writes()).toBe(0)
+    } finally {
+      kv.stop()
+    }
+  })
+
+  it('once spent, a wrong password gets no new handle', async () => {
+    const clientId = await register()
+    const browser = new Browser()
+    await browser.open(authorizeUrl(clientId, (await pkce()).challenge))
+    await spendBudget(0)
+    const refused = await browser.allow('not the password')
+    expect(refused.status).toBe(429)
+    expect(browser.html).toContain(TODAY)
+    expect(browser.html).not.toMatch(/<form|name="handle"/)
+  })
+
+  it('once spent, a registration is a 429 before anything is stored', async () => {
+    await spendBudget(0)
+    const before = (await env.OAUTH_KV.list()).keys.length
+    const refused = await registerRequest([REDIRECT])
+    expect(refused.status).toBe(429)
+    expect((await refused.json<{ error_description: string }>()).error_description).toBe(TODAY)
+    expect((await env.OAUTH_KV.list()).keys.length).toBe(before)
+  })
+
+  it('counts the hits the per-address limit already refused not at all', async () => {
+    const ip = freshIp()
+    for (let n = 1; n <= REGISTER_LIMIT.max + 5; n++) await registerRequest([REDIRECT], ip)
+    const spent = await env.DB.prepare('SELECT COUNT(*) AS n FROM oauth_hits WHERE bucket = ?').bind(SIGN_IN_BUDGET.bucket).first<{ n: number }>()
+    expect(spent?.n).toBe(REGISTER_LIMIT.max)
   })
 })
 
