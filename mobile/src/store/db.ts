@@ -9,6 +9,9 @@
  *    `stuck` is why the cloud refused it, while it is parked.
  *  - meta: this device's own values as JSON, such as the pull cursor.
  *  - images: where each image's file is on this phone, with what the app needs to show it.
+ *
+ * `records` is an ordinary rowid table: its rows hold whole JSON records (a doc can be most of a
+ * megabyte), which a WITHOUT ROWID table stores badly. The small bookkeeping tables are WITHOUT ROWID.
  */
 import type { SqlAdapter } from './adapter'
 
@@ -22,7 +25,7 @@ CREATE TABLE IF NOT EXISTS records (
   data TEXT NOT NULL,
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (tbl, id)
-) WITHOUT ROWID;
+);
 CREATE TABLE IF NOT EXISTS outbox (
   tbl TEXT NOT NULL,
   id TEXT NOT NULL,

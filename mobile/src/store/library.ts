@@ -85,6 +85,8 @@ export interface LocalLibrary {
   /** Takes every parked mark off, so each refused change goes up once more. */
   unpark(): void
   removeOutboxEntry(tbl: SyncTable, id: string): void
+  /** Writes outbox entries as given, stamp and parked mark included: what a first-sign-in merge leaves to push. */
+  putOutboxEntries(entries: readonly OutboxEntry[]): void
 
   /** This device's own values (the pull cursor, say), stored as JSON. */
   getMeta<T = unknown>(key: string): T | undefined
@@ -114,6 +116,12 @@ export interface LocalLibrary {
 
 export interface LocalLibraryOptions {
   now?: () => number
+  /**
+   * Called after a transaction that deleted image records commits, with the file rows it removed:
+   * the store keeps no bytes, so the caller deletes the files (see sync/imageFiles.ts). Not called
+   * for `clearAccountData`, which returns its rows instead, nor for writes that were undone.
+   */
+  onImageFilesRemoved?: (files: ImageFile[]) => void
 }
 
 /** The one meta key that outlives signing out: it names this phone to the cloud. */
@@ -153,6 +161,8 @@ function checkSynchronous(result: unknown): void {
   }
 }
 
+const nothingPending = () => ({ tables: new Set<LiveTable>(), local: false, removedFiles: [] as ImageFile[] })
+
 interface OutboxRow {
   tbl: SyncTable
   id: string
@@ -171,12 +181,12 @@ export function createLocalLibrary(sql: SqlAdapter, options: LocalLibraryOptions
   let depth = 0
   /** Inside applyRemote: writes are not recorded. */
   let remote = false
-  /** What the open transaction wrote, told to the subscribers once it commits. */
-  let pending = { tables: new Set<LiveTable>(), local: false }
+  /** What the open transaction wrote, told to the subscribers once it commits, and the image files it removed. */
+  let pending = nothingPending()
 
   function transaction<T>(fn: () => T): T {
     if (depth === 0) {
-      pending = { tables: new Set(), local: false }
+      pending = nothingPending()
       depth++
       let result: T
       try {
@@ -188,13 +198,16 @@ export function createLocalLibrary(sql: SqlAdapter, options: LocalLibraryOptions
       } finally {
         depth--
       }
-      const event = pending
-      pending = { tables: new Set(), local: false }
-      if (event.tables.size > 0) bus.emit(event)
+      const { tables, local, removedFiles } = pending
+      pending = nothingPending()
+      if (tables.size > 0) bus.emit({ tables, local })
+      if (removedFiles.length > 0) handOver(removedFiles)
       return result
     }
-    // A nested write: a savepoint, so a throw the caller catches undoes only its own writes.
+    // A nested write: a savepoint, so a throw the caller catches undoes only its own writes, and
+    // what they would have told the subscribers.
     const savepoint = `nested_${depth}`
+    const before = { tables: new Set(pending.tables), local: pending.local, removedFiles: [...pending.removedFiles] }
     sql.exec(`SAVEPOINT ${savepoint}`)
     depth++
     try {
@@ -205,14 +218,29 @@ export function createLocalLibrary(sql: SqlAdapter, options: LocalLibraryOptions
     } catch (error) {
       sql.exec(`ROLLBACK TO ${savepoint}`)
       sql.exec(`RELEASE ${savepoint}`)
+      pending = before
       throw error
     } finally {
       depth--
     }
   }
 
-  /** The store's own few-statement writes: a transaction of their own, or part of the open one. */
-  const atomic = <T>(fn: () => T): T => (depth > 0 ? fn() : transaction(fn))
+  function handOver(files: ImageFile[]) {
+    try {
+      options.onImageFilesRemoved?.(files)
+    } catch (error) {
+      // The delete is committed: a failing hook must not look like a failed write.
+      queueMicrotask(() => {
+        throw error
+      })
+    }
+  }
+
+  /**
+   * The store's own few-statement writes, all or nothing: a transaction of their own, or a
+   * savepoint in the open one, so a caller that catches the throw goes on without half of it.
+   */
+  const atomic = transaction
 
   const touch = (table: LiveTable) => pending.tables.add(table)
 
@@ -243,6 +271,19 @@ export function createLocalLibrary(sql: SqlAdapter, options: LocalLibraryOptions
   function erase(tbl: SyncTable, id: string) {
     sql.run('DELETE FROM records WHERE tbl = ? AND id = ?', [tbl, id])
     touch(tbl)
+    // A deleted image takes its file along: the row now, the file once the delete commits.
+    if (tbl === 'images') {
+      const file = imageFile(id)
+      if (file) {
+        sql.run('DELETE FROM images WHERE id = ?', [id])
+        touch('imageFiles')
+        pending.removedFiles.push(file)
+      }
+    }
+  }
+
+  function imageFile(id: string): ImageFile | undefined {
+    return sql.get<ImageFile>('SELECT id, path, type, width, height, fit FROM images WHERE id = ?', [id])
   }
 
   const remoteWriter: RemoteWriter = {
@@ -337,6 +378,17 @@ export function createLocalLibrary(sql: SqlAdapter, options: LocalLibraryOptions
         touch('outbox')
       })
     },
+    putOutboxEntries(entries) {
+      if (entries.length === 0) return
+      atomic(() => {
+        for (const { tbl, id, at, stuck } of entries) {
+          sql.run('INSERT INTO outbox (tbl, id, at, stuck) VALUES (?, ?, ?, ?) ON CONFLICT (tbl, id) DO UPDATE SET at = excluded.at, stuck = excluded.stuck', [tbl, id, at, stuck ?? null])
+        }
+        touch('outbox')
+        // Changes to push, as a local write is: the sync triggers hear of them.
+        pending.local = true
+      })
+    },
 
     getMeta<T>(key: string) {
       const row = sql.get<{ value: string }>('SELECT value FROM meta WHERE key = ?', [key])
@@ -357,9 +409,7 @@ export function createLocalLibrary(sql: SqlAdapter, options: LocalLibraryOptions
       })
     },
 
-    imageFile(id) {
-      return sql.get<ImageFile>('SELECT id, path, type, width, height, fit FROM images WHERE id = ?', [id])
-    },
+    imageFile,
     imageFiles() {
       return sql.all<ImageFile>('SELECT id, path, type, width, height, fit FROM images ORDER BY id')
     },

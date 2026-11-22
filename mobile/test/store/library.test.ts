@@ -343,3 +343,121 @@ describe('change events', () => {
     expect(seen).toEqual([])
   })
 })
+
+describe('nested writes', () => {
+  /** A library whose SQL fails the next statement that starts with `prefix`, once `fail` is set. */
+  function failing(prefix: string) {
+    const adapter = nodeSqliteAdapter()
+    let fail = false
+    const run: typeof adapter.run = (sql, params) => {
+      if (fail && sql.startsWith(prefix)) {
+        fail = false
+        throw new Error('disk full')
+      }
+      adapter.run(sql, params)
+    }
+    const library = createLocalLibrary({ ...adapter, run }, { now: () => 1000 })
+    return { library, failNext: () => (fail = true) }
+  }
+
+  it('undoes the whole of a put whose record failed, when the caller goes on', () => {
+    const { library, failNext } = failing('INSERT INTO records')
+    library.write(() => {
+      failNext()
+      expect(() => library.put('decks', { id: 'd1' })).toThrow('disk full')
+      library.put('decks', { id: 'd2' })
+    })
+    expect(library.listIds('decks')).toEqual(['d2'])
+    expect(library.outbox().map((e) => e.id)).toEqual(['d2'])
+  })
+
+  it('undoes the whole of a remove whose entry failed, when the caller goes on', () => {
+    const { library, failNext } = failing('INSERT INTO outbox')
+    library.put('decks', { id: 'd1' })
+    library.acknowledge(library.outbox())
+    library.write(() => {
+      failNext()
+      expect(() => library.remove('decks', 'd1')).toThrow('disk full')
+    })
+    expect(library.get('decks', 'd1')).toEqual({ id: 'd1' })
+    expect(library.outbox()).toEqual([])
+  })
+
+  it('tells no one of the writes a failed nested write undid', () => {
+    const { library } = open()
+    const seen = events(library, ['decks', 'cards', 'outbox', 'meta'])
+    library.write(() => {
+      library.setMeta('cursor', 'x')
+      try {
+        library.write(() => {
+          library.put('cards', { id: 'c1' })
+          throw new Error('inner')
+        })
+      } catch {
+        // Carries on without c1.
+      }
+    })
+    expect(seen.map((e) => [topics(e), e.local])).toEqual([[['meta'], false]])
+  })
+})
+
+describe('the schema', () => {
+  it('keeps records in a rowid table, as rows of large JSON should be', () => {
+    const { adapter } = open()
+    const records = adapter.get<{ sql: string }>("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'records'")
+    expect(records?.sql).not.toMatch(/WITHOUT ROWID/i)
+  })
+})
+
+describe('deleting an image', () => {
+  const file = { id: 'i1', path: 'file:///images/i1', type: 'image/png', width: 4, height: 3, fit: 'cover' as const }
+  const meta = { id: 'i1', type: 'image/png', width: 4, height: 3, fit: 'cover' }
+
+  function withImage() {
+    const removed: string[][] = []
+    const library = createLocalLibrary(nodeSqliteAdapter(), { now: () => 1000, onImageFilesRemoved: (files) => removed.push(files.map((f) => f.path)) })
+    library.applyRemote((remote) => remote.apply(change('images', 'i1', meta, 1)))
+    library.putImageFile(file)
+    return { library, removed }
+  }
+
+  it('removes its file row and hands its file over for deleting, after a local delete commits', () => {
+    const { library, removed } = withImage()
+    library.write(() => {
+      library.remove('images', 'i1')
+      expect(removed).toEqual([])
+    })
+    expect(library.imageFile('i1')).toBeUndefined()
+    expect(removed).toEqual([['file:///images/i1']])
+    expect(library.outboxEntry('images', 'i1')).toMatchObject({ tbl: 'images', id: 'i1' })
+  })
+
+  it('does the same for a pulled tombstone', () => {
+    const { library, removed } = withImage()
+    library.applyRemote((remote) => remote.apply(change('images', 'i1', null, 2)))
+    expect(library.imageFile('i1')).toBeUndefined()
+    expect(removed).toEqual([['file:///images/i1']])
+  })
+
+  it('keeps the file when the delete is undone', () => {
+    const { library, removed } = withImage()
+    expect(() =>
+      library.write(() => {
+        library.remove('images', 'i1')
+        throw new Error('stop')
+      }),
+    ).toThrow('stop')
+    library.write(() => {
+      try {
+        library.write(() => {
+          library.remove('images', 'i1')
+          throw new Error('inner')
+        })
+      } catch {
+        // Carries on with the image.
+      }
+    })
+    expect(library.imageFile('i1')).toEqual(file)
+    expect(removed).toEqual([])
+  })
+})

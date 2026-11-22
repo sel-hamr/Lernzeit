@@ -5,7 +5,7 @@
  * and the subscribers hear of it once. The same contract suite as the memory and D1 stores tests it.
  */
 import { stageWrites, type Filter, type LibraryReader, type LibraryStore } from '@lernzeit/core/library'
-import type { SyncTable } from '@lernzeit/core/sync'
+import { isSynced, recordId, type SyncTable } from '@lernzeit/core/sync'
 import type { LocalLibrary } from './library'
 
 /** This phone's IANA time zone, UTC when the platform cannot tell. */
@@ -24,11 +24,13 @@ function deviceTimeZone(): string {
  */
 export function createPhoneLibraryStore(library: LocalLibrary, options: { timeZone?: string } = {}): LibraryStore {
   // The reads are synchronous underneath; async functions also turn a bad filter into a rejection.
+  // Only synced records, as in the D1 store: this phone's own kv rows (theme, say) are not the library's.
+  const synced = (tbl: SyncTable, row: object) => tbl !== 'kv' || isSynced(tbl, recordId(tbl, row))
   const stored: LibraryReader = {
-    list: async <T>(tbl: SyncTable, filter?: Filter) => library.list<T>(tbl, filter),
-    listIds: async (tbl, filter) => library.listIds(tbl, filter),
-    get: async <T>(tbl: SyncTable, id: string) => library.get<T>(tbl, id),
-    count: async (tbl, filter) => library.count(tbl, filter),
+    list: async <T>(tbl: SyncTable, filter?: Filter) => library.list<T & object>(tbl, filter).filter((row) => synced(tbl, row)),
+    listIds: async (tbl, filter) => library.listIds(tbl, filter).filter((id) => isSynced(tbl, id)),
+    get: async <T>(tbl: SyncTable, id: string) => (isSynced(tbl, id) ? library.get<T>(tbl, id) : undefined),
+    count: async (tbl, filter) => (tbl === 'kv' ? library.listIds(tbl, filter).filter((id) => isSynced(tbl, id)).length : library.count(tbl, filter)),
   }
   const staging = stageWrites(stored)
 

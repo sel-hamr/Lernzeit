@@ -12,6 +12,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { AccountProvider, useAccount } from '../src/account'
 import { createServices } from '../src/services'
 import { LocalLibraryProvider } from '../src/store/live'
+import { startSyncTriggers } from '../src/sync/triggers'
 import { ThemeProvider, useTheme } from '../src/theme'
 
 // The splash stays up until Geist is loaded, so no text shows in the fallback font first.
@@ -26,6 +27,12 @@ export default function RootLayout() {
   useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => {})
   }, [ready])
+
+  // Sync from the start, on local data: the screens never wait for the cloud.
+  useEffect(() => {
+    const { engine, library } = services
+    return engine ? startSyncTriggers({ engine, library }) : undefined
+  }, [services])
 
   // If the fonts fail to load, the app still opens, in the system font.
   if (!ready) return null

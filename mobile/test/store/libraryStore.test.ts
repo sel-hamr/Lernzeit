@@ -56,3 +56,16 @@ describe('the phone LibraryStore', () => {
     expect(createPhoneLibraryStore(library).timeZone).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone)
   })
 })
+
+describe('the phone LibraryStore reads', () => {
+  it('only the kv keys that sync, as the D1 store holds them', async () => {
+    const library = seeded({ kv: [{ key: 'settings', value: {} }] })
+    library.put('kv', { key: 'lastSyncAt', value: 1 })
+    const store = createPhoneLibraryStore(library)
+    expect(await store.get('kv', 'lastSyncAt')).toBeUndefined()
+    expect(await store.get('kv', 'settings')).toEqual({ key: 'settings', value: {} })
+    expect(await store.list('kv')).toEqual([{ key: 'settings', value: {} }])
+    expect(await store.listIds('kv')).toEqual(['settings'])
+    expect(await store.count('kv')).toBe(1)
+  })
+})
