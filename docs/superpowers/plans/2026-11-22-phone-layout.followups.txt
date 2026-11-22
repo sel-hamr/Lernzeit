@@ -1,0 +1,2 @@
+- T2 review: Needs fixes (n/total grows → 'done · left'; spacer constant; prettier). Fix round 1 sent. Deferred minor: typing/listening answer may need a scroll; ⋯ menu clipping on very narrow sc
+- Deployed phone layout: version 9d3c9584. Ruling: no separate whole-branch final review for this 2-task UI plan — each task had spec+quality review, fix rounds and controller browser checks at 375 
