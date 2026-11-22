@@ -19,7 +19,7 @@ import { SidebarVoiceSelect } from './VoiceSelect'
 import { SyncRow } from './SyncRow'
 import { LEVEL_DOT, useSyncIndicator } from './syncState'
 import { PhoneMenu } from './PhoneMenu'
-import { phoneTabs } from './nav'
+import { hidesBottomBar, phoneTabs } from './nav'
 
 function GoalsToday() {
   const progress = useTodayProgress()
@@ -233,6 +233,8 @@ function MobileHeader() {
 
 function BottomNav() {
   const tabs = phoneTabs(useFeatures())
+  const { pathname } = useLocation()
+  if (hidesBottomBar(pathname)) return null
   return (
     <nav
       aria-label="Main"
@@ -282,6 +284,8 @@ function QuickAddButton() {
 export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
   const softPage = pathname.startsWith('/history') || pathname.startsWith('/board')
+  // Without the bottom bar the page keeps only a small gap; it reserves room for its own controls.
+  const noBottomBar = hidesBottomBar(pathname)
   return (
     <div className="flex min-h-dvh bg-sidebar">
       <Sidebar />
@@ -289,7 +293,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <MobileHeader />
         <main
           className={clsx(
-            'min-w-0 flex-1 border-line px-4 pt-5 pb-[calc(96px+env(safe-area-inset-bottom))] md:border-l md:px-9 md:pt-8 md:pb-10',
+            'min-w-0 flex-1 border-line px-4 md:border-l md:px-9 md:pt-8 md:pb-10',
+            noBottomBar ? 'pt-3 pb-3' : 'pt-5 pb-[calc(96px+env(safe-area-inset-bottom))]',
             softPage ? 'bg-soft' : 'bg-main',
           )}
         >

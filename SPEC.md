@@ -425,7 +425,7 @@ Each topic gets its own color set (dot, bar, soft block, border, text). New topi
    - title "Flashcards"
    - subtitle "214 cards in 3 decks · 38 due today"
    - buttons: "Add card" (soft yellow) and "Review 38 cards" (dark)
-2. **Tabs**: a pill tab group on `bg-field` with counts: All 214, German A1 120, German A2 64, AI terms 30. On the right, a sort menu, "Due first".
+2. **Tabs**: a pill tab group on `bg-field` with counts: All 214, German A1 120, German A2 64, AI terms 30. On the right, a sort menu, "Due first". On a phone the tabs are one select-style button with the open deck and its count ("All decks · 898", a long name cut short); it opens the deck search menu as a sheet from the bottom, listing every deck with the open one ticked.
 3. **Grid of cards**, about 170px minimum each:
    - the image on a soft colored background (radius 10px)
    - the German word with its colored article
@@ -444,6 +444,7 @@ Each topic gets its own color set (dot, bar, soft block, border, text). New topi
 - a big centered card with the image on top and the answer below, as described in section 3
 - 4 rating buttons at the bottom: Again / Hard / Good / Easy, each with its next interval
 - Good is the dark button
+- On a phone the bottom tab bar is hidden while practising. The top row is one line: End, the card's place in the round ("12 / 1159") and the mute, typing and listening toggles (the Again/Hard/Good/Easy counts show on the computer only). The speed buttons and Edit card sit in a `⋯` menu on the card. The rating buttons are fixed to the bottom above the safe area, with Undo just above them, and the page keeps room for them. Once the answer shows, the picture shrinks and the question lines the answer repeats (such as "What is this in German?" and the hint) are hidden, so the answer fits without scrolling.
 
 **History**
 1. **Header**: title "History", subtitle "Week of 5 October", and a week picker button.

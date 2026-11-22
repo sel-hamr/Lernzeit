@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PLUGINS } from '@/app/plugins'
-import { menuItems, phoneTabs } from './nav'
+import { hidesBottomBar, menuItems, phoneTabs } from './nav'
 
 const without = (...ids: string[]) => PLUGINS.filter((p) => !ids.includes(p.id))
 const ids = (list: { id: string }[]) => list.map((p) => p.id)
@@ -23,5 +23,16 @@ describe('menuItems', () => {
     expect(list).not.toContain('stories')
     expect(list).not.toContain('grammar')
     expect(list).toContain('board')
+  })
+})
+
+describe('hidesBottomBar', () => {
+  it('hides the bar while practising flashcards', () => {
+    expect(hidesBottomBar('/flashcards/review')).toBe(true)
+  })
+  it('keeps it on Flashcards and other pages', () => {
+    expect(hidesBottomBar('/flashcards')).toBe(false)
+    expect(hidesBottomBar('/')).toBe(false)
+    expect(hidesBottomBar('/questions/practice')).toBe(false)
   })
 })

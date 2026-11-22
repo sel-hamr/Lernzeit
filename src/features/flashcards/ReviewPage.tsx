@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router'
 import clsx from 'clsx'
-import { Check, Headphones, Keyboard, Pencil, Undo2, Volume2, VolumeX, X } from 'lucide-react'
+import { Check, Ellipsis, Headphones, Keyboard, Pencil, Undo2, Volume2, VolumeX, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { LetterButtons } from '@/components/LetterButtons'
 import { EmptyState, Kbd } from '@/components/ui/primitives'
@@ -24,6 +24,7 @@ import { buildPickedQueue, buildPracticeQueue, LEARN_AHEAD_MS, pickNextReview, P
 import { prepareSpeech, speak, stopSpeaking, voiceOptions } from '@/data/voice'
 import { directionLabel, directionsFor, GRADE_LABEL, GRADES, State } from '@lernzeit/core/srs'
 import { dateKey, MINUTE } from '@lernzeit/core/time'
+import { roundPosition } from './labels'
 
 interface Progress {
   /** The round's id, which its saved practice session keeps. */
@@ -99,14 +100,23 @@ function hasPicture(card: Pick<Card, 'imageId' | 'emoji'>): boolean {
   return !!card.imageId || !!card.emoji
 }
 
-/** "What is this in German?" with an optional hint, for when a picture could mean more than one word. */
-function PictureQuestion({ card }: { card: Card }) {
+/**
+ * A picture's height: `phone` below `md`, `desktop` from there. Once the answer shows (`compact`),
+ * phones shrink it so the answer fits above the rating buttons.
+ */
+const pictureHeight = (compact: boolean, phone: string, desktop: string) => clsx('transition-[height] duration-200', compact ? 'h-20' : phone, desktop)
+
+/**
+ * "What is this in German?" with an optional hint, for when a picture could mean more than one word.
+ * `compact` (the answer shows): phones hide the question and the hint.
+ */
+function PictureQuestion({ card, compact }: { card: Card; compact: boolean }) {
   const language = useLanguage()
   const [hint, setHint] = useState(false)
   return (
     <div className="flex flex-col gap-4">
-      <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="What is this?" className="h-55 sm:h-65" />
-      <div className="flex flex-col items-center gap-1.5 text-center text-body text-muted">
+      <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="What is this?" className={pictureHeight(compact, 'h-44', 'md:h-65')} />
+      <div className={clsx('flex flex-col items-center gap-1.5 text-center text-body text-muted', compact && 'max-md:hidden')}>
         <span>What is this in {language.name}?</span>
         {hint ? (
           <span className="animate-fade-in text-small" dir="auto">
@@ -122,12 +132,17 @@ function PictureQuestion({ card }: { card: Card }) {
   )
 }
 
-function Prompt({ card, review, listening, onPlay }: { card: Card; review: CardReview; listening: boolean; onPlay: () => void }) {
+/**
+ * The question. `compact` (the answer shows): phones shrink the picture and hide the lines the answer
+ * repeats, so the answer and the rating buttons fit on the screen.
+ */
+function Prompt({ card, review, listening, compact, onPlay }: { card: Card; review: CardReview; listening: boolean; compact: boolean; onPlay: () => void }) {
   const language = useLanguage()
   const nativeText = useNativeText()
   if (listening) {
     return (
-      <div className="flex flex-col items-center gap-4 py-6">
+      // The card's speaker plays it again once the answer shows.
+      <div className={clsx('flex flex-col items-center gap-4 py-6', compact && 'max-md:hidden')}>
         <button
           type="button"
           onClick={onPlay}
@@ -142,36 +157,40 @@ function Prompt({ card, review, listening, onPlay }: { card: Card; review: CardR
   }
   switch (review.direction) {
     case 'imageToDe':
-      return <PictureQuestion card={card} />
+      return <PictureQuestion card={card} compact={compact} />
     case 'enToDe':
       return (
         <div className="flex flex-col gap-4">
-          {card.type === 'sentence' && hasPicture(card) && <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="" className="h-45 sm:h-55" />}
-          {card.type === 'word' && hasPicture(card) && (
-            <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="" className="h-45 sm:h-55" />
+          {card.type === 'sentence' && hasPicture(card) && (
+            <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="" className={pictureHeight(compact, 'h-36', 'md:h-55')} />
           )}
-          <div className="flex flex-col items-center gap-2 px-2 py-4 text-center">
+          {card.type === 'word' && hasPicture(card) && (
+            <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="" className={pictureHeight(compact, 'h-36', 'md:h-55')} />
+          )}
+          {/* The answer repeats a word's English, so phones drop it; a sentence keeps it. */}
+          <div className={clsx('flex flex-col items-center gap-2 px-2 py-4 text-center', compact && (card.type === 'word' ? 'max-md:hidden' : 'max-md:py-0'))}>
             <div className={clsx('font-semibold tracking-[-0.01em]', card.type === 'word' ? 'text-[30px]' : 'text-[22px] leading-snug')} {...nativeText}>
               {card.english}
             </div>
-            <div className="text-small text-muted">{card.type === 'word' ? `${wordKind(card)} · in ${language.name}` : `Say it in ${language.name}`}</div>
+            <div className={clsx('text-small text-muted', compact && 'max-md:hidden')}>{card.type === 'word' ? `${wordKind(card)} · in ${language.name}` : `Say it in ${language.name}`}</div>
           </div>
         </div>
       )
     case 'deToEn':
       return (
-        <div className="flex flex-col items-center gap-2 px-2 py-6 text-center">
+        <div className={clsx('flex flex-col items-center gap-2 px-2 py-6 text-center', compact && 'max-md:py-1')}>
           <div className={clsx('font-semibold tracking-[-0.01em]', card.type === 'word' ? 'text-[30px]' : 'text-[22px] leading-snug')} lang={language.speech} dir="auto">
             <CardGerman card={card} />
           </div>
-          <div className="text-small text-muted">What does it mean?</div>
+          <div className={clsx('text-small text-muted', compact && 'max-md:hidden')}>What does it mean?</div>
         </div>
       )
     case 'cloze':
       return (
         <div className="flex flex-col gap-4">
-          {hasPicture(card) && <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="Hint" className="h-45 sm:h-55" />}
-          <div className="flex flex-col items-center gap-2 px-2 py-2 text-center">
+          {hasPicture(card) && <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="Hint" className={pictureHeight(compact, 'h-36', 'md:h-55')} />}
+          {/* The answer repeats the whole sentence and its English, so phones drop them. */}
+          <div className={clsx('flex flex-col items-center gap-2 px-2 py-2 text-center', compact && 'max-md:hidden')}>
             <div className="text-[22px] leading-snug font-semibold tracking-[-0.01em]" lang={language.speech} dir="auto">
               <ClozeSentence text={card.german} reveal={false} />
             </div>
@@ -213,6 +232,63 @@ function SpeedButtons({ rate, onChange }: { rate: number; onChange: (rate: numbe
           {s}×
         </button>
       ))}
+    </div>
+  )
+}
+
+/** Phones: the speed buttons and Edit card in a small menu on the card. Escape or a tap outside closes it. */
+function CardMenu({ rate, onRate, onEdit }: { rate: number; onRate: (rate: number) => void; onEdit: () => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const panelId = useId()
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('pointerdown', onDown)
+    return () => document.removeEventListener('pointerdown', onDown)
+  }, [open])
+
+  return (
+    <div
+      ref={ref}
+      className="relative md:hidden"
+      onKeyDown={(e) => {
+        // Escape closes the menu, not the round.
+        if (e.key === 'Escape' && open) {
+          e.stopPropagation()
+          setOpen(false)
+        }
+      }}
+    >
+      <button
+        type="button"
+        aria-label="Speed and edit"
+        aria-expanded={open}
+        aria-controls={open ? panelId : undefined}
+        onClick={() => setOpen((o) => !o)}
+        className={clsx('flex size-8 items-center justify-center rounded-full hover:bg-field hover:text-ink', open && 'bg-field text-ink')}
+      >
+        <Ellipsis size={16} strokeWidth={1.8} />
+      </button>
+      {open && (
+        <div id={panelId} className="absolute top-full right-0 z-20 mt-1 flex w-max animate-fade-in flex-col gap-1.5 rounded-row border border-line bg-main p-1.5 shadow-popup">
+          <span className="px-1.5 pt-0.5 text-chip text-muted">Speaking speed</span>
+          <SpeedButtons rate={rate} onChange={onRate} />
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false)
+              onEdit()
+            }}
+            className="flex h-9 items-center gap-2 rounded-img px-2 text-small text-ink-2 hover:bg-field hover:text-ink"
+          >
+            <Pencil size={15} strokeWidth={1.8} aria-hidden /> Edit card
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -289,7 +365,7 @@ function Answer({ card, review, listening, onSpeak }: { card: Card; review: Card
   }
   return (
     <div className="flex flex-col items-center gap-3 text-center">
-      {showImage && <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="" className="h-45 w-full sm:h-55" />}
+      {showImage && <CardImage imageId={card.imageId} emoji={card.emoji} label={card.german} seed={card.id} alt="" className="h-20 w-full md:h-55" />}
       <div className={clsx('font-semibold tracking-[-0.01em]', card.type === 'word' ? 'text-[30px]' : 'text-[22px] leading-snug')} lang={language.speech} dir="auto">
         {card.type === 'cloze' ? <ClozeSentence text={card.german} reveal /> : <CardGerman card={card} />}
       </div>
@@ -656,16 +732,20 @@ export default function ReviewPage() {
   )
 
   return (
-    <div className="mx-auto flex w-full max-w-160 flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-160 flex-col gap-3 md:gap-5">
+      {/* One line on phones: End, the card's place in the round and the toggles. Desktop counts the ratings. */}
       <div className="flex items-center justify-between gap-3">
-        <Link to="/flashcards" className="flex items-center gap-1.5 text-small text-muted hover:text-ink">
+        <Link to="/flashcards" className="flex shrink-0 items-center gap-1.5 text-small text-muted hover:text-ink">
           <X size={16} strokeWidth={1.8} /> End
         </Link>
         {progress.current && (
-          <div className="flex items-center gap-2.5 text-small font-medium tabular-nums sm:gap-3">
-            <RatingCounts ratings={progress.ratings} />
-            <span className="text-muted">· {remaining} left</span>
-          </div>
+          <>
+            <span className="text-small font-medium whitespace-nowrap text-muted tabular-nums md:hidden">{roundPosition(progress.reviewed, remaining)}</span>
+            <div className="hidden items-center gap-3 text-small font-medium tabular-nums md:flex">
+              <RatingCounts ratings={progress.ratings} />
+              <span className="text-muted">· {remaining} left</span>
+            </div>
+          </>
         )}
         {toggles}
       </div>
@@ -686,24 +766,27 @@ export default function ReviewPage() {
         />
       ) : (
         <>
-          <article key={review.id + progress.reviewed} data-tour="practice-card" className="flex animate-flip-in flex-col gap-5 rounded-flash border border-line bg-main p-3 pb-6 shadow-panel sm:p-4 sm:pb-7">
+          <article key={review.id + progress.reviewed} data-tour="practice-card" className="flex animate-flip-in flex-col gap-3 rounded-flash border border-line bg-main p-3 pb-4 shadow-panel md:gap-5 md:p-4 md:pb-7">
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-1 text-chip text-muted">
-              <span className="min-w-0">
+              <span className="min-w-0 max-md:flex-1 max-md:truncate">
                 {deck?.name} · {listening ? 'Listening' : directionLabel(review.direction, { learning: language.name, native: language.native.name })}
               </span>
               <div className="ml-auto flex items-center gap-1">
                 <button type="button" onClick={play} aria-label={`Play ${language.name} audio`} className="flex size-8 items-center justify-center rounded-full hover:bg-field hover:text-ink">
                   <Volume2 size={16} strokeWidth={1.8} />
                 </button>
-                <SpeedButtons rate={settings.speechRate} onChange={changeRate} />
-                <span aria-hidden className="mx-1 h-4 w-px bg-line" />
-                <button type="button" onClick={() => openCardEditor({ cardId: card.id })} aria-label="Edit card" className="flex size-8 items-center justify-center rounded-full hover:bg-field hover:text-ink">
-                  <Pencil size={15} strokeWidth={1.8} />
-                </button>
+                <div className="hidden items-center gap-1 md:flex">
+                  <SpeedButtons rate={settings.speechRate} onChange={changeRate} />
+                  <span aria-hidden className="mx-1 h-4 w-px bg-line" />
+                  <button type="button" onClick={() => openCardEditor({ cardId: card.id })} aria-label="Edit card" className="flex size-8 items-center justify-center rounded-full hover:bg-field hover:text-ink">
+                    <Pencil size={15} strokeWidth={1.8} />
+                  </button>
+                </div>
+                <CardMenu rate={settings.speechRate} onRate={changeRate} onEdit={() => openCardEditor({ cardId: card.id })} />
               </div>
             </div>
 
-            <Prompt card={card} review={review} listening={listening} onPlay={play} />
+            <Prompt card={card} review={review} listening={listening} compact={revealed} onPlay={play} />
 
             {typing && (
               <form
@@ -747,54 +830,58 @@ export default function ReviewPage() {
             )}
 
             {revealed && (
-              <div className="flex animate-fade-in flex-col gap-4 border-t border-line pt-5">
+              <div className="flex animate-fade-in flex-col gap-3 border-t border-line pt-3 md:gap-4 md:pt-5">
                 {check && <Verdict check={check} typed={typed} />}
                 <Answer card={card} review={review} listening={listening} onSpeak={(text) => speak(text, voiceOptions(settings))} />
               </div>
             )}
           </article>
 
-          <div className="sticky bottom-[calc(68px+env(safe-area-inset-bottom))] z-10 -mx-1 bg-main/95 backdrop-blur-sm px-1 pt-3 pb-1 md:bottom-4">
-            {!revealed ? (
-              <Button data-tour="practice-show" variant="primary" size="lg" className="w-full" onClick={reveal}>
-                {typing ? 'Check' : 'Show answer'}
-                <span className="hidden opacity-60 sm:inline">{typing ? 'Enter' : 'Space'}</span>
-              </Button>
-            ) : (
-              <div data-tour="practice-rate" className="grid grid-cols-4 gap-2">
-                {GRADES.map((g) => (
-                  <button
-                    key={g}
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void grade(g)}
-                    className={clsx(
-                      'flex h-14 flex-col items-center justify-center gap-0.5 rounded-row border text-body font-medium transition-[background-color,transform] active:scale-[0.98]',
-                      g === 3 ? 'border-button-dark bg-button-dark text-on-dark hover:border-button-dark-hover hover:bg-button-dark-hover' : 'border-line-strong bg-main hover:bg-soft',
-                      g === 1 && 'text-red-ink',
-                      suggested === g && 'ring-2 ring-sage-dot ring-offset-2 ring-offset-main',
-                    )}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      {GRADE_LABEL[g]}
-                      <span className="hidden text-chip opacity-50 sm:inline">{g}</span>
-                    </span>
-                    {practisesDeck(progress.kind) && <span className={clsx('text-chip', g === 3 ? 'opacity-70' : 'text-muted')}>{returnLabel(g)}</span>}
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="flex items-center justify-between pt-2.5 text-chip text-muted">
-              <span className="hidden gap-1.5 sm:flex">
-                <Kbd>Space</Kbd> show / good · <Kbd>1</Kbd>–<Kbd>4</Kbd> rate · <Kbd>Z</Kbd> undo
-              </span>
-              {history.length > 0 && (
-                <button type="button" onClick={() => void undo()} className="ml-auto flex items-center gap-1 hover:text-ink">
-                  <Undo2 size={14} strokeWidth={1.8} /> Undo
-                </button>
+          {/* Phones: fixed to the bottom above the safe area, Undo just above the buttons; the spacer below keeps its room. */}
+          <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-main/95 px-4 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] backdrop-blur-sm md:sticky md:inset-x-auto md:bottom-4 md:z-10 md:-mx-1 md:border-t-0 md:px-1 md:pt-3 md:pb-1">
+            <div className="mx-auto flex w-full max-w-160 flex-col gap-1 md:gap-0">
+              {!revealed ? (
+                <Button data-tour="practice-show" variant="primary" size="lg" className="w-full max-md:h-14" onClick={reveal}>
+                  {typing ? 'Check' : 'Show answer'}
+                  <span className="hidden opacity-60 sm:inline">{typing ? 'Enter' : 'Space'}</span>
+                </Button>
+              ) : (
+                <div data-tour="practice-rate" className="grid grid-cols-4 gap-2">
+                  {GRADES.map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void grade(g)}
+                      className={clsx(
+                        'flex h-14 flex-col items-center justify-center gap-0.5 rounded-row border text-body font-medium transition-[background-color,transform] active:scale-[0.98]',
+                        g === 3 ? 'border-button-dark bg-button-dark text-on-dark hover:border-button-dark-hover hover:bg-button-dark-hover' : 'border-line-strong bg-main hover:bg-soft',
+                        g === 1 && 'text-red-ink',
+                        suggested === g && 'ring-2 ring-sage-dot ring-offset-2 ring-offset-main',
+                      )}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        {GRADE_LABEL[g]}
+                        <span className="hidden text-chip opacity-50 sm:inline">{g}</span>
+                      </span>
+                      {practisesDeck(progress.kind) && <span className={clsx('text-chip', g === 3 ? 'opacity-70' : 'text-muted')}>{returnLabel(g)}</span>}
+                    </button>
+                  ))}
+                </div>
               )}
+              <div className="-order-1 flex h-7 items-center justify-between text-chip text-muted md:order-none md:h-auto md:pt-2.5">
+                <span className="hidden gap-1.5 md:flex">
+                  <Kbd>Space</Kbd> show / good · <Kbd>1</Kbd>–<Kbd>4</Kbd> rate · <Kbd>Z</Kbd> undo
+                </span>
+                {history.length > 0 && (
+                  <button type="button" onClick={() => void undo()} className="ml-auto flex h-7 items-center gap-1 px-1 hover:text-ink md:h-auto md:px-0">
+                    <Undo2 size={14} strokeWidth={1.8} /> Undo
+                  </button>
+                )}
+              </div>
             </div>
           </div>
+          <div aria-hidden className="h-[calc(97px+max(8px,env(safe-area-inset-bottom)))] shrink-0 md:hidden" />
         </>
       )}
     </div>

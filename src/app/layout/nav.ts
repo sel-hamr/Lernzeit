@@ -11,3 +11,8 @@ export function phoneTabs(features: FeaturePlugin[]): FeaturePlugin[] {
 export function menuItems(features: FeaturePlugin[]): FeaturePlugin[] {
   return features.filter((f) => !PHONE_TAB_IDS.includes(f.id))
 }
+
+/** Practising flashcards fills the phone screen: its rating buttons take the bottom bar's place. */
+export function hidesBottomBar(pathname: string): boolean {
+  return pathname.startsWith('/flashcards/review')
+}
