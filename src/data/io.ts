@@ -5,6 +5,7 @@ import { readAccount } from '@/sync/account'
 import { MERGED_KEY } from '@/sync/firstSignIn'
 import { MISSING_IMAGES_KEY, stopSync, syncNow, withLock } from '@/sync/engine'
 import { applyRemote } from '@/sync/outbox'
+import { recordTimeZone } from './timeZone'
 import { db, getSettings, KV_KEYS, newId, type LernzeitDB, type OutboxEntry } from '@/db/db'
 import type { Card, CardType, Conjugation, Deck, Doc, DocFolder, DrillStat, ExerciseStat, Gender, GrammarTopic, KV, PracticeRun, Question, QuestionResponse, ReviewLog, Session, Settings, StoredImage, Story, Task, Topic, CardReview } from '@lernzeit/core/types'
 import { cleanConjugation } from '@lernzeit/core/conjugation'
@@ -514,6 +515,8 @@ export async function restoreBackup(raw: unknown, database: LernzeitDB = db): Pr
     }
     await database.kv.bulkPut(kv)
   })
+  // The reset removed `kv/timeZone` (it syncs); put it back so it goes up with the backup.
+  await recordTimeZone(database).catch(() => {})
   // The upload runs on its own; a failure leaves the backup in the outbox for the engine's next try.
   void syncNow(database).catch(() => {})
   return { cards: backup.cards.length, sessions: backup.sessions.length, tasks: backup.tasks.length }
@@ -522,6 +525,7 @@ export async function restoreBackup(raw: unknown, database: LernzeitDB = db): Pr
 /** Deletes the library on every device; the app starts empty again. Needs a sign-in and the cloud. */
 export async function resetAllData(database: LernzeitDB = db) {
   await replaceLibrary(database, 'reset your library', 'Reset failed.')
+  await recordTimeZone(database).catch(() => {})
   void syncNow(database).catch(() => {})
 }
 

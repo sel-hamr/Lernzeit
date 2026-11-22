@@ -519,8 +519,12 @@ describe('restore and reset across devices', () => {
     vi.setSystemTime(2_000)
     await resetAllData(a)
     expect(await a.cards.count()).toBe(0)
-    expect(await a.outbox.count()).toBe(0)
     expect(server.record('cards', 'c1')).toMatchObject({ deleted: true })
+    // The zone is recorded again right away, so it goes up with the reset.
+    expect((await a.kv.get('timeZone'))?.value).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone)
+    await syncNow(a)
+    expect(await a.outbox.count()).toBe(0)
+    expect(server.record('kv', 'timeZone')).toMatchObject({ deleted: false })
 
     await syncNow(b)
     expect(await b.cards.count()).toBe(0)
@@ -545,7 +549,7 @@ describe('restore and reset across devices', () => {
     expect((await a.meta.get('merged'))?.value).toBe(true)
     expect((await cursorOf(a)) ?? '').not.toBe('')
     expect(cursor).toBeTruthy()
-    expect((await a.kv.toArray()).map((row) => row.key).sort()).toEqual(['deviceSettings', 'remindersFired'])
+    expect((await a.kv.toArray()).map((row) => row.key).sort()).toEqual(['deviceSettings', 'remindersFired', 'timeZone'])
     expect((await a.kv.get('deviceSettings'))?.value).toEqual({ speechRate: 0.7 })
   })
 
@@ -555,6 +559,8 @@ describe('restore and reset across devices', () => {
     vi.setSystemTime(2_000)
     const result = await restoreBackup(await backupOf([card('c1'), card('c2')]), a)
     expect(result).toEqual({ cards: 2, sessions: 0, tasks: 0 })
+    // The restore removed the synced time zone; it is recorded again.
+    expect((await a.kv.get('timeZone'))?.value).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone)
     // Restoring returns once the backup is stored here; the upload runs on its own.
     await syncNow(a)
     expect(await a.outbox.count()).toBe(0)

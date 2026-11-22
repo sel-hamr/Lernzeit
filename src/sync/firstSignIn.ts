@@ -29,7 +29,8 @@ import {
 import { count } from '@lernzeit/core/text'
 import type { Settings, StoredImage } from '@lernzeit/core/types'
 import { getImage, pull, push, putImage } from './api'
-import { CURSOR_KEY, IMAGE_REFUSALS, MISSING_IMAGES_KEY, PUSH_REFUSALS, acceptable, refusal, refusedBy, type MissingImage } from './engine'
+import { CURSOR_KEY, IMAGE_REFUSALS, MISSING_IMAGES_KEY, PUSH_REFUSALS, refusedBy, type MissingImage } from './engine'
+import { acceptablePulled, batchChanges, changeBytes, refusal, splitOnRefusal } from '@lernzeit/core/syncRules'
 import { applyRemote } from './outbox'
 
 /** `meta` key set once this browser's library is in the cloud. Until then the sync engine must not run. */
@@ -37,9 +38,6 @@ export const MERGED_KEY = 'merged'
 
 export type MergeSummary = FoldResult['summary']
 
-/** `{"changes":[]}` around the changes of a push. */
-const PUSH_ENVELOPE_BYTES = 14
-const encoder = new TextEncoder()
 const keyOf = (tbl: string, id: string) => `${tbl}/${id}`
 
 /** The cloud's records by `tbl/id`, as last pulled; tombstones included. */
@@ -181,7 +179,7 @@ export function moveDeviceSettings(database: LernzeitDB): Promise<void> {
 async function pullInto(state: CloudState, cursor: string): Promise<string> {
   for (;;) {
     const page = await pull(cursor)
-    for (const change of page.changes) if (acceptable(change)) state.set(keyOf(change.tbl, change.id), change)
+    for (const change of page.changes) if (acceptablePulled(change)) state.set(keyOf(change.tbl, change.id), change)
     if (!page.more || page.cursor === cursor) return page.cursor
     cursor = page.cursor
   }
@@ -267,27 +265,9 @@ async function upload(list: Upload[]): Promise<Refused[]> {
     }
     ready.push(item)
   }
-  for (const batch of batches(ready)) await send(batch, refuse)
+  const sized = ready.map((item) => ({ item, bytes: changeBytes(item.change) }))
+  for (const batch of batchChanges(sized, MAX_PUSH_CHANGES, MAX_PUSH_BYTES)) await send(batch.map(({ item }) => item), refuse)
   return refused
-}
-
-/** Splits changes into pushes of at most MAX_PUSH_CHANGES and MAX_PUSH_BYTES. */
-function batches(list: Upload[]): Upload[][] {
-  const result: Upload[][] = []
-  let batch: Upload[] = []
-  let bytes = PUSH_ENVELOPE_BYTES
-  for (const item of list) {
-    const size = encoder.encode(JSON.stringify(item.change)).byteLength + 1
-    if (batch.length > 0 && (batch.length === MAX_PUSH_CHANGES || bytes + size > MAX_PUSH_BYTES)) {
-      result.push(batch)
-      batch = []
-      bytes = PUSH_ENVELOPE_BYTES
-    }
-    batch.push(item)
-    bytes += size
-  }
-  if (batch.length > 0) result.push(batch)
-  return result
 }
 
 /** Pushes one batch. A batch the cloud refuses goes in halves down to the change at fault, as the engine does. */
@@ -297,10 +277,10 @@ async function send(batch: Upload[], refuse: (item: Upload, reason: string) => v
     await push(batch.map((item) => item.change))
   } catch (error) {
     if (!refusedBy(error, PUSH_REFUSALS)) throw error
-    if (batch.length === 1) return void refuse(batch[0], error.message)
-    const half = Math.ceil(batch.length / 2)
-    await send(batch.slice(0, half), refuse)
-    await send(batch.slice(half), refuse)
+    const halves = splitOnRefusal(batch)
+    if (!halves) return void refuse(batch[0], error.message)
+    await send(halves[0], refuse)
+    await send(halves[1], refuse)
   }
 }
 

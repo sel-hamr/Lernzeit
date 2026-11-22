@@ -9,6 +9,7 @@
  */
 import Dexie, { type DBCore, type DBCoreMutateRequest, type DBCoreMutateResponse, type DBCoreTable, type DBCoreTransaction, type Middleware } from 'dexie'
 import { SYNC_TABLES, isSynced } from '@lernzeit/core/sync'
+import { nextAt } from '@lernzeit/core/syncRules'
 import type { LernzeitDB } from '@/db/db'
 
 const OUTBOX = 'outbox'
@@ -59,7 +60,7 @@ function recording(down: DBCore, table: DBCoreTable): DBCoreTable {
         const now = Date.now()
         // `at` always moves forward, so the engine can tell an entry was rewritten while its push
         // was in flight even when the clock has not ticked (or went back).
-        const values = ids.map((id, i) => ({ tbl: table.name, id, at: Math.max(now, (previous[i]?.at ?? -Infinity) + 1) }))
+        const values = ids.map((id, i) => ({ tbl: table.name, id, at: nextAt(previous[i]?.at, now) }))
         return outbox.mutate({ trans, type: 'put', values })
       })
       .then(() => {

@@ -3,6 +3,7 @@
  * sends by itself. Every call throws OfflineError when the request cannot be made or gets no answer in
  * time, SignedOutError on 401 and ApiError on any other refusal, with the server's message.
  */
+import { isResync } from '@lernzeit/core/syncRules'
 import type { PullResponse, PushResponse, SyncChange } from '@lernzeit/core/sync'
 
 export class ApiError extends Error {
@@ -106,7 +107,7 @@ async function exchange<T>(path: string, init: RequestInit, read: Read<T>): Prom
   const body = (await response.json().catch(() => undefined)) as { error?: unknown; resync?: unknown } | undefined
   const message = typeof body?.error === 'string' ? body.error : undefined
   if (response.status === 401) throw new SignedOutError(message)
-  if (response.status === 409 && body?.resync === true) throw new ResyncNeededError(message)
+  if (isResync(response.status, body)) throw new ResyncNeededError(message)
   throw new ApiError(response.status, message ?? `The server answered ${response.status}.`)
 }
 
