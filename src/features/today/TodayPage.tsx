@@ -8,6 +8,7 @@ import { CardGerman } from '@/components/GermanWord'
 import { useUI } from '@/app/ui'
 import { useLanguage, usePracticeRuns, useSettings, useTasks, useTopics } from '@/data/hooks'
 import { useTodayProgress, type TopicProgress } from '@/data/progress'
+import { todaySubtitle } from '@lernzeit/core/today'
 import { useStreaks, useWordOfTheDay } from '@/data/stats'
 import { isDueToday, isOverdue, toggleTaskDone } from '@/data/tasks'
 import { useStartTimer } from '@/features/timer/useStartTimer'
@@ -15,7 +16,7 @@ import { PRIORITY_ORDER } from '@/lib/colors'
 import { germanText } from '@lernzeit/core/german'
 import { formatPracticeTime, practiceTotals } from '@lernzeit/core/practice'
 import { speak, voiceOptions } from '@/data/voice'
-import { dateKey, formatClock, formatDayMonthShort, formatHM, formatLongDate } from '@lernzeit/core/time'
+import { dateKey, formatClock, formatDayMonthShort, formatHM } from '@lernzeit/core/time'
 import { isPaused } from '@lernzeit/core/timer'
 
 function GoalRow({ row, running, onStart }: { row: TopicProgress; running: boolean; onStart: () => void }) {
@@ -262,10 +263,7 @@ export function TodayPage() {
   const mainTopic = progress.topics[0]?.topic
   const streak = mainTopic ? (streaks?.get(mainTopic.id)?.current ?? 0) : 0
 
-  let subtitle = formatLongDate(progress.today)
-  if (progress.goalCount === 0) subtitle += ' · no goals today'
-  else if (progress.totalLeft === 0) subtitle += ' · every goal reached'
-  else subtitle += ` · ${formatHM(progress.totalLeft)} h left to reach your goals`
+  const subtitle = todaySubtitle(progress)
 
   return (
     <>
