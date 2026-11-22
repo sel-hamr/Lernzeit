@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
-import { createAccountService, deviceName, useAccount } from '../src/account'
+import { createAccountService, deviceName, OtherAccountError, useAccount } from '../src/account'
 import { createApi, OfflineError } from '../src/api'
 import { createLocalLibrary, DEVICE_ID_KEY } from '../src/store/library'
 import { LocalLibraryProvider } from '../src/store/live'
@@ -147,5 +147,59 @@ describe('useAccount', () => {
     expect(result.current).toEqual({ email: 'a@b.c' })
     await act(async () => library.removeMeta('account'))
     expect(result.current).toBeNull()
+  })
+})
+
+describe('signing in as another account', () => {
+  const login = (email: string) => (url: string) => (url.endsWith('/auth/login') ? reply(200, { email, token: 'tok-' + email }) : reply(200))
+  const loginCalls = (t: ReturnType<typeof setup>) => t.fetch.mock.calls.filter(([url]) => String(url).endsWith('/auth/login')).length
+
+  it('remembers who signed in, also after a 401 sign-out', async () => {
+    const t = setup(login('a@b.c'))
+    await t.account.signIn('a@b.c', 'pw')
+    expect(t.library.getMeta('lastAccount')).toBe('a@b.c')
+    await t.account.signedOut()
+    expect(t.library.getMeta('account')).toBeUndefined()
+    expect(t.library.getMeta('lastAccount')).toBe('a@b.c')
+  })
+
+  it('refuses a different email while this phone has data, before asking the cloud', async () => {
+    const t = setup(login('x@y.z'))
+    t.library.setMeta('lastAccount', 'a@b.c')
+    t.library.put('decks', { id: 'd1', name: 'One' })
+    await expect(t.account.signIn('x@y.z', 'pw')).rejects.toThrow(
+      'This phone has data from a@b.c. Sign out of it first (Settings → Sign out) to use another account.',
+    )
+    await expect(t.account.signIn('x@y.z', 'pw')).rejects.toBeInstanceOf(OtherAccountError)
+    expect(loginCalls(t)).toBe(0)
+    expect(t.token()).toBeNull()
+    expect(t.library.getMeta('account')).toBeUndefined()
+  })
+
+  it('lets the same account back in, however its email is written', async () => {
+    const t = setup(login('a@b.c'))
+    t.library.setMeta('lastAccount', 'a@b.c')
+    t.library.put('decks', { id: 'd1', name: 'One' })
+    await t.account.signIn(' A@B.C ', 'pw')
+    expect(t.library.getMeta('account')).toEqual({ email: 'a@b.c' })
+  })
+
+  it('lets another account in when the phone holds no data', async () => {
+    const t = setup(login('x@y.z'))
+    t.library.setMeta('lastAccount', 'a@b.c')
+    await t.account.signIn('x@y.z', 'pw')
+    expect(t.library.getMeta('lastAccount')).toBe('x@y.z')
+  })
+
+  it('lets another account in after a forced sign-out cleared the data', async () => {
+    const t = setup(login('x@y.z'))
+    await t.tokens.set('tok')
+    t.library.setMeta('account', { email: 'a@b.c' })
+    t.library.setMeta('lastAccount', 'a@b.c')
+    t.library.put('decks', { id: 'd1', name: 'One' })
+    await t.account.signOut({ force: true })
+    expect(t.library.getMeta('lastAccount')).toBeUndefined()
+    await t.account.signIn('x@y.z', 'pw')
+    expect(t.library.getMeta('account')).toEqual({ email: 'x@y.z' })
   })
 })

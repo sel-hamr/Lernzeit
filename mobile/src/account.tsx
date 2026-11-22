@@ -5,6 +5,7 @@
  * Signing in never touches local data. A 401 (SignedOutError) deletes the account and the token but
  * keeps the library and its outbox, so signing in again picks up where the phone left off.
  */
+import { isSynced, SYNC_TABLES } from '@lernzeit/core/sync'
 import * as Device from 'expo-device'
 import { createContext, createElement, useContext, type ReactNode } from 'react'
 import { OfflineError, SignedOutError, type Api } from './api'
@@ -30,6 +31,27 @@ export function failureMessage(error: unknown): string {
   if (error instanceof OfflineError) return 'Can’t reach your Lernzeit cloud. Check the connection and try again.'
   if (error instanceof SignedOutError) return 'You were signed out. Sign in again.'
   return error instanceof Error ? error.message : 'Something went wrong. Try again.'
+}
+
+/**
+ * `meta` key of the email that last signed in here. Unlike `account` it survives a 401 sign-out,
+ * which keeps the data; a sign-out that clears the data clears it too (meta goes with it).
+ */
+export const LAST_ACCOUNT_KEY = 'lastAccount'
+
+/** Signing in as someone else while this phone still holds another account's data. */
+export class OtherAccountError extends Error {
+  constructor(readonly lastAccount: string) {
+    super(`This phone has data from ${lastAccount}. Sign out of it first (Settings → Sign out) to use another account.`)
+    this.name = 'OtherAccountError'
+  }
+}
+
+const sameEmail = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
+
+/** Whether the phone holds anything of an account: a change waiting or a synced record. */
+function hasSyncedData(library: LocalLibrary): boolean {
+  return library.outboxSize() > 0 || SYNC_TABLES.some((tbl) => (tbl === 'kv' ? library.listIds(tbl).some((key) => isSynced(tbl, key)) : library.count(tbl) > 0))
 }
 
 export interface AccountService {
@@ -59,10 +81,16 @@ export interface AccountServiceOptions {
 export function createAccountService({ library, api, tokens, deleteImageFiles }: AccountServiceOptions): AccountService {
   return {
     async signIn(email, password) {
+      // Before asking the cloud, so no session is opened for the refused account.
+      const previous = library.getMeta<string>(LAST_ACCOUNT_KEY)
+      if (typeof previous === 'string' && !sameEmail(previous, email) && hasSyncedData(library)) throw new OtherAccountError(previous)
       const result = await api.login(email.trim(), password, deviceName())
       await tokens.set(result.token)
       try {
-        library.setMeta(ACCOUNT_KEY, { email: result.email })
+        library.write(() => {
+          library.setMeta(ACCOUNT_KEY, { email: result.email })
+          library.setMeta(LAST_ACCOUNT_KEY, result.email)
+        })
       } catch (error) {
         // No account without a token and no token without an account.
         await tokens.clear().catch(() => {})

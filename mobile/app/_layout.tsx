@@ -12,6 +12,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { AccountProvider, useAccount } from '../src/account'
 import { createServices } from '../src/services'
 import { LocalLibraryProvider } from '../src/store/live'
+import { SyncEngineProvider } from '../src/sync/engineContext'
 import { startSyncTriggers } from '../src/sync/triggers'
 import { ThemeProvider, useTheme } from '../src/theme'
 
@@ -40,9 +41,11 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <LocalLibraryProvider library={services.library}>
         <AccountProvider service={services.account}>
-          <ThemeProvider>
-            <Screens />
-          </ThemeProvider>
+          <SyncEngineProvider engine={services.engine}>
+            <ThemeProvider>
+              <Screens />
+            </ThemeProvider>
+          </SyncEngineProvider>
         </AccountProvider>
       </LocalLibraryProvider>
     </SafeAreaProvider>
@@ -64,7 +67,10 @@ function Screens() {
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.main } }}>
         <Stack.Protected guard={signedIn}>
-          <Stack.Screen name="index" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="more/[id]" />
+          <Stack.Screen name="search" />
+          <Stack.Screen name="settings" />
         </Stack.Protected>
         <Stack.Protected guard={!signedIn}>
           <Stack.Screen name="sign-in" />

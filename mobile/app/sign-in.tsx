@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react'
-import { ActivityIndicator, Image, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import mark from '../assets/splash-icon.png'
-import { failureMessage, useAccountService } from '../src/account'
+import { failureMessage, OtherAccountError, useAccountService } from '../src/account'
 import { useTheme } from '../src/theme'
 
 /**
@@ -19,6 +19,8 @@ export default function SignIn() {
   const [shown, setShown] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
+  // Set when another account's data is still on this phone: the way out is to remove it.
+  const [otherAccount, setOtherAccount] = useState<string>()
 
   const ready = email.trim() !== '' && password !== ''
 
@@ -26,13 +28,35 @@ export default function SignIn() {
     if (busy || !ready) return
     setBusy(true)
     setError(undefined)
+    setOtherAccount(undefined)
     try {
       await service.signIn(email, password)
       setPassword('')
     } catch (failure) {
       setError(failureMessage(failure))
+      if (failure instanceof OtherAccountError) setOtherAccount(failure.lastAccount)
     }
     setBusy(false)
+  }
+
+  // A 401 signed this phone out but kept its data; there is no Settings to sign out from, so it is removed here, after a confirmation.
+  function removeData(owner: string) {
+    Alert.alert(`Remove ${owner}’s data from this phone?`, 'Changes that were not uploaded yet are lost. The data stays in the cloud.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove data',
+        style: 'destructive',
+        onPress: () => {
+          service.signOut({ force: true }).then(
+            () => {
+              setOtherAccount(undefined)
+              setError(undefined)
+            },
+            (failure: unknown) => setError(failureMessage(failure)),
+          )
+        },
+      },
+    ])
   }
 
   const field = [styles.field, type.body, { color: colors.ink, backgroundColor: colors.field, borderColor: colors.line, borderRadius: radius.row }]
@@ -107,6 +131,12 @@ export default function SignIn() {
             </Text>
           ) : null}
 
+          {otherAccount ? (
+            <Pressable onPress={() => removeData(otherAccount)} accessibilityRole="button" accessibilityLabel="Remove this phone’s data" style={styles.link}>
+              <Text style={[type.bodyMedium, { color: colors.ink }]}>Remove this phone’s data</Text>
+            </Pressable>
+          ) : null}
+
           <Pressable
             onPress={submit}
             disabled={busy || !ready}
@@ -135,5 +165,6 @@ const styles = StyleSheet.create({
   passwordRow: { justifyContent: 'center' },
   passwordField: { paddingRight: 64 },
   toggle: { position: 'absolute', right: 0, minWidth: 64, height: 48, alignItems: 'center', justifyContent: 'center' },
+  link: { minHeight: 48, justifyContent: 'center' },
   button: { borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
 })

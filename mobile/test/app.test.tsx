@@ -1,8 +1,5 @@
 import { fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library'
 import { useColorScheme } from 'react-native'
-import RootLayout from '../app/_layout'
-import Home from '../app/index'
-import SignIn from '../app/sign-in'
 import appConfig, { DEFAULT_API_URL, versionCode } from '../app.config'
 import pkg from '../package.json'
 import { createAccountService } from '../src/account'
@@ -10,6 +7,7 @@ import { ApiError, OfflineError } from '../src/api'
 import type { Services } from '../src/services'
 import { createLocalLibrary } from '../src/store/library'
 import { palettes, themes } from '../src/theme'
+import { routes } from './routes'
 import { nodeSqliteAdapter } from './store/nodeSqlite'
 
 // The app opens its services (SQLite, secure store, cloud) once; the tests hand it fake ones.
@@ -27,7 +25,6 @@ function useServices(options: { account?: { email: string }; login?: jest.Mock }
   return mockServices
 }
 
-const routes = { _layout: RootLayout, index: Home, 'sign-in': SignIn }
 
 describe('the app shell', () => {
   it('opens on the home screen through the root layout', async () => {
