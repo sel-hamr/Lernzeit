@@ -7,8 +7,11 @@ import { Stack } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import * as SystemUI from 'expo-system-ui'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { AccountProvider, useAccount } from '../src/account'
+import { createServices } from '../src/services'
+import { LocalLibraryProvider } from '../src/store/live'
 import { ThemeProvider, useTheme } from '../src/theme'
 
 // The splash stays up until Geist is loaded, so no text shows in the fallback font first.
@@ -16,6 +19,8 @@ SplashScreen.preventAutoHideAsync().catch(() => {})
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({ Geist_400Regular, Geist_500Medium, Geist_600SemiBold })
+  // Opened once, on the first render: the library, the cloud client and the account.
+  const [services] = useState(createServices)
   const ready = loaded || error !== null
 
   useEffect(() => {
@@ -26,15 +31,21 @@ export default function RootLayout() {
   if (!ready) return null
   return (
     <SafeAreaProvider>
-      <ThemeProvider>
-        <Screens />
-      </ThemeProvider>
+      <LocalLibraryProvider library={services.library}>
+        <AccountProvider service={services.account}>
+          <ThemeProvider>
+            <Screens />
+          </ThemeProvider>
+        </AccountProvider>
+      </LocalLibraryProvider>
     </SafeAreaProvider>
   )
 }
 
 function Screens() {
   const { scheme, colors } = useTheme()
+  // An account in the store means signed in, even offline; only its absence shows the sign-in screen.
+  const signedIn = useAccount() !== null
 
   // The window behind the screens (seen during transitions and the keyboard) matches the theme.
   useEffect(() => {
@@ -44,7 +55,14 @@ function Screens() {
   return (
     <>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.main } }} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.main } }}>
+        <Stack.Protected guard={signedIn}>
+          <Stack.Screen name="index" />
+        </Stack.Protected>
+        <Stack.Protected guard={!signedIn}>
+          <Stack.Screen name="sign-in" />
+        </Stack.Protected>
+      </Stack>
     </>
   )
 }

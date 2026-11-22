@@ -14,7 +14,7 @@
  * tables it wrote hear of it once (bus.ts).
  */
 import { checkFilter, type Filter } from '@lernzeit/core/library'
-import { isSynced, recordId, type SyncChange, type SyncTable } from '@lernzeit/core/sync'
+import { isSynced, recordId, SYNCED_KV_KEYS, SYNC_TABLES, type SyncChange, type SyncTable } from '@lernzeit/core/sync'
 import { nextAt } from '@lernzeit/core/syncRules'
 import type { ImageFit } from '@lernzeit/core/types'
 import type { SqlAdapter, SqlValue } from './adapter'
@@ -97,6 +97,13 @@ export interface LocalLibrary {
   putImageFile(file: ImageFile): void
   removeImageFile(id: string): void
 
+  /**
+   * Signing out: removes every synced record (and the synced kv keys), the outbox, the image rows and
+   * all meta except the device id, in one transaction. Device-only kv rows stay. Returns the removed
+   * image rows, so the caller can delete their files.
+   */
+  clearAccountData(): ImageFile[]
+
   /** Calls `listener` after each committed transaction that wrote one of `tables`. Returns an unsubscribe. */
   subscribe(tables: readonly LiveTable[], listener: ChangeListener): () => void
   /** Grows with every committed write to one of `tables` (see bus.ts). */
@@ -108,6 +115,9 @@ export interface LocalLibrary {
 export interface LocalLibraryOptions {
   now?: () => number
 }
+
+/** The one meta key that outlives signing out: it names this phone to the cloud. */
+export const DEVICE_ID_KEY = 'deviceId'
 
 /** A filter field goes into the SQL as a JSON path, so it must be a plain name. */
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
@@ -366,6 +376,20 @@ export function createLocalLibrary(sql: SqlAdapter, options: LocalLibraryOptions
       atomic(() => {
         sql.run('DELETE FROM images WHERE id = ?', [id])
         touch('imageFiles')
+      })
+    },
+
+    clearAccountData() {
+      return atomic(() => {
+        const files = sql.all<ImageFile>('SELECT id, path, type, width, height, fit FROM images ORDER BY id')
+        const kept = SYNCED_KV_KEYS.map(() => '?').join(', ')
+        sql.run(`DELETE FROM records WHERE tbl <> 'kv' OR id IN (${kept})`, [...SYNCED_KV_KEYS])
+        sql.run('DELETE FROM outbox')
+        sql.run('DELETE FROM images')
+        sql.run('DELETE FROM meta WHERE key <> ?', [DEVICE_ID_KEY])
+        for (const table of SYNC_TABLES) touch(table)
+        for (const table of ['outbox', 'meta', 'imageFiles'] as const) touch(table)
+        return files
       })
     },
 
