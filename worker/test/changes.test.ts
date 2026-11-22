@@ -74,6 +74,16 @@ describe('applyChanges when a guarded write fails with an error it does not know
   })
 })
 
+describe('applyChanges when the counter re-read fails too', () => {
+  it('throws the batch’s own error', async () => {
+    const db = {
+      prepare: (sql: string) => (sql.startsWith('SELECT') ? { bind: () => ({ first: () => Promise.reject(new Error('re-read failed')) }) } : env.DB.prepare(sql)),
+      batch: () => Promise.reject(new Error('D1 exploded')),
+    } as unknown as D1Database
+    await expect(applyChanges(db, 'o1', [card('c', 2)], { expectSeq: 0 })).rejects.toThrow('D1 exploded')
+  })
+})
+
 describe('validateChanges', () => {
   it('returns the changes as they are', () => {
     const changes = [card('a', 1), { tbl: 'cards', id: 'b', data: null, updatedAt: 2, deleted: true }]

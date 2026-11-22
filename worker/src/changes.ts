@@ -36,7 +36,7 @@ const CURRENT_SEQ = '(SELECT seq FROM counters WHERE owner = ?1)'
  */
 const BUMP_COUNTER_FROM_NOTHING = 'INSERT INTO counters (owner, seq) VALUES (?1, 1) ON CONFLICT (owner) DO UPDATE SET seq = NULL'
 const BUMP_COUNTER_FROM = 'UPDATE counters SET seq = CASE WHEN seq = ?2 THEN seq + 1 ELSE NULL END WHERE owner = ?1'
-const MOVED_ON = /NOT NULL constraint failed: (counters|records).seq/
+const MOVED_ON = /NOT NULL constraint failed: (counters|records)\.seq/
 
 const UPSERT_RECORDS = `INSERT INTO records (owner, tbl, id, data, updated_at, deleted, seq)
 SELECT ?1, j.value ->> 'tbl', j.value ->> 'id', j.value ->> 'data', j.value ->> 'updatedAt', j.value ->> 'deleted',
@@ -151,8 +151,15 @@ export async function applyChanges(
     if (expectSeq !== undefined) {
       if (error instanceof Error && MOVED_ON.test(error.message)) throw new BusyError()
       // D1 may word the refusal differently: whatever failed, a moved counter means someone else wrote first.
-      const row = await db.prepare(READ_SEQ).bind(owner).first<{ seq: number | null }>()
-      if ((row?.seq ?? 0) !== expectSeq) throw new BusyError()
+      // A failure that did commit (a timeout, say) shows a moved counter and is retried as busy: the safe direction.
+      // If the re-read fails too, the batch's own error is the root cause and is the one thrown.
+      let current: number | undefined
+      try {
+        current = (await db.prepare(READ_SEQ).bind(owner).first<{ seq: number | null }>())?.seq ?? 0
+      } catch {
+        throw error
+      }
+      if (current !== expectSeq) throw new BusyError()
     }
     throw error
   }
