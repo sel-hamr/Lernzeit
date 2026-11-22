@@ -26,6 +26,8 @@ export function checkFilter(filter?: Filter): void {
 export interface LibraryReader {
   /** Live rows, staged writes applied. In no particular order. */
   list<T>(tbl: SyncTable, filter?: Filter): Promise<T[]>
+  /** The ids (a kv row's key) of the rows `list` would return, without reading the rows. In no particular order. */
+  listIds(tbl: SyncTable, filter?: Filter): Promise<string[]>
   get<T>(tbl: SyncTable, id: string): Promise<T | undefined>
   count(tbl: SyncTable, filter?: Filter): Promise<number>
 }
@@ -92,8 +94,18 @@ export function stageWrites(base: LibraryReader): LibraryReader & {
     return [...kept, ...fresh]
   }
 
+  async function listIds(tbl: SyncTable, filter?: Filter): Promise<string[]> {
+    const ids = await base.listIds(tbl, filter)
+    const table = stagedIn(tbl)
+    if (!table?.size) return ids
+    const kept = ids.filter((id) => !table.has(id))
+    for (const change of table.values()) if (change.data && matchesFilter(change.data, filter)) kept.push(change.id)
+    return kept
+  }
+
   return {
     list,
+    listIds,
     async get<T>(tbl: SyncTable, id: string): Promise<T | undefined> {
       const change = stagedIn(tbl)?.get(id)
       if (change) return change.data ? copy<T>(change.data) : undefined
@@ -137,6 +149,10 @@ export function createMemoryStore(seed: Library = {}, options: { timeZone?: stri
       checkFilter(filter)
       return [...table(tbl).values()].filter((row) => matchesFilter(row, filter)).map((row) => copy<T>(row))
     },
+    async listIds(tbl: SyncTable, filter?: Filter) {
+      checkFilter(filter)
+      return [...table(tbl).entries()].filter(([, row]) => matchesFilter(row, filter)).map(([id]) => id)
+    },
     async get<T>(tbl: SyncTable, id: string) {
       const row = table(tbl).get(id)
       return row ? copy<T>(row) : undefined
@@ -152,6 +168,7 @@ export function createMemoryStore(seed: Library = {}, options: { timeZone?: stri
 
   return {
     list: staging.list,
+    listIds: staging.listIds,
     get: staging.get,
     count: staging.count,
     put: staging.put,

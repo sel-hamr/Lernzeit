@@ -79,6 +79,24 @@ export function libraryStoreContract(name: string, open: OpenStore): void {
       expect(await store.list('decks', { name: 'one' })).toEqual([])
     })
 
+    it('lists only the ids of the matching rows, a kv row by its key, staged writes applied', async () => {
+      const { store } = await open(seed())
+      const sorted = async (ids: Promise<string[]>) => (await ids).sort()
+      expect(await sorted(store.listIds('cards'))).toEqual(['c1', 'c2', 'c3', 'd1'])
+      expect(await sorted(store.listIds('cards', { deckId: 'd1' }))).toEqual(['c1', 'c2'])
+      expect(await sorted(store.listIds('decks', { topicId: null }))).toEqual(['d3', 'd4'])
+      expect(await store.listIds('cards', { deckId: 'nope' })).toEqual([])
+      expect(await store.listIds('kv')).toEqual(['settings'])
+
+      store.put('cards', { id: 'c9', deckId: 'd1', german: 'Baum' })
+      store.put('cards', { id: 'c2', deckId: 'd2', german: 'Katze' })
+      store.remove('cards', 'c1')
+      expect(await sorted(store.listIds('cards', { deckId: 'd1' }))).toEqual(['c9'])
+      expect(await sorted(store.listIds('cards', { deckId: 'd2' }))).toEqual(['c2', 'c3'])
+      expect(await sorted(store.listIds('cards'))).toEqual(['c2', 'c3', 'c9', 'd1'])
+      await expect(store.listIds('cards', { deckId: undefined } as unknown as Filter)).rejects.toThrow(/undefined/)
+    })
+
     it('refuses a filter value that is undefined or not a plain value', async () => {
       const { store } = await open(seed())
       const bad = [{ deckId: undefined }, { deckId: { id: 'd1' } }, { deckId: ['d1'] }] as unknown as Filter[]

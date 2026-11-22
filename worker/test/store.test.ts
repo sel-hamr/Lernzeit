@@ -214,7 +214,7 @@ describe('the D1 store’s indexes', () => {
 
   it('looks a filtered read up in its index instead of scanning the table', async () => {
     for (const [tbl, field, index] of indexed) {
-      for (const select of ['SELECT data', 'SELECT COUNT(*) AS n']) {
+      for (const select of ['SELECT data', 'SELECT id', 'SELECT COUNT(*) AS n']) {
         for (const value of ['x', null]) {
           const steps = await plan(select, tbl, { [field]: value })
           expect(steps, `${select} ${tbl}.${field} = ${value}`).toEqual([`SEARCH records USING INDEX ${index} (owner=? AND <expr>=?)`])

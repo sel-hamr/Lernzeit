@@ -132,13 +132,14 @@ export async function moveCards({ deck: fromRef, to: toRef, cards: refs }: MoveC
 
 /**
  * Removes the cards' progress: their rows in every table of CARD_PROGRESS_TABLES (core cardPack.ts).
- * All the rows are read together, so the store can fetch them in one go.
+ * Only the rows' ids are read, all together, so the store can fetch them in one go and need not
+ * parse a deck's worth of progress.
  */
 export async function removeProgress(ctx: ActionContext, cardIds: string[]) {
   const reads = cardIds.flatMap((cardId) => CARD_PROGRESS_TABLES.map((tbl) => ({ tbl, cardId })))
-  const rows = await Promise.all(reads.map(({ tbl, cardId }) => ctx.store.list<{ id: string }>(tbl, { cardId })))
+  const ids = await Promise.all(reads.map(({ tbl, cardId }) => ctx.store.listIds(tbl, { cardId })))
   reads.forEach(({ tbl }, i) => {
-    for (const row of rows[i]) ctx.store.remove(tbl, row.id)
+    for (const id of ids[i]) ctx.store.remove(tbl, id)
   })
 }
 

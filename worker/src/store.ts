@@ -83,6 +83,11 @@ function storedReader(db: D1Database, owner: string): LibraryReader {
       const where = whereClause(owner, tbl, filter)
       return parse<T>(await query<{ data: string }>(`SELECT data FROM records WHERE ${where.sql}`, where.params))
     },
+    // The same WHERE as list, so the same indexes serve it; the rows' JSON is never parsed.
+    async listIds(tbl: SyncTable, filter?: Filter) {
+      const where = whereClause(owner, tbl, filter)
+      return (await query<{ id: string }>(`SELECT id FROM records WHERE ${where.sql}`, where.params)).map((row) => row.id)
+    },
     async get<T>(tbl: SyncTable, id: string) {
       const rows = await query<{ data: string }>('SELECT data FROM records WHERE owner = ?1 AND tbl = ?2 AND id = ?3 AND deleted = 0', [owner, tbl, id])
       return parse<T>(rows)[0]
@@ -124,6 +129,7 @@ export async function createD1Store(db: D1Database, owner: string, options: { no
 
   return {
     list: staging.list,
+    listIds: staging.listIds,
     get: staging.get,
     count: staging.count,
     put: staging.put,

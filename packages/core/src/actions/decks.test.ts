@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Card, CardReview, Deck, Topic } from '../types'
 import { expectCode, makeStore, MY_WORDS_CARDS, NOW } from './fixture.test-utils'
 import { runAction } from './index'
@@ -130,6 +130,13 @@ describe('delete_deck', () => {
         'images/img-own',
       ].sort(),
     )
+  })
+
+  it('reads only the ids of the progress rows it deletes, not the rows', async () => {
+    const list = vi.spyOn(store, 'list')
+    await runAction(store, 'delete_deck', { deck: 'Food', cardCount: 2 })
+    const tables = list.mock.calls.map(([tbl]) => tbl)
+    for (const tbl of ['reviews', 'reviewLogs', 'drillStats']) expect(tables).not.toContain(tbl)
   })
 
   it('keeps an image a doc still shows when its deck is deleted', async () => {
