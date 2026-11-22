@@ -7,8 +7,7 @@
 import NetInfo from '@react-native-community/netinfo'
 import { SYNC_TABLES } from '@lernzeit/core/sync'
 import { AppState, type AppStateStatus } from 'react-native'
-import { ACCOUNT_KEY } from '../account'
-import type { LocalLibrary } from '../store/library'
+import { ACCOUNT_KEY, type LocalLibrary } from '../store/library'
 import type { SyncEngine } from './engine'
 import { getSyncStatus, setSyncStatus } from './status'
 
@@ -43,7 +42,6 @@ export function startSyncTriggers({ engine, library, appState = AppState, netInf
   const sync = () => {
     if (signedIn()) engine.syncNow().catch(noop)
   }
-  const active = () => appState.currentState === 'active'
 
   let delay: ReturnType<typeof setTimeout> | undefined
   const stopWrites = library.subscribe(SYNC_TABLES, (event) => {
@@ -52,19 +50,31 @@ export function startSyncTriggers({ engine, library, appState = AppState, netInf
     delay = setTimeout(sync, LOCAL_CHANGE_DELAY)
   })
 
+  // The 60 s timer runs only in the foreground while signed in, so a phone in the background or
+  // signed out is not woken every minute.
+  let interval: ReturnType<typeof setInterval> | undefined
+  const updateInterval = (state = appState.currentState) => {
+    const wanted = state === 'active' && signedIn()
+    if (wanted && interval === undefined) interval = setInterval(sync, INTERVAL)
+    else if (!wanted && interval !== undefined) {
+      clearInterval(interval)
+      interval = undefined
+    }
+  }
+
   let wasSignedIn = signedIn()
   const stopAccount = library.subscribe(['meta'], () => {
     const now = signedIn()
     if (now && !wasSignedIn) sync()
     wasSignedIn = now
+    updateInterval()
   })
 
   const foreground = appState.addEventListener('change', (state) => {
+    updateInterval(state)
     if (state === 'active') sync()
   })
-  const interval = setInterval(() => {
-    if (active()) sync()
-  }, INTERVAL)
+  updateInterval()
 
   // NetInfo tells the current state first; only a change from offline to online syncs.
   let online: boolean | undefined

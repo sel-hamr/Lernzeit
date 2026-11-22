@@ -8,11 +8,12 @@
 import * as Device from 'expo-device'
 import { createContext, createElement, useContext, type ReactNode } from 'react'
 import { OfflineError, SignedOutError, type Api } from './api'
-import type { ImageFile, LocalLibrary } from './store/library'
+import { ACCOUNT_KEY, type ImageFile, type LocalLibrary } from './store/library'
 import { useLiveQuery } from './store/live'
+import { withSyncLock } from './sync/lock'
 import type { TokenStore } from './token'
 
-export const ACCOUNT_KEY = 'account'
+export { ACCOUNT_KEY }
 
 export interface Account {
   email: string
@@ -70,10 +71,13 @@ export function createAccountService({ library, api, tokens, deleteImageFiles }:
     },
     async signOut({ force = false } = {}) {
       if (!force && library.outboxSize() > 0) return 'unsynced'
+      // The account goes first: a sync in flight stops before its next write (sync/shared.ts).
+      library.removeMeta(ACCOUNT_KEY)
       // Offline, the session stays valid on the server until it is removed from another device.
       await api.logout().catch(() => {})
       await tokens.clear()
-      const files = library.clearAccountData()
+      // Under the sync lock, so no sync still running writes its pull back into the cleared library.
+      const files = await withSyncLock(() => library.clearAccountData())
       await Promise.resolve(deleteImageFiles?.(files)).catch(() => {})
       return 'done'
     },

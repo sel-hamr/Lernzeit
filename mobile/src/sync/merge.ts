@@ -19,8 +19,10 @@ import {
   CURSOR_KEY,
   IMAGE_REFUSALS,
   MERGED_KEY,
+  MISSING_FILE,
   MISSING_IMAGES_KEY,
   PUSH_REFUSALS,
+  assertSignedIn,
   downloadImage,
   haveImage,
   imageFileFor,
@@ -28,7 +30,7 @@ import {
   refusedBy,
   type MissingImage,
   type SyncContext,
-} from './engine'
+} from './shared'
 
 const keyOf = (tbl: string, id: string) => `${tbl}/${id}`
 
@@ -168,7 +170,7 @@ async function upload(context: SyncContext, list: Upload[]): Promise<Refused[]> 
       continue
     }
     if (item.sendBytes) {
-      const image = item.file ? await readImage(context.files, item.change, item.file) : { reason: 'The image file is missing on this phone, so it cannot sync.' }
+      const image = item.file ? await readImage(context.files, item.change, item.file) : { reason: MISSING_FILE }
       if ('reason' in image) {
         refuse(item, image.reason)
         continue
@@ -231,6 +233,8 @@ function replaceLocal(
   unconfirmed: Upload[],
 ): void {
   library.applyRemote((remote) => {
+    // Signed out since this sync began: the library is about to be cleared, so write none of it back.
+    assertSignedIn(library)
     const live = [...cloud.values()].filter((change) => !change.deleted)
     const liveKeys = new Set(live.map((change) => keyOf(change.tbl, change.id)))
     const kept = new Set([...refused.map(({ tbl, id }) => keyOf(tbl, id)), ...unconfirmed.map(({ change }) => keyOf(change.tbl, change.id))])

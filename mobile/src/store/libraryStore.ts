@@ -6,16 +6,8 @@
  */
 import { stageWrites, type Filter, type LibraryReader, type LibraryStore } from '@lernzeit/core/library'
 import { isSynced, recordId, type SyncTable } from '@lernzeit/core/sync'
+import { deviceTimeZone } from '../timeZone'
 import type { LocalLibrary } from './library'
-
-/** This phone's IANA time zone, UTC when the platform cannot tell. */
-function deviceTimeZone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-  } catch {
-    return 'UTC'
-  }
-}
 
 /**
  * A LibraryStore for one action. Its `timeZone` is this phone's own (the one it records in

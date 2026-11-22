@@ -126,6 +126,8 @@ export interface LocalLibraryOptions {
 
 /** The one meta key that outlives signing out: it names this phone to the cloud. */
 export const DEVICE_ID_KEY = 'deviceId'
+/** The meta key of who signed in here (`{ email }`, see account.tsx); a sync only runs while it is there. */
+export const ACCOUNT_KEY = 'account'
 
 /** A filter field goes into the SQL as a JSON path, so it must be a plain name. */
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/

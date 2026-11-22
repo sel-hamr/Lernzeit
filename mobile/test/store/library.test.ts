@@ -402,6 +402,27 @@ describe('nested writes', () => {
 })
 
 describe('the schema', () => {
+  it('rebuilds the records of a version 1 database as a rowid table, keeping every row', () => {
+    const adapter = nodeSqliteAdapter()
+    adapter.exec(`
+      CREATE TABLE records (tbl TEXT NOT NULL, id TEXT NOT NULL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (tbl, id)) WITHOUT ROWID;
+      CREATE TABLE outbox (tbl TEXT NOT NULL, id TEXT NOT NULL, at INTEGER NOT NULL, stuck TEXT, PRIMARY KEY (tbl, id)) WITHOUT ROWID;
+      CREATE TABLE meta (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL) WITHOUT ROWID;
+      CREATE TABLE images (id TEXT PRIMARY KEY NOT NULL, path TEXT NOT NULL, type TEXT NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL, fit TEXT NOT NULL) WITHOUT ROWID;
+      INSERT INTO records VALUES ('decks', 'd1', '{"id":"d1","name":"One"}', 7);
+      INSERT INTO outbox VALUES ('decks', 'd1', 7, NULL);
+      PRAGMA user_version = 1;
+    `)
+    const library = createLocalLibrary(adapter)
+    expect(adapter.get<{ user_version: number }>('PRAGMA user_version')).toEqual({ user_version: SCHEMA_VERSION })
+    expect(adapter.get<{ sql: string }>("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'records'")?.sql).not.toMatch(/WITHOUT ROWID/i)
+    expect(library.get('decks', 'd1')).toEqual({ id: 'd1', name: 'One' })
+    expect(library.updatedAt('decks', 'd1')).toBe(7)
+    expect(library.outbox()).toEqual([{ tbl: 'decks', id: 'd1', at: 7 }])
+    library.put('decks', { id: 'd2' })
+    expect(library.listIds('decks').sort()).toEqual(['d1', 'd2'])
+  })
+
   it('keeps records in a rowid table, as rows of large JSON should be', () => {
     const { adapter } = open()
     const records = adapter.get<{ sql: string }>("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'records'")

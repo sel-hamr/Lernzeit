@@ -5,8 +5,7 @@
  * meta, so it survives a restart). Without an account the state is always `signedOut`.
  */
 import { useSyncExternalStore } from 'react'
-import { ACCOUNT_KEY } from '../account'
-import type { LocalLibrary } from '../store/library'
+import { ACCOUNT_KEY, type LocalLibrary } from '../store/library'
 import { useLiveQuery } from '../store/live'
 
 export type SyncState = 'idle' | 'syncing' | 'offline' | 'signedOut' | 'error'

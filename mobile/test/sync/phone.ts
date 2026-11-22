@@ -101,6 +101,8 @@ export interface PhoneOptions {
   /** Wraps the library the engine works on, to fail it at a chosen moment. */
   wrap?: (library: LocalLibrary) => LocalLibrary
   now?: () => number
+  /** The phone's time zone; none by default, so tests see only their own writes in the outbox. */
+  timeZone?: () => string | undefined
 }
 
 export interface Phone {
@@ -111,7 +113,7 @@ export interface Phone {
   engine: ReturnType<typeof createSyncEngine>
   token(): string | null
   /** The app starting again on the same database, files and token: a new engine. */
-  restart(options?: Pick<PhoneOptions, 'wrap'>): Phone
+  restart(options?: Pick<PhoneOptions, 'wrap' | 'timeZone'>): Phone
 }
 
 /** A phone signed in to `cloud` (unless `token` is null). */
@@ -124,7 +126,7 @@ export function createPhone(cloud: Cloud, options: PhoneOptions = {}): Phone {
   if (token && library.getMeta(ACCOUNT_KEY) === undefined) library.setMeta(ACCOUNT_KEY, { email: cloud.server.email })
   const api = createApi({ baseUrl: BASE_URL, getToken: tokens.get, onSignedOut: (sent) => void account.signedOut(sent), fetch: cloud.fetch })
   const account = createAccountService({ library, api, tokens, deleteImageFiles: (removed) => deleteImageFiles(files, removed) })
-  const engine = createSyncEngine({ library: options.wrap ? options.wrap(library) : library, api, files })
+  const engine = createSyncEngine({ library: options.wrap ? options.wrap(library) : library, api, files, timeZone: options.timeZone ?? (() => undefined) })
   return {
     sql,
     files,
@@ -132,7 +134,7 @@ export function createPhone(cloud: Cloud, options: PhoneOptions = {}): Phone {
     account,
     engine,
     token: () => token,
-    restart: (again = {}) => createPhone(cloud, { sql, files, token, now: options.now, ...again }),
+    restart: (again = {}) => createPhone(cloud, { sql, files, token, now: options.now, timeZone: options.timeZone, ...again }),
   }
 }
 

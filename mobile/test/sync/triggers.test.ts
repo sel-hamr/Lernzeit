@@ -77,12 +77,34 @@ describe('the sync triggers', () => {
     app.stop()
   })
 
-  it('sync every 60 s while the app is in the foreground only', () => {
+  it('sync every 60 s in the foreground while signed in, with no timer left running otherwise', () => {
     const app = setup()
     jest.advanceTimersByTime(60_000)
     expect(app.syncs()).toBe(2)
     app.setAppState('background')
+    expect(jest.getTimerCount()).toBe(0)
     jest.advanceTimersByTime(120_000)
+    expect(app.syncs()).toBe(2)
+
+    app.setAppState('active')
+    expect(app.syncs()).toBe(3)
+    jest.advanceTimersByTime(60_000)
+    expect(app.syncs()).toBe(4)
+
+    app.library.removeMeta(ACCOUNT_KEY)
+    expect(jest.getTimerCount()).toBe(0)
+    app.library.setMeta(ACCOUNT_KEY, { email: 'a@b.c' })
+    expect(app.syncs()).toBe(5)
+    jest.advanceTimersByTime(60_000)
+    expect(app.syncs()).toBe(6)
+    app.stop()
+  })
+
+  it('keep the 2 s sync after a write going in the background', () => {
+    const app = setup()
+    app.library.put('decks', { id: 'd1' })
+    app.setAppState('background')
+    jest.advanceTimersByTime(2_000)
     expect(app.syncs()).toBe(2)
     app.stop()
   })

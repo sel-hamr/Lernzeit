@@ -17,11 +17,29 @@
  */
 import { MAX_PUSH_BYTES, MAX_PUSH_CHANGES, type ImageMeta, type PullResponse, type SyncChange } from '@lernzeit/core/sync'
 import { acceptablePulled, batchChanges, changeBytes, pendingNewer, refusal, splitOnRefusal } from '@lernzeit/core/syncRules'
-import { ACCOUNT_KEY } from '../account'
-import { ApiError, OfflineError, ResyncNeededError, SignedOutError, type Api } from '../api'
-import type { ImageFile, LocalLibrary, OutboxEntry } from '../store/library'
-import type { ImageFiles } from './imageFiles'
+import { OfflineError, ResyncNeededError, SignedOutError } from '../api'
+import { ACCOUNT_KEY, type ImageFile, type LocalLibrary, type OutboxEntry } from '../store/library'
+import { platformTimeZone, recordTimeZone } from '../timeZone'
+import { deleteImageFiles, type ImageFiles } from './imageFiles'
+import { withSyncLock } from './lock'
 import { firstSync } from './merge'
+import {
+  CURSOR_KEY,
+  IMAGE_REFUSALS,
+  MERGED_KEY,
+  MISSING_FILE,
+  MISSING_IMAGES_KEY,
+  PUSH_REFUSALS,
+  assertSignedIn,
+  downloadImage,
+  haveImage,
+  imageFileFor,
+  readImage,
+  refusedBy,
+  type MissingImage,
+  type SyncApi,
+  type SyncContext,
+} from './shared'
 import { LAST_SYNCED_KEY, setSyncStatus, type SyncStatus } from './status'
 
 export interface SyncResult {
@@ -31,32 +49,15 @@ export interface SyncResult {
   pulled: number
 }
 
-/** `meta` key of the position in the cloud's changes this phone has pulled up to. */
-export const CURSOR_KEY = 'cursor'
-/** `meta` key set once this phone's library is in the cloud (merged, or pulled into an empty phone). */
-export const MERGED_KEY = 'merged'
-/** `meta` key of the pulled image records whose bytes the cloud no longer had, to apply once they are back. */
-export const MISSING_IMAGES_KEY = 'missingImages'
-
-export interface MissingImage {
-  data: ImageMeta
-  updatedAt: number
-}
-
-/** Server answers that refuse what was sent, not the request: 400 names a bad change, 413 is too large, 415 not an image. */
-export const PUSH_REFUSALS = [400, 413]
-export const IMAGE_REFUSALS = [400, 413, 415]
-
-export function refusedBy(error: unknown, statuses: number[]): error is ApiError {
-  return error instanceof ApiError && statuses.includes(error.status)
-}
-
-export type SyncApi = Pick<Api, 'push' | 'pull' | 'putImage' | 'getImage'>
+export { CURSOR_KEY, MERGED_KEY, MISSING_IMAGES_KEY } from './shared'
+export { withSyncLock } from './lock'
 
 export interface SyncEngineOptions {
   library: LocalLibrary
   api: SyncApi
   files: ImageFiles
+  /** This phone's IANA time zone (the platform's by default), recorded in `kv/timeZone`. */
+  timeZone?: () => string | undefined
 }
 
 export interface SyncEngine {
@@ -66,13 +67,6 @@ export interface SyncEngine {
    * account, without asking the cloud), OfflineError or another error; the sync status says the same.
    */
   syncNow(): Promise<SyncResult>
-}
-
-/** What the engine works with, for its helpers here and in merge.ts. */
-export interface SyncContext {
-  library: LocalLibrary
-  api: SyncApi
-  files: ImageFiles
 }
 
 interface Outgoing {
@@ -87,8 +81,6 @@ interface Refused {
   entry: OutboxEntry
   reason: string
 }
-
-const MISSING_FILE = 'The image file is missing on this phone, so it cannot sync.'
 
 // ---- Push ----
 
@@ -122,17 +114,6 @@ function readOutgoing(library: LocalLibrary, queued: OutboxEntry[]): { outgoing:
     else outgoing.push({ entry, change, file, bytes: changeBytes(change) })
   }
   return { outgoing, refused }
-}
-
-/**
- * Reads an image's bytes from its file, or answers why it cannot go up: the file is gone, or the
- * cloud would refuse the bytes. Any other read failure throws.
- */
-export async function readImage(files: ImageFiles, change: SyncChange, file: ImageFile): Promise<{ bytes: Uint8Array } | { reason: string }> {
-  if (!(await files.exists(file.path))) return { reason: MISSING_FILE }
-  const bytes = await files.read(file.path)
-  const reason = refusal(change, { type: file.type, size: bytes.byteLength })
-  return reason ? { reason } : { bytes }
 }
 
 /** Uploads the batch's image bytes, one file at a time. An image the cloud refuses is parked, and its record stays out of the push. */
@@ -189,35 +170,13 @@ export async function pullAll(context: SyncContext): Promise<number> {
     const page = await context.api.pull(cursor)
     // A failed download throws here, before the page is applied, so the cursor stays put.
     const { downloaded, missing } = await downloadImages(context, page)
-    pulled += applyPage(context.library, page, downloaded, missing)
+    const { written, strayFiles } = applyPage(context.library, context.files, page, downloaded, missing)
+    pulled += written
+    await deleteImageFiles(context.files, strayFiles.map((path) => ({ path })))
     // A page that did not move the cursor would only be asked for again.
     if (!page.more || page.cursor === cursor) return pulled
     cursor = page.cursor
   }
-}
-
-/** Whether this phone already has the image's bytes in a file. */
-export async function haveImage({ library, files }: SyncContext, id: string): Promise<boolean> {
-  const file = library.imageFile(id)
-  return file !== undefined && (await files.exists(file.path))
-}
-
-/**
- * Downloads an image's bytes into its file. Returns the file's path, or undefined when the cloud no
- * longer has them (404). Any other failure throws.
- */
-export async function downloadImage({ api, files }: SyncContext, id: string): Promise<string | undefined> {
-  let bytes: ArrayBuffer
-  try {
-    bytes = (await api.getImage(id)).bytes
-  } catch (error) {
-    // Waiting would not bring them back, and would stop this phone pulling for good.
-    if (refusedBy(error, [404])) return undefined
-    throw error
-  }
-  const path = files.pathFor(id)
-  await files.write(path, new Uint8Array(bytes))
-  return path
 }
 
 /** Puts the bytes of the page's live images that are not here yet into files; notes the ones the cloud no longer has. */
@@ -235,15 +194,16 @@ async function downloadImages(context: SyncContext, page: PullResponse): Promise
   return { downloaded, missing }
 }
 
-/** The file row of a pulled image record whose bytes are at `path`. */
-export const imageFileFor = (meta: ImageMeta, path: string): ImageFile => ({ id: meta.id, path, type: meta.type, width: meta.width, height: meta.height, fit: meta.fit })
-
 /**
  * Writes one page and its cursor in one transaction. An image whose bytes the cloud no longer has
- * is left out and noted in `meta.missingImages`. Returns how many changes it wrote.
+ * is left out and noted in `meta.missingImages`. Returns how many changes it wrote, and the files of
+ * deleted images that had no file row (a download whose page was undone left them) to delete.
  */
-function applyPage(library: LocalLibrary, page: PullResponse, downloaded: Map<string, string>, missing: Set<string>): number {
+function applyPage(library: LocalLibrary, files: ImageFiles, page: PullResponse, downloaded: Map<string, string>, missing: Set<string>): { written: number; strayFiles: string[] } {
   return library.applyRemote((remote) => {
+    // Signed out since this sync began: the library is about to be cleared, so write none of it back.
+    assertSignedIn(library)
+    const strayFiles: string[] = []
     const listed = library.getMeta<MissingImage[]>(MISSING_IMAGES_KEY)
     const missingImages = new Map(listed?.map((image) => [image.data.id, image]))
     let written = 0
@@ -264,13 +224,17 @@ function applyPage(library: LocalLibrary, page: PullResponse, downloaded: Map<st
         if (path === undefined) throw new Error(`The bytes of image ${change.id} are missing.`)
         remote.apply(change)
         library.putImageFile(imageFileFor(meta, path))
-      } else remote.apply(change)
+      } else {
+        // The store deletes a file it has a row for; one without a row is deleted here.
+        if (change.tbl === 'images' && library.imageFile(change.id) === undefined) strayFiles.push(files.pathFor(change.id))
+        remote.apply(change)
+      }
       if (entry) library.removeOutboxEntry(change.tbl, change.id)
       written++
     }
     library.setMeta(CURSOR_KEY, page.cursor)
     if (listed || missingImages.size > 0) library.setMeta(MISSING_IMAGES_KEY, [...missingImages.values()])
-    return written
+    return { written, strayFiles }
   })
 }
 
@@ -293,6 +257,7 @@ async function retryMissingImages(context: SyncContext): Promise<void> {
     if (path !== undefined) found.set(image.data.id, path)
   }
   library.applyRemote((remote) => {
+    assertSignedIn(library)
     const keep: MissingImage[] = []
     for (const image of noted) {
       const { id } = image.data
@@ -311,15 +276,7 @@ async function retryMissingImages(context: SyncContext): Promise<void> {
 
 // ---- One sync at a time ----
 
-let tail: Promise<unknown> = Promise.resolve()
 const noop = () => {}
-
-/** Runs `fn` after every sync started before it in this process has finished. */
-function withSyncLock<T>(fn: () => Promise<T>): Promise<T> {
-  const result = tail.then(fn)
-  tail = result.catch(noop)
-  return result
-}
 
 function statusFor(error: unknown): SyncStatus {
   if (error instanceof SignedOutError) return { state: 'signedOut' }
@@ -341,12 +298,20 @@ async function resync(context: SyncContext): Promise<number> {
   return merged ? 0 : pullAll(context)
 }
 
-export function createSyncEngine({ library, api, files }: SyncEngineOptions): SyncEngine {
+export function createSyncEngine({ library, api, files, timeZone = platformTimeZone }: SyncEngineOptions): SyncEngine {
   const context: SyncContext = { library, api, files }
   // Once per app start: the parked changes get one more try, and the noted images are fetched again
   // (until that has worked once).
   let unparkDue = true
   let missingImagesDue = true
+  // Once per app start and per sign-in, after a pull (so the cloud's value is known): this phone's time zone.
+  let timeZoneDue = true
+  let signedIn = library.getMeta(ACCOUNT_KEY) !== undefined
+  library.subscribe(['meta'], () => {
+    const now = library.getMeta(ACCOUNT_KEY) !== undefined
+    if (now && !signedIn) timeZoneDue = true
+    signedIn = now
+  })
 
   async function run(): Promise<SyncResult> {
     if (library.getMeta(ACCOUNT_KEY) === undefined) {
@@ -375,7 +340,13 @@ export function createSyncEngine({ library, api, files }: SyncEngineOptions): Sy
         await retryMissingImages(context)
         missingImagesDue = false
       }
+      if (timeZoneDue) {
+        // A local write: the triggers push it 2 s later.
+        recordTimeZone(library, timeZone())
+        timeZoneDue = false
+      }
       if (pushFailure !== undefined) throw pushFailure
+      assertSignedIn(library)
       library.setMeta(LAST_SYNCED_KEY, library.now())
       setSyncStatus({ state: 'idle' })
       return { pushed, pulled }

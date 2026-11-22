@@ -1,7 +1,7 @@
 import { ACCOUNT_KEY } from '../../src/account'
 import { OfflineError, SignedOutError } from '../../src/api'
 import { CURSOR_KEY, MERGED_KEY, MISSING_IMAGES_KEY } from '../../src/sync/engine'
-import { getSyncStatus } from '../../src/sync/status'
+import { LAST_SYNCED_KEY, getSyncStatus } from '../../src/sync/status'
 import { addImage, createCloud, createPhone, settle, type Cloud } from './phone'
 
 const deck = (id: string, name: string, updatedAt = 1) => ({ tbl: 'decks' as const, id, data: { id, name, updatedAt }, updatedAt, deleted: false })
@@ -341,5 +341,77 @@ describe('one sync at a time', () => {
     expect(second).toBe(third)
     expect(second).not.toBe(first)
     expect(most).toBe(1)
+  })
+})
+
+describe('signing out during a sync', () => {
+  it('writes nothing of a pull in flight back into the library a forced sign-out cleared', async () => {
+    const cloud = createCloud()
+    const phone = await syncedPhone(cloud)
+    await cloud.putImage('i1', new Uint8Array([1]))
+    await cloud.push([deck('d1', 'One'), { tbl: 'images', id: 'i1', data: { id: 'i1', width: 4, height: 3, fit: 'cover', type: 'image/png' }, updatedAt: 1, deleted: false }])
+    let release!: () => void
+    const waiting = new Promise<void>((resolve) => (release = resolve))
+    let signedOut: Promise<unknown> | undefined
+    cloud.server.beforeRequest = async (_method, path) => {
+      if (path !== '/api/sync/pull' || signedOut) return
+      signedOut = phone.account.signOut({ force: true })
+      await waiting
+    }
+    const sync = phone.engine.syncNow()
+    await settle()
+    release()
+    await expect(sync).rejects.toBeInstanceOf(SignedOutError)
+    await signedOut
+    await settle()
+    expect(phone.library.listIds('decks')).toEqual([])
+    expect(phone.library.imageFiles()).toEqual([])
+    expect(phone.files.files.size).toBe(0)
+    for (const key of [CURSOR_KEY, MERGED_KEY, LAST_SYNCED_KEY, ACCOUNT_KEY]) expect(phone.library.getMeta(key)).toBeUndefined()
+    expect(phone.token()).toBeNull()
+  })
+})
+
+describe('stray image files', () => {
+  it('deletes the file of a pulled image tombstone that has no file row, as an undone download leaves', async () => {
+    const cloud = createCloud()
+    const phone = await syncedPhone(cloud)
+    await phone.files.write(phone.files.pathFor('i1'), new Uint8Array([9]))
+    await cloud.push([{ tbl: 'images', id: 'i1', data: null, updatedAt: 5, deleted: true }])
+    await phone.engine.syncNow()
+    expect(phone.files.files.size).toBe(0)
+  })
+})
+
+describe('the time zone', () => {
+  it('records this phone’s zone in kv/timeZone after the first pull, so an empty phone still just pulls, and pushes it', async () => {
+    const cloud = createCloud()
+    await cloud.push([{ tbl: 'kv', id: 'timeZone', data: { key: 'timeZone', value: 'UTC' }, updatedAt: 1, deleted: false }, deck('d1', 'One')])
+    let zone = 'Europe/Berlin'
+    const phone = createPhone(cloud, { timeZone: () => zone })
+    await phone.engine.syncNow()
+    expect(phone.library.getMeta(MERGED_KEY)).toBe(true)
+    expect(cloud.count('POST /api/sync/push')).toBe(1) // the test's own: no merge upload
+    expect(phone.library.get('kv', 'timeZone')).toEqual({ key: 'timeZone', value: 'Europe/Berlin' })
+    expect(phone.library.outbox()).toEqual([expect.objectContaining({ tbl: 'kv', id: 'timeZone' })])
+    await phone.engine.syncNow()
+    expect(cloud.data('kv', 'timeZone')).toEqual({ key: 'timeZone', value: 'Europe/Berlin' })
+
+    // Once per start: a change of zone shows on the next start, or the next sign-in.
+    zone = 'Asia/Tokyo'
+    await phone.engine.syncNow()
+    expect(phone.library.outbox()).toEqual([])
+    phone.library.removeMeta(ACCOUNT_KEY)
+    phone.library.setMeta(ACCOUNT_KEY, { email: cloud.server.email })
+    await phone.engine.syncNow()
+    expect(phone.library.get('kv', 'timeZone')).toEqual({ key: 'timeZone', value: 'Asia/Tokyo' })
+  })
+
+  it('writes nothing when the zone is already recorded', async () => {
+    const cloud = createCloud()
+    await cloud.push([{ tbl: 'kv', id: 'timeZone', data: { key: 'timeZone', value: 'Europe/Berlin' }, updatedAt: 1, deleted: false }])
+    const phone = createPhone(cloud, { timeZone: () => 'Europe/Berlin' })
+    await phone.engine.syncNow()
+    expect(phone.library.outbox()).toEqual([])
   })
 })

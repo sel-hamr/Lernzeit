@@ -15,10 +15,14 @@
  */
 import type { SqlAdapter } from './adapter'
 
-/** Bumped with each change to the schema below; `PRAGMA user_version` holds the one a database has. */
-export const SCHEMA_VERSION = 1
-
-const SCHEMA_V1 = `
+/**
+ * Bumped with each change to the schema below; `PRAGMA user_version` holds the one a database has.
+ *  1. The first schema, `records` WITHOUT ROWID.
+ *  2. `records` an ordinary rowid table: version 1 databases have it rebuilt, rows kept.
+ */
+export const SCHEMA_VERSION = 2
+/** The current schema, for a new database. */
+const SCHEMA = `
 CREATE TABLE IF NOT EXISTS records (
   tbl TEXT NOT NULL,
   id TEXT NOT NULL,
@@ -47,12 +51,27 @@ CREATE TABLE IF NOT EXISTS images (
 ) WITHOUT ROWID;
 `
 
-/** Creates the tables of a new database, or brings an older one up to SCHEMA_VERSION. */
+/** Version 1 to 2: `records` copied into a rowid table of the same columns, which takes its name. */
+const RECORDS_AS_ROWID_TABLE = `
+CREATE TABLE records_v2 (
+  tbl TEXT NOT NULL,
+  id TEXT NOT NULL,
+  data TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (tbl, id)
+);
+INSERT INTO records_v2 (tbl, id, data, updated_at) SELECT tbl, id, data, updated_at FROM records;
+DROP TABLE records;
+ALTER TABLE records_v2 RENAME TO records;
+`
+
+/** Creates the tables of a new database, or brings an older one up to SCHEMA_VERSION, in one transaction. */
 export function migrate(sql: SqlAdapter): void {
   const version = sql.get<{ user_version: number }>('PRAGMA user_version')?.user_version ?? 0
   if (version >= SCHEMA_VERSION) return
   sql.transaction(() => {
-    sql.exec(SCHEMA_V1)
+    if (version === 0) sql.exec(SCHEMA)
+    if (version === 1) sql.exec(RECORDS_AS_ROWID_TABLE)
     sql.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
   })
 }
