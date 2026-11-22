@@ -227,6 +227,8 @@ export async function runTool<A extends ActionName>(db: D1Database, ownerId: str
         return reply(await runAction(await createD1Store(db, ownerId), action, params))
       } catch (error) {
         if (!(error instanceof BusyError) || attempt >= MAX_TOOL_ATTEMPTS) throw error
+        // A short random wait, so calls that collided do not collide again in step.
+        await new Promise((resolve) => setTimeout(resolve, 20 + Math.random() * 100))
       }
     }
   } catch (error) {

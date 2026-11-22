@@ -218,11 +218,31 @@ describe('createD1Store time zone', () => {
     expect((await createD1Store(env.DB, owner)).timeZone).toBe('Europe/Berlin')
   })
 
-  it('falls back to UTC when no time zone is set, whatever the settings say', async () => {
+  it('falls back to the zone in settings, which older devices saved there, when kv/timeZone is missing', async () => {
     const owner = freshOwner()
     expect((await createD1Store(env.DB, owner)).timeZone).toBe('UTC')
-    await seedLibrary(owner, { kv: [{ key: 'settings', value: { theme: 'dark', timeZone: 'Europe/Berlin' } }] })
+    await seedLibrary(owner, { kv: [{ key: 'settings', value: { theme: 'dark', timeZone: 'Africa/Casablanca' } }] })
+    expect((await createD1Store(env.DB, owner)).timeZone).toBe('Africa/Casablanca')
+  })
+
+  it('uses the settings zone when kv/timeZone is not a zone Intl knows', async () => {
+    const owner = freshOwner()
+    await seedLibrary(owner, { kv: [{ key: 'timeZone', value: 'Mars/Olympus' }, { key: 'settings', value: { timeZone: 'Asia/Tokyo' } }] })
+    expect((await createD1Store(env.DB, owner)).timeZone).toBe('Asia/Tokyo')
+  })
+
+  it('falls back to UTC when neither zone is one Intl knows', async () => {
+    const owner = freshOwner()
+    await seedLibrary(owner, { kv: [{ key: 'timeZone', value: 'Mars/Olympus' }, { key: 'settings', value: { timeZone: 'Moon/Tranquility' } }] })
     expect((await createD1Store(env.DB, owner)).timeZone).toBe('UTC')
+  })
+
+  it('opens with one batch when only the settings hold the zone', async () => {
+    const owner = freshOwner()
+    await seedLibrary(owner, { kv: [{ key: 'settings', value: { timeZone: 'Asia/Tokyo' } }] })
+    const { db, queries } = countingDb()
+    await createD1Store(db, owner)
+    expect(queries()).toBe(1)
   })
 
   it('falls back to UTC when the time zone is not one Intl knows', async () => {

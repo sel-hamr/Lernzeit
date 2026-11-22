@@ -148,7 +148,12 @@ export async function applyChanges(
   try {
     results = await db.batch([bump, db.prepare(UPSERT_RECORDS).bind(owner, payload), db.prepare(DELETE_TOMBSTONED_BLOBS).bind(owner), db.prepare(READ_SEQ).bind(owner)])
   } catch (error) {
-    if (expectSeq !== undefined && error instanceof Error && MOVED_ON.test(error.message)) throw new BusyError()
+    if (expectSeq !== undefined) {
+      if (error instanceof Error && MOVED_ON.test(error.message)) throw new BusyError()
+      // D1 may word the refusal differently: whatever failed, a moved counter means someone else wrote first.
+      const row = await db.prepare(READ_SEQ).bind(owner).first<{ seq: number | null }>()
+      if ((row?.seq ?? 0) !== expectSeq) throw new BusyError()
+    }
     throw error
   }
   const [, upserted, , current] = results

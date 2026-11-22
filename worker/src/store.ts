@@ -123,7 +123,8 @@ function knownTimeZone(zone: unknown): string | undefined {
 
 /**
  * The owner's library in D1, for one tool call. Its `timeZone` is the synced `kv/timeZone`, or
- * UTC when there is none Intl knows.
+ * the `timeZone` in `kv/settings` (where devices on an older build saved it), or UTC when there is
+ * none Intl knows.
  *
  * Make one store per call, as `runAction` expects, and do not reuse it: `commit()` takes the staged
  * writes off the store before it writes them, so when it throws they are gone rather than left for
@@ -133,9 +134,13 @@ function knownTimeZone(zone: unknown): string | undefined {
  */
 export async function createD1Store(db: D1Database, owner: string, options: { now?: () => number } = {}): Promise<LibraryStore> {
   const stored = storedReader(db, owner)
-  // One batch: the counter, then the zone, so every read of the call comes after the counter's.
-  const [seq, zone] = await Promise.all([stored.seq(), stored.get<{ value?: unknown }>('kv', 'timeZone')])
-  const timeZone = knownTimeZone(zone?.value) ?? 'UTC'
+  // One batch: the counter, then the zone records, so every read of the call comes after the counter's.
+  const [seq, zone, settings] = await Promise.all([
+    stored.seq(),
+    stored.get<{ value?: unknown }>('kv', 'timeZone'),
+    stored.get<{ value?: { timeZone?: unknown } | null }>('kv', 'settings'),
+  ])
+  const timeZone = knownTimeZone(zone?.value) ?? knownTimeZone(settings?.value?.timeZone) ?? 'UTC'
   const staging = stageWrites(stored)
   const now = options.now ?? (() => Date.now())
 

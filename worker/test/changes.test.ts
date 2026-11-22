@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers'
 import type { SyncChange } from '@lernzeit/core/sync'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { ChangeError, applyChanges, validateChanges } from '../src/changes.ts'
+import { BusyError, ChangeError, applyChanges, validateChanges } from '../src/changes.ts'
 import { clearSyncData, seedOwner } from './helpers.ts'
 
 beforeEach(async () => {
@@ -48,6 +48,29 @@ describe('applyChanges', () => {
   it('refuses a payload D1 cannot take as 413', async () => {
     const big = Array.from({ length: 3 }, (_, i) => card(`b${i}`, 1, { text: '"'.repeat(400_000) }))
     await expect(applyChanges(env.DB, 'owner', big)).rejects.toMatchObject({ status: 413 })
+  })
+})
+
+describe('applyChanges when a guarded write fails with an error it does not know', () => {
+  const failing = (before: () => Promise<unknown>): D1Database =>
+    ({
+      prepare: (sql: string) => env.DB.prepare(sql),
+      batch: async () => {
+        await before()
+        throw new Error('D1 exploded')
+      },
+    }) as unknown as D1Database
+
+  it('throws BusyError when the owner’s counter moved meanwhile', async () => {
+    await applyChanges(env.DB, 'o1', [card('a', 1)])
+    const db = failing(() => applyChanges(env.DB, 'o1', [card('b', 1)]))
+    await expect(applyChanges(db, 'o1', [card('c', 2)], { expectSeq: 1 })).rejects.toBeInstanceOf(BusyError)
+  })
+
+  it('rethrows the original error when the counter is where it was expected', async () => {
+    await applyChanges(env.DB, 'o1', [card('a', 1)])
+    const db = failing(async () => {})
+    await expect(applyChanges(db, 'o1', [card('c', 2)], { expectSeq: 1 })).rejects.toThrow('D1 exploded')
   })
 })
 
