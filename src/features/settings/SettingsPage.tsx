@@ -268,8 +268,8 @@ export default function SettingsPage() {
     <>
       <PageHeader title="Settings" subtitle="Goals, decks, timer, audio, your data and your account." />
 
-      <div className="grid items-start gap-5 xl:grid-cols-2">
-        <div className="flex flex-col gap-5">
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-5">
           <LevelGroup />
           <TopicsGroup />
           <DecksGroup />
@@ -335,7 +335,7 @@ export default function SettingsPage() {
           <ClaudeGroup />
         </div>
 
-        <div className="flex flex-col gap-5">
+        <div className="flex min-w-0 flex-col gap-5">
           <Group id="flashcards-audio" title="Flashcards and audio">
             <VoiceField />
             <Field label={`Speaking speed · ${settings.speechRate.toFixed(2)}×`} htmlFor="rate">

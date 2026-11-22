@@ -91,16 +91,3 @@ export function SidebarVoiceSelect() {
     </div>
   )
 }
-
-export function HeaderVoiceSelect() {
-  const voice = useVoiceSelect()
-  if (!voice) return null
-  return (
-    <div className="relative flex h-8 max-w-30 items-center gap-1.5 rounded-full px-2.5 text-chip font-medium text-ink-2 hover:bg-field">
-      <AudioLines size={16} strokeWidth={1.7} className="shrink-0" aria-hidden />
-      <span className="truncate">{voice.display}</span>
-      <ChevronDown size={13} strokeWidth={2} className="shrink-0" aria-hidden />
-      <Overlay voice={voice} />
-    </div>
-  )
-}
