@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { NavLink, useLocation } from 'react-router'
 import clsx from 'clsx'
 import { Settings } from 'lucide-react'
@@ -22,9 +22,13 @@ export function PhoneMenu({ open, onClose }: { open: boolean; onClose: () => voi
   const { pathname, hash } = useLocation()
   const items = menuItems(useFeatures())
 
+  // Closes when the place changes, not on the first render.
+  const lastPlace = useRef(pathname + hash)
   useEffect(() => {
+    if (lastPlace.current === pathname + hash) return
+    lastPlace.current = pathname + hash
     onClose()
-    // Only a change of place closes it.
+    // onClose is a new function each render; only a change of place closes the menu.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, hash])
 

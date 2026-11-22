@@ -2,16 +2,9 @@ import { Link } from 'react-router'
 import clsx from 'clsx'
 import { Cloud, CloudOff } from 'lucide-react'
 import { ACCOUNT_ID } from '@/features/settings/AccountGroup'
-import { useSyncStatus } from '@/sync/status'
-import { syncIndicator, type StatusLevel, type SyncIndicator } from '@/sync/indicator'
+import { LEVEL_DOT, useSyncIndicator } from './syncState'
 
-export const LEVEL_DOT: Record<StatusLevel, string> = { ok: 'bg-sage-dot', idle: 'bg-line-strong', waiting: 'bg-muted', error: 'bg-red-ink' }
-
-export const ACCOUNT_SETTINGS = `/settings#${ACCOUNT_ID}`
-
-export function useSyncIndicator(): SyncIndicator {
-  return syncIndicator(useSyncStatus())
-}
+const ACCOUNT_SETTINGS = `/settings#${ACCOUNT_ID}`
 
 /** Whether the library is in step with the cloud, and what waits; the reason on hover. */
 export function SyncRow() {

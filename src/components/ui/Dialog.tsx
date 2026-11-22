@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 import clsx from 'clsx'
 import { X } from 'lucide-react'
 
@@ -22,6 +22,7 @@ const widths = { sm: 'sm:max-w-100', md: 'sm:max-w-130', lg: 'sm:max-w-170' }
  */
 export function Dialog({ open, onClose, title, description, children, footer, size = 'md', locked }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null)
+  const titleId = useId()
   const pointerDownOnBackdrop = useRef(false)
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export function Dialog({ open, onClose, title, description, children, footer, si
   return (
     <dialog
       ref={ref}
+      aria-labelledby={titleId}
       onCancel={(e) => {
         // React passes a nested dialog's cancel up to this one too: only Escape on this dialog closes it.
         if (e.target !== e.currentTarget) return
@@ -58,7 +60,7 @@ export function Dialog({ open, onClose, title, description, children, footer, si
         <div className="flex max-h-[92dvh] flex-col overflow-hidden rounded-t-[20px] border border-line bg-main shadow-popup sm:rounded-section">
           <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-3">
             <div className="flex min-w-0 flex-col gap-1">
-              <h2 className="text-[19px] font-semibold tracking-[-0.01em]">{title}</h2>
+              <h2 id={titleId} className="text-[19px] font-semibold tracking-[-0.01em]">{title}</h2>
               {description && <p className="text-small text-muted">{description}</p>}
             </div>
             <button
