@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deckButtonLabel, roundPosition } from './labels'
+import { deckButtonLabel, roundProgress } from './labels'
 
 const tabs = [
   { value: 'all', label: 'All', count: 898 },
@@ -23,15 +23,13 @@ describe('deckButtonLabel', () => {
   })
 })
 
-describe('roundPosition', () => {
-  it('counts the card on screen as the next one', () => {
-    expect(roundPosition(0, 1159)).toBe('1 / 1159')
-    expect(roundPosition(11, 1148)).toBe('12 / 1159')
+describe('roundProgress', () => {
+  it('counts the cards rated and the cards left', () => {
+    expect(roundProgress(0, 1159)).toBe('0 done · 1159 left')
+    expect(roundProgress(12, 1147)).toBe('12 done · 1147 left')
   })
-  it('is the last card when one is left', () => {
-    expect(roundPosition(9, 1)).toBe('10 / 10')
-  })
-  it('never counts past the total', () => {
-    expect(roundPosition(5, 0)).toBe('5 / 5')
+  it('holds "left" steady when a rated card comes back in the round', () => {
+    // Good on a practice round requeues the card: one more done, the same left.
+    expect(roundProgress(1, 1159)).toBe('1 done · 1159 left')
   })
 })

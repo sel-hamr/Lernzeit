@@ -11,8 +11,10 @@ export function deckButtonLabel(tabs: DeckTab[], value: string): { name: string;
   return { name, count, text: `${name} · ${count}` }
 }
 
-/** "12 / 1159": the card on screen and the round's cards. `remaining` counts the card on screen. */
-export function roundPosition(reviewed: number, remaining: number): string {
-  const total = reviewed + remaining
-  return `${Math.min(reviewed + 1, total)} / ${total}`
+/**
+ * "12 done · 1147 left": the cards rated so far and the cards left, the one on screen included.
+ * A rated card that comes back in the round stays in "left", so the count never grows on Good.
+ */
+export function roundProgress(reviewed: number, remaining: number): string {
+  return `${reviewed} done · ${remaining} left`
 }

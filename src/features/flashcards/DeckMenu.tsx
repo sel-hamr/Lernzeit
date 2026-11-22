@@ -154,7 +154,8 @@ export function DeckMenu({
                   ) : (
                     <ArrowRight size={14} strokeWidth={1.8} aria-hidden className="shrink-0 text-muted" />
                   )}
-                  <span className={clsx('min-w-0 flex-1 truncate', tab.value === current && 'font-medium text-ink')}>{tab.label}
+                  <span className={clsx('min-w-0 flex-1 truncate', tab.value === current && 'font-medium text-ink')}>
+                    {tab.label}
                     {tab.value === current && <span className="sr-only">, open</span>}
                   </span>
                   <span className="text-chip text-muted tabular-nums">{tab.count}</span>

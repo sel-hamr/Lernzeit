@@ -24,7 +24,7 @@ import { buildPickedQueue, buildPracticeQueue, LEARN_AHEAD_MS, pickNextReview, P
 import { prepareSpeech, speak, stopSpeaking, voiceOptions } from '@/data/voice'
 import { directionLabel, directionsFor, GRADE_LABEL, GRADES, State } from '@lernzeit/core/srs'
 import { dateKey, MINUTE } from '@lernzeit/core/time'
-import { roundPosition } from './labels'
+import { roundProgress } from './labels'
 
 interface Progress {
   /** The round's id, which its saved practice session keeps. */
@@ -99,6 +99,13 @@ function ClozeSentence({ text, reveal }: { text: string; reveal: boolean }) {
 function hasPicture(card: Pick<Card, 'imageId' | 'emoji'>): boolean {
   return !!card.imageId || !!card.emoji
 }
+
+/**
+ * The phone rating bar's height, shared by the bar and the spacer that keeps its room, so they cannot drift.
+ * 97px = 1px top border + 8px top padding + 28px Undo row + 4px gap + 56px buttons; below them the safe area (at least 8px).
+ * The bar is border-box, so this height includes its padding.
+ */
+const PHONE_BAR_HEIGHT = 'h-[calc(97px+max(8px,env(safe-area-inset-bottom)))]'
 
 /**
  * A picture's height: `phone` below `md`, `desktop` from there. Once the answer shows (`compact`),
@@ -733,14 +740,14 @@ export default function ReviewPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-160 flex-col gap-3 md:gap-5">
-      {/* One line on phones: End, the card's place in the round and the toggles. Desktop counts the ratings. */}
+      {/* One line on phones: End, cards done and left, and the toggles. Desktop counts the ratings. */}
       <div className="flex items-center justify-between gap-3">
         <Link to="/flashcards" className="flex shrink-0 items-center gap-1.5 text-small text-muted hover:text-ink">
           <X size={16} strokeWidth={1.8} /> End
         </Link>
         {progress.current && (
           <>
-            <span className="text-small font-medium whitespace-nowrap text-muted tabular-nums md:hidden">{roundPosition(progress.reviewed, remaining)}</span>
+            <span className="text-small font-medium whitespace-nowrap text-muted tabular-nums md:hidden">{roundProgress(progress.reviewed, remaining)}</span>
             <div className="hidden items-center gap-3 text-small font-medium tabular-nums md:flex">
               <RatingCounts ratings={progress.ratings} />
               <span className="text-muted">· {remaining} left</span>
@@ -838,7 +845,13 @@ export default function ReviewPage() {
           </article>
 
           {/* Phones: fixed to the bottom above the safe area, Undo just above the buttons; the spacer below keeps its room. */}
-          <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-main/95 px-4 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] backdrop-blur-sm md:sticky md:inset-x-auto md:bottom-4 md:z-10 md:-mx-1 md:border-t-0 md:px-1 md:pt-3 md:pb-1">
+          <div
+            className={clsx(
+              'fixed inset-x-0 bottom-0 z-30 border-t border-line bg-main/95 px-4 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] backdrop-blur-sm',
+              PHONE_BAR_HEIGHT,
+              'md:sticky md:inset-x-auto md:bottom-4 md:z-10 md:-mx-1 md:h-auto md:border-t-0 md:px-1 md:pt-3 md:pb-1',
+            )}
+          >
             <div className="mx-auto flex w-full max-w-160 flex-col gap-1 md:gap-0">
               {!revealed ? (
                 <Button data-tour="practice-show" variant="primary" size="lg" className="w-full max-md:h-14" onClick={reveal}>
@@ -881,7 +894,7 @@ export default function ReviewPage() {
               </div>
             </div>
           </div>
-          <div aria-hidden className="h-[calc(97px+max(8px,env(safe-area-inset-bottom)))] shrink-0 md:hidden" />
+          <div aria-hidden className={clsx(PHONE_BAR_HEIGHT, 'shrink-0 md:hidden')} />
         </>
       )}
     </div>
