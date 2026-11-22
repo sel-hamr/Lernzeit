@@ -4,6 +4,7 @@ import type { Filter } from '@lernzeit/core/library'
 import type { SyncTable } from '@lernzeit/core/sync'
 import { libraryStoreContract } from '@lernzeit/core/library.contract.test-utils'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { BusyError, applyChanges } from '../src/changes.ts'
 import { createD1Store, whereClause } from '../src/store.ts'
 import { clearSyncData, countingDb, seedLibrary } from './helpers.ts'
 
@@ -155,6 +156,56 @@ describe('createD1Store', () => {
     const store = await createD1Store(failing, owner)
     const results = await Promise.allSettled([store.list('decks'), store.get('cards', 'c1'), store.count('topics')])
     expect(results.map((r) => r.status === 'rejected' && (r.reason as Error).message)).toEqual(['D1 is down', 'D1 is down', 'D1 is down'])
+  })
+})
+
+describe('createD1Store when the library changes under it', () => {
+  it('refuses to commit once another write landed after it opened, and writes none of its changes', async () => {
+    const owner = freshOwner()
+    await seedLibrary(owner, { decks: [{ id: 'd1', name: 'One' }] })
+    const first = await createD1Store(env.DB, owner)
+    const second = await createD1Store(env.DB, owner)
+    first.put('decks', { id: 'd2', name: 'Two' })
+    second.put('decks', { id: 'd3', name: 'Three' })
+    second.put('decks', { id: 'd1', name: 'Uno' })
+    await first.commit()
+    await expect(second.commit()).rejects.toBeInstanceOf(BusyError)
+    expect((await storedRows(owner)).map((row) => `${row.id} ${row.data}`)).toEqual(['d1 {"id":"d1","name":"One"}', 'd2 {"id":"d2","name":"Two"}'])
+    expect(await counter(owner)).toBe(2)
+  })
+
+  it('counts a device push as such a write', async () => {
+    const owner = freshOwner()
+    await seedLibrary(owner, { decks: [{ id: 'd1', name: 'One' }] })
+    const store = await createD1Store(env.DB, owner)
+    store.put('decks', { id: 'd2', name: 'Two' })
+    await applyChanges(env.DB, owner, [{ tbl: 'cards', id: 'c1', data: { id: 'c1', deckId: 'd1' }, updatedAt: 1, deleted: false }])
+    await expect(store.commit()).rejects.toBeInstanceOf(BusyError)
+    expect((await storedRows(owner)).map((row) => row.id)).toEqual(['c1', 'd1'])
+  })
+
+  it('sees the conflict on an owner with no writes yet, too', async () => {
+    const owner = freshOwner()
+    const first = await createD1Store(env.DB, owner)
+    const second = await createD1Store(env.DB, owner)
+    first.put('decks', { id: 'd1', name: 'One' })
+    second.put('decks', { id: 'd2', name: 'Two' })
+    await first.commit()
+    await expect(second.commit()).rejects.toBeInstanceOf(BusyError)
+    expect((await storedRows(owner)).map((row) => row.id)).toEqual(['d1'])
+    expect(await counter(owner)).toBe(1)
+  })
+
+  it('commits when nothing else wrote, and a store that only read never conflicts', async () => {
+    const owner = freshOwner()
+    await seedLibrary(owner, { decks: [{ id: 'd1', name: 'One' }] })
+    const reader = await createD1Store(env.DB, owner)
+    const writer = await createD1Store(env.DB, owner)
+    await reader.list('decks')
+    writer.put('decks', { id: 'd2', name: 'Two' })
+    await writer.commit()
+    await reader.commit()
+    expect(await counter(owner)).toBe(2)
   })
 })
 

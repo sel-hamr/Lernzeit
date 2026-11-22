@@ -31,7 +31,7 @@ import {
 } from '@lernzeit/core/protocol'
 import type { StoryLevel, StoryWord } from '@lernzeit/core/types'
 import { runAction } from '@lernzeit/core/actions'
-import { ChangeError } from '../changes.ts'
+import { BusyError, ChangeError } from '../changes.ts'
 import type { Env } from '../env.ts'
 import { createD1Store } from '../store.ts'
 
@@ -194,12 +194,19 @@ function failure({ code, message }: { code: string; message: string }): CallTool
 }
 
 /** What a tool call answers when the cause is not one the AI can fix. The cause goes to the Worker's log. */
-const SAVE_FAILED = 'Lernzeit could not save that. Try again.'
+const SAVE_FAILED = 'Lernzeit could not do that. Try again.'
+
+/**
+ * How many times a call runs when something else keeps writing in the meantime. Each run is at most
+ * about 10 D1 queries (worker/test/actions.test.ts), so the last stays under the Free plan's 50.
+ */
+export const MAX_TOOL_ATTEMPTS = 4
 
 /** A message for a failed call, in words the AI can act on. Returns undefined for a cause it cannot explain. */
-function explain(error: unknown): { code: string; message: string } | undefined {
+export function explain(error: unknown): { code: string; message: string } | undefined {
   if (error instanceof BridgeError) return toErrorBody(error)
-  if (error instanceof ChangeError) {
+  // A write too large for one D1 value. Any other ChangeError is a record the action itself built wrong.
+  if (error instanceof ChangeError && error.status === 413) {
     return {
       code: 'too_large',
       message: `${error.message} Split the request into smaller calls, for example with fewer cards or shorter texts in each, and try again.`,
@@ -209,21 +216,34 @@ function explain(error: unknown): { code: string; message: string } | undefined 
 }
 
 /**
+ * Runs one tool call for the owner on a store of its own. When the library changed while it ran
+ * (BusyError: another call or a device's push wrote first), it runs again on a new store, up to
+ * MAX_TOOL_ATTEMPTS runs in all, so concurrent calls never lose each other's writes.
+ */
+export async function runTool<A extends ActionName>(db: D1Database, ownerId: string, action: A, params: ActionParams<A>): Promise<CallToolResult> {
+  try {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return reply(await runAction(await createD1Store(db, ownerId), action, params))
+      } catch (error) {
+        if (!(error instanceof BusyError) || attempt >= MAX_TOOL_ATTEMPTS) throw error
+      }
+    }
+  } catch (error) {
+    if (error instanceof BusyError) return failure({ code: 'busy', message: 'Lernzeit was busy; try again.' })
+    const known = explain(error)
+    if (known) return failure(known)
+    console.error(`Lernzeit tool ${action} failed`, error)
+    return failure({ code: 'internal', message: SAVE_FAILED })
+  }
+}
+
+/**
  * Registers the Lernzeit tools. Each call makes its own D1 store for the owner (a store serves one
  * call: runAction commits what it staged, and the store must not be reused afterwards).
  */
 export function registerTools(server: McpServer, env: Env, ownerId: string) {
-  const run = async <A extends ActionName>(action: A, params: ActionParams<A>): Promise<CallToolResult> => {
-    try {
-      const store = await createD1Store(env.DB, ownerId)
-      return reply(await runAction(store, action, params))
-    } catch (error) {
-      const known = explain(error)
-      if (known) return failure(known)
-      console.error(`Lernzeit tool ${action} failed`, error)
-      return failure({ code: 'internal', message: SAVE_FAILED })
-    }
-  }
+  const run = <A extends ActionName>(action: A, params: ActionParams<A>): Promise<CallToolResult> => runTool(env.DB, ownerId, action, params)
 
   server.registerTool(
     'list_topics',

@@ -48,6 +48,7 @@ Details worth knowing:
 
 - `delete_deck` takes the deck's card count from `list_decks` and refuses when it differs, and it deletes at most **500 cards** with the deck. Claude empties a bigger deck with `delete_cards` first.
 - `create_cards` has no image upload. `emoji` and `imageQuery` work.
+- Calls Claude sends at the same time do not lose each other's work. A call saves only if nothing else (another call, a device's sync) wrote since it started reading; otherwise it runs again from the start, up to 4 times, and then answers "Lernzeit was busy; try again."
 - Grammar exercises the app cannot use are refused with their number and the reason before anything is saved ([grammar.md](grammar.md#writing-a-topic)). Existing cards, stories, questions and exercises are never edited, only added to.
 - The connector also offers the `lernzeit://guide` resource, which teaches Claude how to write good German cards, and the prompts `make_cards`, `write_story`, `make_questions`, `make_grammar`, `plan_tasks` and `help`. Pick them from the **+** menu in Claude.
 - The tools have their own usage notes in the guide ([worker/src/mcp/guide.ts](../worker/src/mcp/guide.ts)); a test checks it mentions every tool.

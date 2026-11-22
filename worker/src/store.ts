@@ -12,6 +12,11 @@
  * Writes are staged, readable at once, and stored by `commit()` through `applyChanges`, the same
  * path a device's push takes: newest `updatedAt` wins, so a browser edit stamped after the tool's
  * write still wins when it is pushed.
+ *
+ * A store reads the owner's change counter when it opens, and `commit()` stores its writes only if
+ * nothing (another tool call, a device's push) was written since: otherwise it throws BusyError
+ * and stores none of them, and the call is run again on a new store (mcp/tools.ts). Without this,
+ * two calls at once would each rewrite a record from what they read, and one's changes would vanish.
  */
 import { checkFilter, stageWrites, type Filter, type LibraryReader, type LibraryStore } from '@lernzeit/core/library'
 import { MAX_PUSH_CHANGES, SYNC_TABLES, type SyncChange, type SyncTable } from '@lernzeit/core/sync'
@@ -75,7 +80,7 @@ function batcher(db: D1Database) {
   }
 }
 
-function storedReader(db: D1Database, owner: string): LibraryReader {
+function storedReader(db: D1Database, owner: string): LibraryReader & { seq(): Promise<number> } {
   const query = batcher(db)
   const parse = <T>(rows: { data: string }[]) => rows.map((row) => JSON.parse(row.data) as T)
   return {
@@ -96,6 +101,11 @@ function storedReader(db: D1Database, owner: string): LibraryReader {
       const where = whereClause(owner, tbl, filter)
       const [row] = await query<{ n: number }>(`SELECT COUNT(*) AS n FROM records WHERE ${where.sql}`, where.params)
       return row.n
+    },
+    /** The owner's change counter, 0 before the first write. */
+    async seq() {
+      const [row] = await query<{ seq: number | null }>('SELECT (SELECT seq FROM counters WHERE owner = ?1) AS seq', [owner])
+      return row.seq ?? 0
     },
   }
 }
@@ -118,11 +128,13 @@ function knownTimeZone(zone: unknown): string | undefined {
  * Make one store per call, as `runAction` expects, and do not reuse it: `commit()` takes the staged
  * writes off the store before it writes them, so when it throws they are gone rather than left for
  * a later commit to store half a failed call. `commit()` stamps every change with `now()`, the
- * server's clock (`now` is there for tests), and writes nothing when nothing is staged.
+ * server's clock (`now` is there for tests), and writes nothing when nothing is staged. It throws
+ * BusyError, having stored nothing, when the owner's counter moved since the store was made.
  */
 export async function createD1Store(db: D1Database, owner: string, options: { now?: () => number } = {}): Promise<LibraryStore> {
   const stored = storedReader(db, owner)
-  const zone = await stored.get<{ value?: unknown }>('kv', 'timeZone')
+  // One batch: the counter, then the zone, so every read of the call comes after the counter's.
+  const [seq, zone] = await Promise.all([stored.seq(), stored.get<{ value?: unknown }>('kv', 'timeZone')])
   const timeZone = knownTimeZone(zone?.value) ?? 'UTC'
   const staging = stageWrites(stored)
   const now = options.now ?? (() => Date.now())
@@ -142,7 +154,7 @@ export async function createD1Store(db: D1Database, owner: string, options: { no
       const changes: SyncChange[] = staged.map(({ tbl, id, data }) => ({ tbl, id, data, updatedAt, deleted: data === null }))
       // A push's rules for each record (its id, its size). A tool call may write more records than one push may carry.
       for (let i = 0; i < changes.length; i += MAX_PUSH_CHANGES) validateChanges(changes.slice(i, i + MAX_PUSH_CHANGES))
-      await applyChanges(db, owner, changes)
+      await applyChanges(db, owner, changes, { expectSeq: seq })
     },
     timeZone,
     now,
