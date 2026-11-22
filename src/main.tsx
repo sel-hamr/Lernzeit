@@ -5,6 +5,7 @@ import '@fontsource/geist/500.css'
 import '@fontsource/geist/600.css'
 import './index.css'
 import './lib/install'
+import { setUpServiceWorkerUpdates } from './lib/updates'
 import { App } from './app/App'
 
 createRoot(document.getElementById('root')!).render(
@@ -12,3 +13,5 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 )
+
+void setUpServiceWorkerUpdates()

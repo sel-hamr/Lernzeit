@@ -69,6 +69,8 @@ export default defineConfig(({ mode }) => ({
     removeBuildServiceWorker,
     VitePWA({
       registerType: 'autoUpdate',
+      // Registered from src/lib/updates.ts, which also checks for updates and reloads safely.
+      injectRegister: false,
       includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
         name: 'Lernzeit',
