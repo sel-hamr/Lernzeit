@@ -9,7 +9,7 @@ import { StatusBar } from 'expo-status-bar'
 import * as SystemUI from 'expo-system-ui'
 import { useEffect, useState } from 'react'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
-import { AccountProvider, useAccount } from '../src/account'
+import { AccountProvider, backfillLastAccount, useAccount } from '../src/account'
 import { createServices } from '../src/services'
 import { LocalLibraryProvider } from '../src/store/live'
 import { SyncEngineProvider } from '../src/sync/engineContext'
@@ -28,6 +28,9 @@ export default function RootLayout() {
   useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => {})
   }, [ready])
+
+  // Phones that signed in before the other-account guard learn who they belong to.
+  useEffect(() => backfillLastAccount(services.library), [services])
 
   // Sync from the start, on local data: the screens never wait for the cloud.
   useEffect(() => {

@@ -42,9 +42,15 @@ export const LAST_ACCOUNT_KEY = 'lastAccount'
 /** Signing in as someone else while this phone still holds another account's data. */
 export class OtherAccountError extends Error {
   constructor(readonly lastAccount: string) {
-    super(`This phone has data from ${lastAccount}. Sign out of it first (Settings → Sign out) to use another account.`)
+    super(`This phone has data from ${lastAccount}. Use “Remove this phone’s data” below to sign in with another account.`)
     this.name = 'OtherAccountError'
   }
+}
+
+/** Phones that signed in before `lastAccount` existed: remembers who they belong to, so the guard covers them too. Call once at start. */
+export function backfillLastAccount(library: LocalLibrary): void {
+  const email = library.getMeta<{ email?: unknown }>(ACCOUNT_KEY)?.email
+  if (typeof email === 'string' && library.getMeta(LAST_ACCOUNT_KEY) === undefined) library.setMeta(LAST_ACCOUNT_KEY, email)
 }
 
 const sameEmail = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()

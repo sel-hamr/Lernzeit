@@ -1,9 +1,17 @@
+import { count } from '@lernzeit/core/text'
 import { useRef, useState } from 'react'
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import mark from '../assets/splash-icon.png'
 import { failureMessage, OtherAccountError, useAccountService } from '../src/account'
+import { useLocalLibrary } from '../src/store/live'
 import { useTheme } from '../src/theme'
+
+/** What the removal confirmation says: how much is lost, and that it cannot be undone. */
+export function removalWarning(waiting: number): string {
+  const lost = waiting > 0 ? `${count(waiting, 'change is', 'changes are')} not uploaded and will be lost for good.` : 'Nothing is waiting to be uploaded, so nothing unsynced is lost.'
+  return `${lost} This can’t be undone. Your data in the cloud stays.`
+}
 
 /**
  * Sign-in to the Lernzeit cloud. Once the account is stored the root layout leaves this screen by
@@ -13,6 +21,7 @@ export default function SignIn() {
   const { colors, type, spacing, radius, sizes } = useTheme()
   const insets = useSafeAreaInsets()
   const service = useAccountService()
+  const library = useLocalLibrary()
   const passwordRef = useRef<React.ElementRef<typeof TextInput>>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -41,7 +50,7 @@ export default function SignIn() {
 
   // A 401 signed this phone out but kept its data; there is no Settings to sign out from, so it is removed here, after a confirmation.
   function removeData(owner: string) {
-    Alert.alert(`Remove ${owner}’s data from this phone?`, 'Changes that were not uploaded yet are lost. The data stays in the cloud.', [
+    Alert.alert(`Remove ${owner}’s data from this phone?`, removalWarning(library.outboxSize()), [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove data',
@@ -85,7 +94,10 @@ export default function SignIn() {
             placeholder="Email"
             placeholderTextColor={colors.muted}
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(text) => {
+              setEmail(text)
+              setOtherAccount(undefined)
+            }}
             autoCapitalize="none"
             autoComplete="email"
             autoCorrect={false}
@@ -133,7 +145,7 @@ export default function SignIn() {
 
           {otherAccount ? (
             <Pressable onPress={() => removeData(otherAccount)} accessibilityRole="button" accessibilityLabel="Remove this phone’s data" style={styles.link}>
-              <Text style={[type.bodyMedium, { color: colors.ink }]}>Remove this phone’s data</Text>
+              <Text style={[type.bodyMedium, { color: colors.redInk }]}>Remove this phone’s data</Text>
             </Pressable>
           ) : null}
 
@@ -165,6 +177,6 @@ const styles = StyleSheet.create({
   passwordRow: { justifyContent: 'center' },
   passwordField: { paddingRight: 64 },
   toggle: { position: 'absolute', right: 0, minWidth: 64, height: 48, alignItems: 'center', justifyContent: 'center' },
-  link: { minHeight: 48, justifyContent: 'center' },
+  link: { minHeight: 48, justifyContent: 'center', marginBottom: 12 },
   button: { borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
 })

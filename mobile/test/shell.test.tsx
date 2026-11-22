@@ -6,6 +6,7 @@ import type { Services } from '../src/services'
 import { createLocalLibrary } from '../src/store/library'
 import type { SyncEngine } from '../src/sync/engine'
 import { LAST_SYNCED_KEY, setSyncStatus } from '../src/sync/status'
+import { removalWarning } from '../app/sign-in'
 import { routes } from './routes'
 import { nodeSqliteAdapter } from './store/nodeSqlite'
 
@@ -227,7 +228,7 @@ describe('Settings → Account', () => {
     const alert = answerAlert('Cancel')
     await fireEvent.press(screen.getByRole('button', { name: 'Sign out' }))
     await waitFor(() => expect(alert).toHaveBeenCalled())
-    expect(alert.mock.calls[0]?.[1]).toBe('2 changes are not uploaded yet. Sign out anyway?')
+    expect(alert.mock.calls[0]?.slice(0, 2)).toEqual(['Sign out anyway?', '2 changes are not uploaded yet.'])
     await waitFor(() => expect(screen.getByRole('button', { name: 'Sign out' }).props.accessibilityState.disabled).toBe(false))
     expect(engine.syncNow).toHaveBeenCalledTimes(1 + STARTUP_SYNCS)
     expect(library.getMeta('account')).toEqual(ACCOUNT)
@@ -243,7 +244,7 @@ describe('Settings → Account', () => {
     const alert = answerAlert('Sign out anyway')
     await fireEvent.press(screen.getByRole('button', { name: 'Sign out' }))
     expect(await screen.findByText('Welcome back')).toBeTruthy()
-    expect(alert.mock.calls[0]?.[1]).toBe('1 change is not uploaded yet. Sign out anyway?')
+    expect(alert.mock.calls[0]?.slice(0, 2)).toEqual(['Sign out anyway?', '1 change is not uploaded yet.'])
     expect(api.logout).toHaveBeenCalled()
     expect(library.count('decks')).toBe(0)
     expect(library.outboxSize()).toBe(0)
@@ -263,15 +264,38 @@ describe('signing in as another account', () => {
     await fireEvent.changeText(await screen.findByPlaceholderText('Email'), 'x@y.z')
     await fireEvent.changeText(screen.getByPlaceholderText('Password'), 'pw')
     await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }))
-    expect(await screen.findByText('This phone has data from a@b.c. Sign out of it first (Settings → Sign out) to use another account.')).toBeTruthy()
+    expect(await screen.findByText('This phone has data from a@b.c. Use “Remove this phone’s data” below to sign in with another account.')).toBeTruthy()
     expect(login).not.toHaveBeenCalled()
 
-    jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => void (buttons as AlertButton[]).find((b) => b.text === 'Remove data')?.onPress?.())
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => void (buttons as AlertButton[]).find((b) => b.text === 'Remove data')?.onPress?.())
     await fireEvent.press(screen.getByRole('button', { name: 'Remove this phone’s data' }))
+    expect(alert.mock.calls[0]?.[1]).toBe('1 change is not uploaded and will be lost for good. This can’t be undone. Your data in the cloud stays.')
     await waitFor(() => expect(library.count('decks')).toBe(0))
     await waitFor(() => expect(screen.queryByText(/This phone has data from/)).toBeNull())
     await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }))
     expect(await screen.findByText('Lernzeit')).toBeTruthy()
     expect(login).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('the removal confirmation', () => {
+  it('says what is lost, or that nothing unsynced is', () => {
+    expect(removalWarning(3)).toBe('3 changes are not uploaded and will be lost for good. This can’t be undone. Your data in the cloud stays.')
+    expect(removalWarning(0)).toBe('Nothing is waiting to be uploaded, so nothing unsynced is lost. This can’t be undone. Your data in the cloud stays.')
+  })
+
+  it('hides the remove link when the email changes', async () => {
+    const { library } = useServices()
+    await open()
+    await screen.findByText('Lernzeit')
+    library.setMeta('lastAccount', 'a@b.c')
+    library.put('decks', { id: 'd1', name: 'One' })
+    await mockServices.account.signedOut()
+    await fireEvent.changeText(await screen.findByPlaceholderText('Email'), 'x@y.z')
+    await fireEvent.changeText(screen.getByPlaceholderText('Password'), 'pw')
+    await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByRole('button', { name: 'Remove this phone’s data' })).toBeTruthy()
+    await fireEvent.changeText(screen.getByPlaceholderText('Email'), 'a@b.c')
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Remove this phone’s data' })).toBeNull())
   })
 })

@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
-import { createAccountService, deviceName, OtherAccountError, useAccount } from '../src/account'
+import { backfillLastAccount, createAccountService, deviceName, OtherAccountError, useAccount } from '../src/account'
 import { createApi, OfflineError } from '../src/api'
 import { createLocalLibrary, DEVICE_ID_KEY } from '../src/store/library'
 import { LocalLibraryProvider } from '../src/store/live'
@@ -168,7 +168,7 @@ describe('signing in as another account', () => {
     t.library.setMeta('lastAccount', 'a@b.c')
     t.library.put('decks', { id: 'd1', name: 'One' })
     await expect(t.account.signIn('x@y.z', 'pw')).rejects.toThrow(
-      'This phone has data from a@b.c. Sign out of it first (Settings → Sign out) to use another account.',
+      'This phone has data from a@b.c. Use “Remove this phone’s data” below to sign in with another account.',
     )
     await expect(t.account.signIn('x@y.z', 'pw')).rejects.toBeInstanceOf(OtherAccountError)
     expect(loginCalls(t)).toBe(0)
@@ -201,5 +201,24 @@ describe('signing in as another account', () => {
     expect(t.library.getMeta('lastAccount')).toBeUndefined()
     await t.account.signIn('x@y.z', 'pw')
     expect(t.library.getMeta('account')).toEqual({ email: 'x@y.z' })
+  })
+})
+
+describe('backfillLastAccount', () => {
+  it('remembers the signed-in account of a phone from before lastAccount', () => {
+    const library = createLocalLibrary(nodeSqliteAdapter())
+    library.setMeta('account', { email: 'a@b.c' })
+    backfillLastAccount(library)
+    expect(library.getMeta('lastAccount')).toBe('a@b.c')
+  })
+
+  it('keeps an existing lastAccount and does nothing without an account', () => {
+    const library = createLocalLibrary(nodeSqliteAdapter())
+    backfillLastAccount(library)
+    expect(library.getMeta('lastAccount')).toBeUndefined()
+    library.setMeta('account', { email: 'new@b.c' })
+    library.setMeta('lastAccount', 'old@b.c')
+    backfillLastAccount(library)
+    expect(library.getMeta('lastAccount')).toBe('old@b.c')
   })
 })

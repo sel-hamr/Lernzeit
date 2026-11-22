@@ -71,7 +71,7 @@ function AccountGroup() {
         const confirmed = await new Promise<boolean>((resolve) =>
           Alert.alert(
             'Sign out anyway?',
-            `${count(waiting, 'change is', 'changes are')} not uploaded yet. Sign out anyway?`,
+            `${count(waiting, 'change is', 'changes are')} not uploaded yet.`,
             [
               { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
               { text: 'Sign out anyway', style: 'destructive', onPress: () => resolve(true) },
