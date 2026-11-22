@@ -2,6 +2,8 @@ import { Tabs } from 'expo-router'
 import { View } from 'react-native'
 import { BottomBar } from '../../src/components/BottomBar'
 import { TopBar } from '../../src/components/TopBar'
+import { Tour } from '../../src/starter/Tour'
+import { Welcome } from '../../src/starter/Welcome'
 import { PendingNoteSheet } from '../../src/timer/PendingNoteSheet'
 import { ReminderEngine } from '../../src/timer/ReminderEngine'
 import { TimerEngine } from '../../src/timer/TimerEngine'
@@ -16,6 +18,8 @@ export default function TabsLayout() {
       <TimerEngine />
       <ReminderEngine />
       <PendingNoteSheet />
+      <Welcome />
+      <Tour />
       <Tabs tabBar={(props) => <BottomBar {...props} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.main } }}>
         <Tabs.Screen name="index" options={{ title: 'Today' }} />
         <Tabs.Screen name="flashcards" options={{ title: 'Cards' }} />

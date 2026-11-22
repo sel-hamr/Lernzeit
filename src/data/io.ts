@@ -6,7 +6,7 @@ import { MISSING_IMAGES_KEY, stopSync, syncNow, withLock } from '@/sync/engine'
 import { applyRemote } from '@/sync/outbox'
 import { recordTimeZone } from './timeZone'
 import { db, getSettings, KV_KEYS, newId, type LernzeitDB, type OutboxEntry } from '@/db/db'
-import type { Card, Deck, Doc, DocFolder, DrillStat, ExerciseStat, GrammarTopic, KV, PracticeRun, Question, QuestionResponse, ReviewLog, Session, Settings, StoredImage, Story, Task, Topic, CardReview } from '@lernzeit/core/types'
+import type { Card, Deck, KV, StoredImage, CardReview } from '@lernzeit/core/types'
 import { blobToDataUrl, dataUrlToBlob } from '@/lib/image'
 import { directionsFor, newReview } from '@lernzeit/core/srs'
 import { packCardRows, type CardPack } from '@lernzeit/core/cardPack'
@@ -185,43 +185,9 @@ export async function writeCardPack(
 
 /* ------------------------------------------------------------- Backup ---- */
 
-interface BackupImage {
-  id: string
-  width: number
-  height: number
-  fit: StoredImage['fit']
-  dataUrl: string
-}
+import { assertBackup, assertUniqueIds, type Backup } from '@lernzeit/core/backup'
 
-export interface Backup {
-  app: 'lernzeit'
-  version: 1
-  exportedAt: number
-  topics: Topic[]
-  sessions: Session[]
-  decks: Deck[]
-  cards: Card[]
-  reviews: CardReview[]
-  reviewLogs: ReviewLog[]
-  tasks: Task[]
-  /** Missing in backups made before stories were added. */
-  stories?: Story[]
-  /** Missing in backups made before questions were added. */
-  questions?: Question[]
-  responses?: QuestionResponse[]
-  /** Missing in backups made before drills were added. */
-  drillStats?: DrillStat[]
-  /** Missing in backups made before grammar topics were added. */
-  grammarTopics?: GrammarTopic[]
-  exerciseStats?: ExerciseStat[]
-  /** Missing in backups made before practice history was added. */
-  practiceRuns?: PracticeRun[]
-  /** Missing in backups made before docs were added. */
-  docFolders?: DocFolder[]
-  docs?: Doc[]
-  images: BackupImage[]
-  settings: Settings
-}
+export type { Backup }
 
 export async function exportBackup(database: LernzeitDB = db): Promise<Backup> {
   const [topics, sessions, decks, cards, reviews, reviewLogs, tasks, stories, questions, responses, drillStats, grammarTopics, exerciseStats, practiceRuns, docFolders, docs, images, settings] = await Promise.all([
@@ -268,17 +234,6 @@ export async function exportBackup(database: LernzeitDB = db): Promise<Backup> {
       images.map(async (img) => ({ id: img.id, width: img.width, height: img.height, fit: img.fit, dataUrl: await blobToDataUrl(img.blob) })),
     ),
     settings,
-  }
-}
-
-function assertBackup(value: unknown): asserts value is Backup {
-  const b = value as Partial<Backup>
-  const arrays: (keyof Backup)[] = ['topics', 'sessions', 'decks', 'cards', 'reviews', 'reviewLogs', 'tasks', 'images']
-  if (!b || b.app !== 'lernzeit' || typeof b.version !== 'number') throw new Error('This is not a Lernzeit backup file')
-  if (b.version > 1) throw new Error('This backup comes from a newer version of Lernzeit')
-  for (const key of arrays) if (!Array.isArray(b[key])) throw new Error(`The backup is missing "${key}"`)
-  for (const key of ['stories', 'questions', 'responses', 'drillStats', 'grammarTopics', 'exerciseStats', 'practiceRuns', 'docFolders', 'docs'] as const) {
-    if (b[key] !== undefined && !Array.isArray(b[key])) throw new Error(`The backup has broken "${key}"`)
   }
 }
 
@@ -366,25 +321,6 @@ async function replaceLibrary(database: LernzeitDB, task: string, failed: string
     })
   } finally {
     replacing = false
-  }
-}
-
-/** Throws a readable error when a table of the backup holds one id twice. */
-function assertUniqueIds(backup: Backup): void {
-  const tables = {
-    topics: backup.topics, sessions: backup.sessions, decks: backup.decks, cards: backup.cards, reviews: backup.reviews,
-    reviewLogs: backup.reviewLogs, tasks: backup.tasks, stories: backup.stories, questions: backup.questions, responses: backup.responses,
-    drillStats: backup.drillStats, grammarTopics: backup.grammarTopics, exerciseStats: backup.exerciseStats, practiceRuns: backup.practiceRuns,
-    docFolders: backup.docFolders, docs: backup.docs, images: backup.images,
-  }
-  for (const [name, rows] of Object.entries(tables)) {
-    const seen = new Set<unknown>()
-    for (const row of rows ?? []) {
-      const id = (row as { id?: unknown } | null)?.id
-      if (typeof id !== 'string') continue
-      if (seen.has(id)) throw new Error(`The backup has "${name}" with the same id twice (${id}).`)
-      seen.add(id)
-    }
   }
 }
 

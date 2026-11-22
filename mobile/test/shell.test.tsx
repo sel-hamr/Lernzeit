@@ -25,6 +25,8 @@ function useServices({ hidden, engine, login }: Options = {}) {
   const library = createLocalLibrary(nodeSqliteAdapter())
   library.setMeta('account', ACCOUNT)
   if (hidden) library.put('kv', { key: 'settings', value: { hiddenFeatures: hidden } })
+  // The welcome was done (on another device), so the screens under test are not covered by it.
+  library.put('kv', { key: 'starterOffer', value: 'done' })
   // Settings that came from the cloud, not changes waiting to go up.
   library.acknowledge(library.outbox())
   let token: string | null = 'tok'

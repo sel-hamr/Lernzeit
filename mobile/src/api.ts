@@ -76,6 +76,8 @@ export interface Api {
   pull(cursor: string): Promise<PullResponse>
   putImage(id: string, bytes: Uint8Array | ArrayBuffer, type: string): Promise<void>
   getImage(id: string): Promise<ApiImage>
+  /** Tombstones every record in the cloud and drops every image; resolves with the cloud's clock. */
+  reset(): Promise<{ at: number }>
 }
 
 type Read<T> = (response: Response) => Promise<T>
@@ -145,6 +147,7 @@ export function createApi({ baseUrl, getToken, onSignedOut, fetch: fetchImpl }: 
       await request('/auth/logout', { method: 'POST' }, nothing)
     },
     authStatus: () => request('/auth/status', {}, json<AuthStatus>),
+    reset: () => post('/sync/reset', {}, json<{ at: number }>),
     push: (changes) => post('/sync/push', { changes }, json<PushResponse>),
     pull: (cursor) => request(`/sync/pull?cursor=${encodeURIComponent(cursor)}`, {}, json<PullResponse>),
     putImage: (id, bytes, type) =>

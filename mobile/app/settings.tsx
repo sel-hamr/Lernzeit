@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'rea
 import { failureMessage, useAccount, useAccountService } from '../src/account'
 import { Screen } from '../src/components/Screen'
 import { levelColor, useSyncIndicator } from '../src/components/syncIndicator'
+import { DataGroup, TourGroup } from '../src/settings/DataGroup'
 import { AppearanceGroup, AudioGroup, DecksGroup, FeaturesGroup, RemindersGroup, TimerGroup, TopicsGroup } from '../src/settings/groups'
 import { useLocalLibrary } from '../src/store/live'
 import { useSyncEngine } from '../src/sync/engineContext'
@@ -38,6 +39,8 @@ export default function SettingsPage() {
       <FeaturesGroup />
       <AppearanceGroup />
       <RemindersGroup />
+      <TourGroup />
+      <DataGroup />
     </Screen>
   )
 }
