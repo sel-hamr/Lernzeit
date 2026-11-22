@@ -110,8 +110,10 @@ Open [http://localhost:5173](http://localhost:5173). You sign in with the owner 
 
 **Connect Claude** once your Lernzeit is deployed ([Deploy](#deploy-and-install-on-your-phone)):
 
-1. In Lernzeit, open **Settings → Claude** and copy the connector address (your site's address plus `/mcp`, such as `https://lernzeit.example.workers.dev/mcp`).
+1. In Lernzeit, open **Settings → Claude** and copy the connector address (your Worker's address plus `/mcp`, such as `https://lernzeit.example.workers.dev/mcp`).
 2. In Claude on your phone, on claude.ai or in Claude Desktop, open **Settings → Connectors → Add custom connector**, paste the address and sign in with your Lernzeit password. In Claude Code, run `claude mcp add --transport http lernzeit <address>`.
+
+**Used the old local connection?** Lernzeit no longer runs an MCP server on your computer, so remove the one `npm run mcp:setup` or `lz mcp` set up before adding the new one. In Claude Code, run `claude mcp remove lernzeit`, then the `claude mcp add` command above. In Claude Desktop, delete the `lernzeit` entry under `mcpServers` in `claude_desktop_config.json` and restart it, then add the connector. [docs/mcp.md](docs/mcp.md#moving-from-the-local-connection) has the steps.
 
 Nothing has to stay open: Claude saves into your cloud, and your devices pick it up on the next sync (**Settings → Account → Sync now** does it at once). **Settings → Claude** lists the connected apps and disconnects them. [docs/mcp.md](docs/mcp.md) has the details.
 
@@ -378,9 +380,10 @@ Lernzeit deploys as one Cloudflare Worker: it serves `dist/`, sends client-side 
 ```bash
 npx wrangler login
 npx wrangler d1 create lernzeit
+npx wrangler kv namespace create OAUTH_KV
 ```
 
-Put the printed `database_id` in [wrangler.jsonc](wrangler.jsonc), then:
+Put the printed `database_id` in [wrangler.jsonc](wrangler.jsonc) under `d1_databases` and the KV namespace's `id` under `kv_namespaces` (it keeps the sign-ins of connected Claude apps). Then apply every migration in `worker/migrations/`, deploy and create the owner:
 
 ```bash
 npx wrangler d1 migrations apply lernzeit --remote

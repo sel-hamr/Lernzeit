@@ -24,6 +24,13 @@ claude mcp add --transport http lernzeit https://lernzeit.example.workers.dev/mc
 
 Then run `/mcp` inside Claude Code and choose **Authenticate**. Your browser opens the same sign-in page.
 
+### Moving from the local connection
+
+Earlier versions ran a local MCP server, set up by `npm run mcp:setup` or `lz mcp`, that reached Lernzeit through an open browser tab. It is gone, and the entry it left in Claude no longer starts. Remove it, then connect as above:
+
+- **Claude Code:** `claude mcp remove lernzeit` (add `-s user` or `-s project` if it says the server is in another scope), then the `claude mcp add --transport http lernzeit …` command.
+- **Claude Desktop:** open `claude_desktop_config.json` (**Settings → Developer → Edit Config**), delete the `lernzeit` entry under `mcpServers`, save, and restart Claude Desktop. Then add the connector in **Settings → Connectors**.
+
 ### The password page
 
 `/authorize` is a plain page served by the Worker, with no script on it. It names the app that asks and the host it will send access to, and it allows only when you type the owner password. The password is checked by the same code, and under the same limit (10 wrong tries per address in 15 minutes), as signing in to the app. Allowing gives the app a token pair; Claude keeps them, Lernzeit stores only hashes.
@@ -61,7 +68,7 @@ Dates and times Claude saves (study sessions, due dates) use the time zone of th
 
 ## Disconnecting
 
-- **One app:** **Settings → Claude → Connected apps → Disconnect**. Its tokens stop working at once, and it asks for your password again if you connect it again. What it saved stays.
+- **One app:** **Settings → Claude → Connected apps → Disconnect**. Its tokens stop working within about a minute (the grants live in Cloudflare KV, which takes up to a minute to reach every location), and it asks for your password again if you connect it again. What it saved stays.
 - **Every app:** run `npm run cloud:owner` and set a new password ([cloud.md](cloud.md)). Every app connected before the change is refused on its next call and disconnected.
 
 The list comes from `GET /api/mcp/grants` (name and date, never a token), and **Disconnect** is `DELETE /api/mcp/grants/:id`. Both need you to be signed in to the app.

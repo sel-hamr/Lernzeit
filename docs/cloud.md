@@ -134,9 +134,10 @@ Once:
 ```bash
 npx wrangler login
 npx wrangler d1 create lernzeit
+npx wrangler kv namespace create OAUTH_KV
 ```
 
-Put the printed `database_id` in [wrangler.jsonc](../wrangler.jsonc). Then create the tables, deploy, and create the owner:
+Put the printed `database_id` in [wrangler.jsonc](../wrangler.jsonc) under `d1_databases`, and the KV namespace's `id` under `kv_namespaces` (binding `OAUTH_KV`: it holds the sign-ins of the apps connected to `/mcp`, see [mcp.md](mcp.md)). Then create the tables (this applies every migration in `worker/migrations/`), deploy, and create the owner:
 
 ```bash
 npx wrangler d1 migrations apply lernzeit --remote
@@ -151,7 +152,7 @@ Each time after:
 - Code changed: `npm run build && npx wrangler deploy`.
 - A new file in `worker/migrations/`: `npx wrangler d1 migrations apply lernzeit --remote` first, then deploy.
 
-The Worker answers only `/api/*`. Every other request is served from `dist/` straight away, and client-side routes such as `/flashcards` get `index.html`. Open the address on your phone and choose **Add to Home screen**.
+The Worker answers `/api/*`, and `/mcp` with its OAuth routes (`/authorize`, `/token`, `/register`, `/.well-known/*`). Every other request is served from `dist/` straight away, and client-side routes such as `/flashcards` get `index.html`. Open the address on your phone and choose **Add to Home screen**.
 
 ## Claude
 
