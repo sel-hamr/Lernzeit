@@ -1,5 +1,5 @@
-import { Placeholder } from '../../src/components/Placeholder'
+import { TimerScreen } from '../../src/timer/TimerScreen'
 
 export default function Timer() {
-  return <Placeholder title="Focus timer" />
+  return <TimerScreen />
 }

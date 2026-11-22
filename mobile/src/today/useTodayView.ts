@@ -3,6 +3,8 @@ import type { Card, CardReview, PracticeRun, Session, Topic } from '@lernzeit/co
 import { useEffect, useMemo, useState } from 'react'
 import { AppState } from 'react-native'
 import { useLiveQuery } from '../store/live'
+import { useActiveTimer, useNow } from '../timer/hooks'
+import { isPaused } from '@lernzeit/core/timer'
 
 /**
  * Today's numbers over the local store, read again after each write to the tables they come from.
@@ -25,9 +27,13 @@ export function useTodayView(): TodayView {
   const reviews = useLiveQuery(['reviews'], (library) => library.list<CardReview>('reviews'), [])
   const practiceRuns = useLiveQuery(['practiceRuns'], (library) => library.list<PracticeRun>('practiceRuns'), [])
 
+  const timer = useActiveTimer()
+  // A running timer adds to today's minutes as it goes: read again every 15 seconds.
+  const tick = useNow(!!timer && !isPaused(timer), 15_000)
+  const at = timer ? Math.max(now, tick) : now
   const view = useMemo(
-    () => buildToday({ topics, sessions, cards, reviews, practiceRuns, now, timeZone }),
-    [topics, sessions, cards, reviews, practiceRuns, now, timeZone],
+    () => buildToday({ topics, sessions, cards, reviews, practiceRuns, now: at, timeZone, timer }),
+    [topics, sessions, cards, reviews, practiceRuns, at, timeZone, timer],
   )
 
   const dayEndsAt = view.dayEndsAt

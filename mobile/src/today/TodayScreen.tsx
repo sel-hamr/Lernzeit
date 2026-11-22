@@ -6,6 +6,11 @@ import type { Card, TopicColor } from '@lernzeit/core/types'
 import { Check, Clock3 } from 'lucide-react-native'
 import type { ReactNode } from 'react'
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { useRouter } from 'expo-router'
+import { elapsedMs, isPaused, remainingMs } from '@lernzeit/core/timer'
+import { formatTimer } from '@lernzeit/core/time'
+import { Pressable } from 'react-native'
+import { useActiveTimer, useNow } from '../timer/hooks'
 import { useLiveQuery } from '../store/live'
 import { numbers, useTheme } from '../theme'
 import { useTodayView } from './useTodayView'
@@ -25,6 +30,7 @@ export function TodayScreen() {
         </Text>
         <Text style={[type.body, { color: colors.muted }]}>{view.subtitle}</Text>
       </View>
+      <RunningTimer view={view} />
       <StatStrip view={view} />
       <DailyGoals rows={view.progress.topics} />
       <TodaysSessions sessions={view.sessions} />
@@ -58,6 +64,32 @@ function Empty({ title, children, icon }: { title: string; children: string; ico
       <Text style={[type.bodyMedium, { color: colors.ink }]}>{title}</Text>
       <Text style={[type.body, { color: colors.muted, textAlign: 'center' }]}>{children}</Text>
     </View>
+  )
+}
+
+/** The running timer, a tap away from the Timer tab. */
+function RunningTimer({ view }: { view: TodayView }) {
+  const timer = useActiveTimer()
+  const now = useNow(!!timer && !isPaused(timer))
+  const router = useRouter()
+  const { colors, type, spacing, radius } = useTheme()
+  if (!timer) return null
+  const name = view.progress.topics.find((r) => r.topic.id === timer.topicId)?.topic.name ?? 'Study'
+  const shown = formatTimer(remainingMs(timer, now) ?? elapsedMs(timer, now))
+  const state = timer.phase === 'break' ? 'Break' : isPaused(timer) ? 'Paused' : 'Running'
+  return (
+    <Pressable
+      onPress={() => router.navigate('/timer')}
+      accessibilityRole="button"
+      accessibilityLabel={`Timer ${state}, ${shown}, ${name}`}
+      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.sage, borderColor: colors.sageBorder, borderWidth: 1, borderRadius: radius.section, padding: spacing.lg }}
+    >
+      <View style={{ gap: 2 }}>
+        <Text style={[type.chip, { color: colors.sageInk }]}>{`Timer ${state.toLowerCase()}`}</Text>
+        <Text style={[type.bodyMedium, { color: colors.sageInk }]}>{name}</Text>
+      </View>
+      <Text style={[type.section, numbers, { color: colors.sageInk }]}>{shown}</Text>
+    </Pressable>
   )
 }
 

@@ -23,6 +23,9 @@ import type {
   Topic,
 } from '@lernzeit/core/types'
 import { splitSettings } from '@lernzeit/core/sync'
+import { DEFAULT_SETTINGS, mergeSettings } from '@lernzeit/core/settings'
+
+export { DEFAULT_SETTINGS, mergeSettings }
 import { syncMiddleware } from '@/sync/outbox'
 
 /** A row changed locally and not yet sent to the cloud. */
@@ -120,27 +123,6 @@ export class LernzeitDB extends Dexie {
 
 export const db = new LernzeitDB()
 
-export const DEFAULT_SETTINGS: Settings = {
-  defaultTimerMode: 'countdown',
-  pomodoroFocus: 25,
-  pomodoroBreak: 5,
-  endSound: 'bell',
-  voiceEngine: 'browser',
-  speechRate: 0.95,
-  autoPlayAudio: true,
-  countReviewTime: true,
-  countReadingTime: true,
-  countQuestionTime: true,
-  countGrammarTime: true,
-  typingMode: false,
-  listeningMode: false,
-  theme: 'light',
-  remindersEnabled: false,
-  reminderTimes: ['18:00'],
-  levels: [],
-  hiddenFeatures: [],
-}
-
 export const KV_KEYS = {
   settings: 'settings',
   /** Settings that stay on this device: voice, theme, reminders. */
@@ -159,14 +141,6 @@ export const KV_KEYS = {
   /** The owner's IANA time zone, which syncs so the Worker can date sessions (src/data/timeZone.ts). */
   timeZone: 'timeZone',
 } as const
-
-/** Defaults, then the shared settings, then this device's own. Old installs kept everything in `settings`, so it still answers for device keys not yet in `deviceSettings`. */
-export function mergeSettings(shared: unknown, device: unknown): Settings {
-  const s = (shared as Partial<Settings> | undefined) ?? {}
-  const d = (device as Partial<Settings> | undefined) ?? {}
-  const legacy = splitSettings(s).device
-  return { ...DEFAULT_SETTINGS, ...s, ...legacy, ...d }
-}
 
 export async function getSettings(database: LernzeitDB = db): Promise<Settings> {
   const [shared, device] = await Promise.all([database.kv.get(KV_KEYS.settings), database.kv.get(KV_KEYS.deviceSettings)])
