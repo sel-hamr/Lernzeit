@@ -7,14 +7,21 @@ import { Stack } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import * as SystemUI from 'expo-system-ui'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { AccountProvider, backfillLastAccount, useAccount } from '../src/account'
 import { createServices } from '../src/services'
 import { LocalLibraryProvider } from '../src/store/live'
 import { SyncEngineProvider } from '../src/sync/engineContext'
 import { startSyncTriggers } from '../src/sync/triggers'
-import { ThemeProvider, useTheme } from '../src/theme'
+import { useLiveQuery } from '../src/store/live'
+import { ThemeProvider, useTheme, type ThemePreference } from '../src/theme'
+
+/** The theme chosen in Settings (kept on this device); the phone's own setting until one is chosen. */
+function SettingsTheme({ children }: { children: ReactNode }) {
+  const theme = useLiveQuery(['kv'], (l) => l.get<{ value?: { theme?: ThemePreference } }>('kv', 'deviceSettings')?.value?.theme, [])
+  return <ThemeProvider preference={theme ?? 'system'}>{children}</ThemeProvider>
+}
 
 // The splash stays up until Geist is loaded, so no text shows in the fallback font first.
 SplashScreen.preventAutoHideAsync().catch(() => {})
@@ -45,9 +52,9 @@ export default function RootLayout() {
       <LocalLibraryProvider library={services.library}>
         <AccountProvider service={services.account}>
           <SyncEngineProvider engine={services.engine}>
-            <ThemeProvider>
+            <SettingsTheme>
               <Screens />
-            </ThemeProvider>
+            </SettingsTheme>
           </SyncEngineProvider>
         </AccountProvider>
       </LocalLibraryProvider>
@@ -72,6 +79,7 @@ function Screens() {
         <Stack.Protected guard={signedIn}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="more/[id]" />
+          <Stack.Screen name="more/history" />
           <Stack.Screen name="search" />
           <Stack.Screen name="settings" />
         </Stack.Protected>

@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'rea
 import { failureMessage, useAccount, useAccountService } from '../src/account'
 import { Screen } from '../src/components/Screen'
 import { levelColor, useSyncIndicator } from '../src/components/syncIndicator'
+import { AppearanceGroup, AudioGroup, DecksGroup, FeaturesGroup, RemindersGroup, TimerGroup, TopicsGroup } from '../src/settings/groups'
 import { useLocalLibrary } from '../src/store/live'
 import { useSyncEngine } from '../src/sync/engineContext'
 import { useSyncStatus } from '../src/sync/status'
@@ -25,11 +26,18 @@ const RECORD_NOUN: Record<string, string> = {
   topics: 'A topic',
 }
 
-/** Settings: for now the account (the device list stays on the web). */
+/** Settings: the account, topics and goals, decks, timer, audio, features, theme and reminders. */
 export default function SettingsPage() {
   return (
     <Screen title="Settings">
       <AccountGroup />
+      <TopicsGroup />
+      <DecksGroup />
+      <TimerGroup />
+      <AudioGroup />
+      <FeaturesGroup />
+      <AppearanceGroup />
+      <RemindersGroup />
     </Screen>
   )
 }
