@@ -181,6 +181,11 @@ export interface ConnectedApp {
   createdAt: number
 }
 
+/** Where an AI app connects: the cloud's own address plus /mcp (this page may run elsewhere, such as on localhost). */
+export function mcpInfo(): Promise<{ url: string }> {
+  return request('/mcp/info', {}, json<{ url: string }>)
+}
+
 export function listConnectedApps(): Promise<ConnectedApp[]> {
   return request('/mcp/grants', {}, json<ConnectedApp[]>)
 }

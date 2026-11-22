@@ -7,7 +7,7 @@
 import { Hono } from 'hono'
 import { requireOwner } from './auth.ts'
 import type { AppEnv } from './env.ts'
-import { OWNER_ID } from './oauth.ts'
+import { MCP_PATH, OWNER_ID } from './oauth.ts'
 
 export const grants = new Hono<AppEnv>()
 
@@ -40,3 +40,15 @@ grants.delete('/:id', async (c) => {
   await c.env.OAUTH_PROVIDER.revokeGrant(id, OWNER_ID)
   return c.body(null, 204)
 })
+
+/**
+ * The connector address Settings shows: the address this Worker was reached at, plus /mcp. The
+ * web app cannot work it out itself, since under `npm run dev` it runs on localhost (the Vite proxy
+ * sends /api on with `changeOrigin`, so the Worker sees its own host) and the phone app has no
+ * origin at all.
+ */
+export const mcpInfo = new Hono<AppEnv>()
+
+mcpInfo.use('*', requireOwner)
+
+mcpInfo.get('/', (c) => c.json({ url: `${new URL(c.req.url).origin}${MCP_PATH}` }))

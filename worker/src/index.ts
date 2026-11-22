@@ -3,7 +3,7 @@ import { Hono } from 'hono'
 import { auth, clientIp } from './auth.ts'
 import type { AppEnv, Env } from './env.ts'
 import { noStore } from './http.ts'
-import { grants } from './grants.ts'
+import { grants, mcpInfo } from './grants.ts'
 import { images } from './images.ts'
 import { MCP_PATH, SCOPE, authorize, mcpApi } from './oauth.ts'
 import { REGISTER_LIMIT, withinLimit } from './rateLimit.ts'
@@ -17,6 +17,7 @@ app.get('/api/health', (c) => c.json({ ok: true }))
 app.route('/api/auth', auth)
 app.route('/api/sync', sync)
 app.route('/api/images', images)
+app.route('/api/mcp/info', mcpInfo)
 app.route('/api/mcp/grants', grants)
 app.all('/api/*', (c) => c.json({ error: 'Not found' }, 404))
 app.route('/', authorize)

@@ -6,7 +6,7 @@ Claude talks to your own Lernzeit Worker. The Worker serves an [MCP](https://mod
 
 ## Connect Claude
 
-Open **Settings → Claude** in Lernzeit. It shows the connector address, your site's address plus `/mcp` (for example `https://lernzeit.example.workers.dev/mcp`), with a **Copy** button.
+Open **Settings → Claude** in Lernzeit. It shows the connector address, your Worker's address plus `/mcp` (for example `https://lernzeit.example.workers.dev/mcp`), with a **Copy** button. The Worker reports it (`GET /api/mcp/info`, signed in), so it is right under `npm run dev` on localhost too.
 
 **Claude on your phone, on claude.ai or in Claude Desktop**
 

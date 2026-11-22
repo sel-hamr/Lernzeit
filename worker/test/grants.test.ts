@@ -72,3 +72,16 @@ describe('the connected apps', () => {
     expect(response.status).toBe(404)
   })
 })
+
+describe('the connector address', () => {
+  it('needs the owner to be signed in', async () => {
+    expect((await SELF.fetch(`${ORIGIN}/api/mcp/info`)).status).toBe(401)
+  })
+
+  it('is the address the Worker was reached at, plus /mcp, never cached', async () => {
+    const response = await SELF.fetch('https://lernzeit.example.workers.dev/api/mcp/info', { headers: await bearer() })
+    expect(response.status).toBe(200)
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+    expect(await response.json()).toEqual({ url: 'https://lernzeit.example.workers.dev/mcp' })
+  })
+})

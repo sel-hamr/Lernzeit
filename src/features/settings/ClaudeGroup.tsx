@@ -4,21 +4,19 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
 import { failureMessage } from '@/sync/account'
-import { disconnectApp, listConnectedApps, type ConnectedApp } from '@/sync/api'
+import { disconnectApp, listConnectedApps, mcpInfo, type ConnectedApp } from '@/sync/api'
 import { Group } from './Group'
 
 export const CLAUDE_ID = 'claude'
-
-/** The address Claude connects to: this site, and /mcp. */
-const mcpUrl = (origin: string) => `${origin}/mcp`
 
 const connectedOn = (time: number) => new Date(time).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 
 /** How to connect Claude to this library, and the apps already connected. */
 export function ClaudeGroup() {
   const { toast } = useFeedback()
-  const url = mcpUrl(window.location.origin)
-  const command = `claude mcp add --transport http lernzeit ${url}`
+  const { url, error } = useConnectorUrl()
+  const shown = url ?? (error ? 'The address could not be loaded' : 'Loading…')
+  const command = `claude mcp add --transport http lernzeit ${url ?? '<connector address>'}`
 
   const copy = async (text: string, what: string) => {
     try {
@@ -40,11 +38,12 @@ export function ClaudeGroup() {
           Connector address
         </label>
         <div className="flex gap-2">
-          <Input id="mcp-url" readOnly value={url} spellCheck={false} onFocus={(e) => e.currentTarget.select()} className="min-w-0 flex-1" />
-          <Button icon={<Copy size={15} strokeWidth={1.8} />} onClick={() => void copy(url, 'Address')}>
+          <Input id="mcp-url" readOnly value={shown} spellCheck={false} onFocus={(e) => e.currentTarget.select()} className="min-w-0 flex-1" />
+          <Button icon={<Copy size={15} strokeWidth={1.8} />} disabled={!url} onClick={() => void copy(url ?? '', 'Address')}>
             Copy
           </Button>
         </div>
+        {error && <p className="text-small text-muted">{error}</p>}
       </div>
 
       <div className="flex flex-col gap-3 text-small text-ink-2">
@@ -56,7 +55,7 @@ export function ClaudeGroup() {
           <span className="text-body font-medium text-ink">Claude Code</span>
           <div className="flex flex-wrap items-center gap-2">
             <code className="min-w-0 flex-1 overflow-x-auto rounded-row bg-field px-3 py-2 text-chip whitespace-nowrap">{command}</code>
-            <Button size="sm" variant="soft" icon={<Copy size={15} strokeWidth={1.8} />} onClick={() => void copy(command, 'Command')}>
+            <Button size="sm" variant="soft" icon={<Copy size={15} strokeWidth={1.8} />} disabled={!url} onClick={() => void copy(command, 'Command')}>
               Copy
             </Button>
           </div>
@@ -66,6 +65,22 @@ export function ClaudeGroup() {
       <ConnectedApps />
     </Group>
   )
+}
+
+/** The connector address, from the cloud (`GET /api/mcp/info`), since this page may run on another origin. */
+function useConnectorUrl(): { url?: string; error?: string } {
+  const [state, setState] = useState<{ url?: string; error?: string }>({})
+  useEffect(() => {
+    let current = true
+    mcpInfo().then(
+      ({ url }) => current && setState({ url }),
+      (err: unknown) => current && setState({ error: failureMessage(err) }),
+    )
+    return () => {
+      current = false
+    }
+  }, [])
+  return state
 }
 
 function ConnectedApps() {
