@@ -18,7 +18,7 @@ function setup(respond: (url: string, init: RequestInit) => Promise<Response> | 
   const tokens: TokenStore = { get: async () => stored, set: async (t) => void (stored = t), clear: async () => void (stored = null) }
   const fetch = jest.fn(async (url: string | URL | Request, init?: RequestInit) => respond(String(url), init ?? {}))
   // The API's 401 handler reaches the service made after it.
-  const real = createApi({ baseUrl: 'https://cloud.test', getToken: () => tokens.get(), onSignedOut: () => void account.signedOut(), fetch: fetch as unknown as typeof globalThis.fetch })
+  const real = createApi({ baseUrl: 'https://cloud.test', getToken: () => tokens.get(), onSignedOut: (sent) => void account.signedOut(sent), fetch: fetch as unknown as typeof globalThis.fetch })
   const account = createAccountService({ library, tokens, api: real })
   return { library, tokens, fetch, api: real, account, token: () => stored }
 }
@@ -50,6 +50,17 @@ describe('signing in', () => {
   })
 })
 
+describe('a failed sign-in write', () => {
+  it('leaves no orphan token when the account cannot be stored', async () => {
+    const t = setup(() => reply(200, { email: 'a@b.c', token: 'tok' }))
+    jest.spyOn(t.library, 'setMeta').mockImplementation(() => {
+      throw new Error('disk full')
+    })
+    await expect(t.account.signIn('a@b.c', 'pw')).rejects.toThrow('disk full')
+    expect(t.token()).toBeNull()
+  })
+})
+
 describe('a 401 on any call', () => {
   it('removes the account and token but keeps the data and the outbox', async () => {
     const t = setup(() => reply(401, { error: 'Signed out' }))
@@ -62,6 +73,22 @@ describe('a 401 on any call', () => {
     expect(t.library.getMeta('account')).toBeUndefined()
     expect(t.library.get('decks', 'd1')).toBeDefined()
     expect(t.library.outboxSize()).toBe(1)
+  })
+})
+
+describe('a stale 401', () => {
+  it('leaves a newer sign-in intact', async () => {
+    let release!: () => void
+    const t = setup((url) => (url.endsWith('/auth/login') ? reply(200, { email: 'a@b.c', token: 'new' }) : new Promise<Response>((r) => (release = () => r(reply(401, { error: 'Signed out' }))))))
+    await t.tokens.set('old')
+    const pending = t.api.pull('').catch((e) => e)
+    await new Promise((r) => setTimeout(r, 0))
+    await t.account.signIn('a@b.c', 'pw')
+    release()
+    expect(await pending).toMatchObject({ name: 'SignedOutError' })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(t.token()).toBe('new')
+    expect(t.library.getMeta('account')).toEqual({ email: 'a@b.c' })
   })
 })
 

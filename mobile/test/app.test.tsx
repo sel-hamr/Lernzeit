@@ -78,7 +78,7 @@ describe('signing in', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }))
     expect(await screen.findByText('Wrong email or password')).toBeTruthy()
     await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }))
-    expect(await screen.findByText(/Can.t reach your Lernzeit cloud/)).toBeTruthy()
+    expect(await screen.findByText('Can’t reach your Lernzeit cloud. Check the connection and try again.')).toBeTruthy()
     await waitFor(() => expect(screen.queryByText('Wrong email or password')).toBeNull())
   })
 })

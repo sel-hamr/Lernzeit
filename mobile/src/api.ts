@@ -57,8 +57,8 @@ export interface ApiOptions {
   baseUrl: string
   /** The device token (from secure storage), null when signed out. */
   getToken: () => Promise<string | null> | string | null
-  /** Called when an authenticated call is answered 401. The app deletes the account and token there. */
-  onSignedOut?: () => void
+  /** Called, with the token the call sent, when an authenticated call is answered 401. The app deletes the account and token there. */
+  onSignedOut?: (sentToken: string | null) => void
   fetch?: typeof fetch
 }
 
@@ -87,8 +87,10 @@ export function createApi({ baseUrl, getToken, onSignedOut, fetch: fetchImpl }: 
 
   async function exchange<T>(path: string, init: RequestInit, read: Read<T>, authenticated: boolean): Promise<T> {
     const headers = new Headers(init.headers)
+    let sentToken: string | null = null
     if (authenticated) {
       const token = await getToken()
+      sentToken = token
       if (token) headers.set('Authorization', `Bearer ${token}`)
     }
     let response: Response
@@ -109,7 +111,7 @@ export function createApi({ baseUrl, getToken, onSignedOut, fetch: fetchImpl }: 
     const body = (await response.json().catch(() => undefined)) as { error?: unknown; resync?: unknown } | undefined
     const message = typeof body?.error === 'string' ? body.error : undefined
     if (response.status === 401 && authenticated) {
-      onSignedOut?.()
+      onSignedOut?.(sentToken)
       throw new SignedOutError(message)
     }
     if (isResync(response.status, body)) throw new ResyncNeededError(message)

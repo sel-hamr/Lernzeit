@@ -26,7 +26,7 @@ export function deviceName(): string {
 
 /** Words for a sign-in failure: the server's own message, or that the cloud cannot be reached. */
 export function failureMessage(error: unknown): string {
-  if (error instanceof OfflineError) return 'Can’t reach your Lernzeit cloud. Check the connection and try again.'
+  if (error instanceof OfflineError) return 'Canâ€™t reach your Lernzeit cloud. Check the connection and try again.'
   if (error instanceof SignedOutError) return 'You were signed out. Sign in again.'
   return error instanceof Error ? error.message : 'Something went wrong. Try again.'
 }
@@ -40,8 +40,11 @@ export interface AccountService {
    * deletes the token, and clears the synced data, outbox, image files and meta except the device id.
    */
   signOut(options?: { force?: boolean }): Promise<'done' | 'unsynced'>
-  /** The 401 rule: the account and token go, the data and outbox stay. */
-  signedOut(): Promise<void>
+  /**
+   * The 401 rule: the account and token go, the data and outbox stay. With `sentToken` (the token the
+   * refused call carried), a stale 401 is ignored: when the current token differs, a newer sign-in is intact.
+   */
+  signedOut(sentToken?: string | null): Promise<void>
 }
 
 export interface AccountServiceOptions {
@@ -57,7 +60,13 @@ export function createAccountService({ library, api, tokens, deleteImageFiles }:
     async signIn(email, password) {
       const result = await api.login(email.trim(), password, deviceName())
       await tokens.set(result.token)
-      library.setMeta(ACCOUNT_KEY, { email: result.email })
+      try {
+        library.setMeta(ACCOUNT_KEY, { email: result.email })
+      } catch (error) {
+        // No account without a token and no token without an account.
+        await tokens.clear().catch(() => {})
+        throw error
+      }
     },
     async signOut({ force = false } = {}) {
       if (!force && library.outboxSize() > 0) return 'unsynced'
@@ -68,7 +77,8 @@ export function createAccountService({ library, api, tokens, deleteImageFiles }:
       await Promise.resolve(deleteImageFiles?.(files)).catch(() => {})
       return 'done'
     },
-    async signedOut() {
+    async signedOut(sentToken) {
+      if (sentToken !== undefined && (await tokens.get()) !== sentToken) return
       library.removeMeta(ACCOUNT_KEY)
       await tokens.clear()
     },

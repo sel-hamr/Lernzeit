@@ -21,7 +21,7 @@ export function createServices(): Services {
   const library = openLocalLibrary()
   const baseUrl = String(Constants.expoConfig?.extra?.apiUrl ?? '')
   // A 401 on any call signs this phone out of the account, keeping its data (see account.tsx).
-  const api = createApi({ baseUrl, getToken: secureTokenStore.get, onSignedOut: () => void account.signedOut() })
+  const api = createApi({ baseUrl, getToken: secureTokenStore.get, onSignedOut: (sent) => account.signedOut(sent).catch((error) => console.warn('Could not clear the account after a 401', error)) })
   const account = createAccountService({ library, api, tokens: secureTokenStore })
   return { library, account, api }
 }

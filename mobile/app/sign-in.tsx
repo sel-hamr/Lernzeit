@@ -55,6 +55,7 @@ export default function SignIn() {
         </View>
 
         <View style={{ gap: spacing.md }}>
+          <Text style={[type.small, { color: colors.ink2 }]}>Email</Text>
           <TextInput
             style={field}
             placeholder="Email"
@@ -71,6 +72,7 @@ export default function SignIn() {
             editable={!busy}
             accessibilityLabel="Email"
           />
+          <Text style={[type.small, { color: colors.ink2 }]}>Password</Text>
           <View style={styles.passwordRow}>
             <TextInput
               ref={passwordRef}
@@ -91,7 +93,6 @@ export default function SignIn() {
             />
             <Pressable
               onPress={() => setShown((value) => !value)}
-              hitSlop={8}
               style={styles.toggle}
               accessibilityRole="button"
               accessibilityLabel={shown ? 'Hide password' : 'Show password'}
@@ -133,6 +134,6 @@ const styles = StyleSheet.create({
   field: { borderWidth: 1, paddingHorizontal: 14, height: 48 },
   passwordRow: { justifyContent: 'center' },
   passwordField: { paddingRight: 64 },
-  toggle: { position: 'absolute', right: 14 },
+  toggle: { position: 'absolute', right: 0, minWidth: 64, height: 48, alignItems: 'center', justifyContent: 'center' },
   button: { borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
 })
