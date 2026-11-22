@@ -8,7 +8,8 @@
   },
   "workspaces": [
     "packages/core",
-    "worker"
+    "worker",
+    "mobile"
   ],
   "scripts": {
     "dev": "vite",
@@ -17,8 +18,8 @@
     "start": "node bin/lz.ts",
     "cloud:owner": "node scripts/cloud-owner.ts",
     "worker:dev": "node -e \"require('node:fs').mkdirSync('dist', { recursive: true })\" && wrangler d1 migrations apply lernzeit --local && wrangler dev --port 8787 --ip 127.0.0.1",
-    "typecheck": "tsc -b && npm run typecheck -w @lernzeit/core && npm run typecheck -w lernzeit-worker",
-    "test": "vitest run && npm test -w lernzeit-worker",
+    "typecheck": "tsc -b && npm run typecheck -w @lernzeit/core && npm run typecheck -w lernzeit-worker && npm run typecheck -w @lernzeit/mobile",
+    "test": "vitest run && npm test -w lernzeit-worker && npm test -w @lernzeit/mobile",
     "lint": "eslint ."
   },
   "dependencies": {

@@ -15,7 +15,8 @@
     "moduleDetection": "force",
     "isolatedModules": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": { "jsdom": ["./test/no-jsdom.d.ts"] }
   },
   "include": ["src", "test", "vitest.config.ts"]
 }
