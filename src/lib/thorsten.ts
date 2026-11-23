@@ -8,6 +8,18 @@ export const THORSTEN_VOICE = 'de_DE-thorsten-medium'
 /** Shown before the download; the model file is 63,201,294 bytes. */
 export const THORSTEN_SIZE_MB = 63
 
+/**
+ * Wraps fetch so requests to Hugging Face carry no referrer. Hugging Face answers 404 to any
+ * request whose referrer is on workers.dev, where the app is hosted, and piper-tts-web fetches the
+ * model with plain fetch(url), so the worker installs this as its global fetch.
+ */
+export function fetchWithoutReferrer(base: typeof fetch): typeof fetch {
+  return (input, init) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+    return url.startsWith('https://huggingface.co/') ? base(input, { ...init, referrerPolicy: 'no-referrer' }) : base(input, init)
+  }
+}
+
 export type ThorstenRequest =
   | { id: number; type: 'status' | 'download' | 'remove' | 'warm'; voiceId: string }
   | { id: number; type: 'speak'; voiceId: string; text: string }

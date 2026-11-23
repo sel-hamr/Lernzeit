@@ -8,9 +8,11 @@ import { download, remove, stored, TtsSession } from '@mintplex-labs/piper-tts-w
 import ortWasm from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url'
 import piperWasm from '@diffusionstudio/piper-wasm/build/piper_phonemize.wasm?url'
 import piperData from '@diffusionstudio/piper-wasm/build/piper_phonemize.data?url'
-import type { ThorstenReply, ThorstenRequest } from './thorsten'
+import { fetchWithoutReferrer, type ThorstenReply, type ThorstenRequest } from './thorsten'
 
 const scope = self as unknown as Worker
+// piper-tts-web downloads the model with the global fetch; send it without the workers.dev referrer.
+self.fetch = fetchWithoutReferrer(self.fetch.bind(self))
 
 let session: Promise<TtsSession> | null = null
 // One job at a time: the session runs a single model.

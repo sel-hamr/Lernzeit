@@ -56,6 +56,7 @@ Checked on 2026-10-16 against the providers' own pages:
 - **Single-threaded.** Multi-threaded WASM needs cross-origin isolation headers, which the app doesn't send.
 - **Pronunciation.** The model was fine-tuned from an English voice; rare words can come out wrong. The browser voice is one switch away.
 - **piper-tts-web** hard-codes its model host (`diffusionstudio/piper-voices` on Hugging Face). The worker passes its own runtime file paths, so only the model comes from there.
+- **No referrer to Hugging Face.** Hugging Face answers 404 to requests whose referrer is on `workers.dev`, where the app is hosted. The worker replaces its global `fetch` with `fetchWithoutReferrer` ([src/lib/thorsten.ts](../src/lib/thorsten.ts)), which sends `referrerPolicy: 'no-referrer'` to `huggingface.co`.
 
 ## Credits
 
