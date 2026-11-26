@@ -17,7 +17,7 @@ export function StoryCover({ story, initial, size = 76 }: { story: Pick<Story, '
       <Text style={{ fontFamily: fonts.semibold, fontSize: size * 0.5, lineHeight: size * 0.6, letterSpacing: -1, color: colors.onPastel }}>{initial}</Text>
       {story.level ? (
         <View style={[styles.level, { backgroundColor: 'rgba(255,255,255,0.72)' }]}>
-          <Text style={{ fontFamily: fonts.semibold, fontSize: 11, lineHeight: 14, color: colors.onPastel }}>{story.level}</Text>
+          <Text style={{ fontFamily: fonts.semibold, fontSize: 12, lineHeight: 16, color: colors.onPastel }}>{story.level}</Text>
         </View>
       ) : null}
     </View>

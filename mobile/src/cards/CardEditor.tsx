@@ -104,9 +104,19 @@ export function CardEditor() {
     <Screen
       title={existing ? 'Edit card' : 'New card'}
       footer={
-        <View style={[styles.row, { gap: spacing.sm }]}>
-          {existing ? <Button label="Delete" variant="danger" icon={<Trash2 size={16} color={colors.dangerInk} />} onPress={remove} /> : null}
-          <Button label="Save card" size="lg" onPress={save} haptic="tap" style={styles.grow} />
+        <View style={{ gap: spacing.sm }}>
+          {/* Next to Save, so a refused save is seen and not lost below the form. */}
+          {error ? (
+            <View style={{ backgroundColor: colors.dangerSoft, borderRadius: radius.row, paddingHorizontal: spacing.lg, paddingVertical: spacing.md }}>
+              <Text style={[type.bodyMedium, { color: colors.dangerInk }]} accessibilityRole="alert">
+                {error}
+              </Text>
+            </View>
+          ) : null}
+          <View style={[styles.row, { gap: spacing.sm }]}>
+            {existing ? <Button label="Delete" variant="danger" size="lg" icon={<Trash2 size={16} color={colors.dangerInk} />} onPress={remove} /> : null}
+            <Button label="Save card" size="lg" onPress={save} haptic="tap" style={styles.grow} />
+          </View>
         </View>
       }
     >
@@ -195,14 +205,6 @@ export function CardEditor() {
           <Field label="Tags, separated by commas" value={form.tags} onChangeText={(v) => set('tags', v)} autoCapitalize="none" />
         </Panel>
       </FadeInUp>
-
-      {error ? (
-        <View style={[styles.error, { backgroundColor: colors.dangerSoft, borderRadius: radius.row, padding: spacing.lg }]}>
-          <Text style={[type.bodyMedium, { color: colors.dangerInk }]} accessibilityRole="alert">
-            {error}
-          </Text>
-        </View>
-      ) : null}
     </Screen>
   )
 }
@@ -215,5 +217,4 @@ const styles = StyleSheet.create({
   overlay: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', flexWrap: 'wrap' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   tile: { width: 56, height: 56, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  error: {},
 })

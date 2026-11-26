@@ -121,7 +121,7 @@ export function TimerScreen() {
 
   const ringSize = Math.max(200, Math.min(280, width - spacing.pageX * 2 - spacing.xxl * 2))
   const progress = ringProgress(elapsed, remaining, !!timer && !awaiting)
-  const ringColor = isBreak ? colors.blueBar : paused ? colors.lineStrong : colors.accent
+  const ringColor = isBreak ? colors.blueBar : paused ? colors.muted : colors.accent
   const dotFor = (key: string | undefined) => (key ? (topicColors[key as keyof typeof topicColors] ?? topicColors.stone).dot : colors.muted)
   const long = readout.length > 5
   const playIcon = (color: string) => <Play size={15} color={color} fill={color} />
@@ -183,17 +183,17 @@ export function TimerScreen() {
               <ChevronDown size={16} strokeWidth={1.8} color={colors.muted} />
             </Pressable>
             <View style={[styles.buttons, { gap: spacing.sm }]}>
-              {!timer && <Button label="Start" size="lg" haptic="firm" disabled={!topicId} onPress={start} icon={playIcon(colors.onPrimary)} style={styles.grow} />}
+              {!timer && <Button label="Start" size="lg" haptic="firm" disabled={!topicId} onPress={start} icon={playIcon(colors.onPrimary)} />}
               {timer && isBreak && (
                 <>
-                  <Button label="Skip break" variant="soft" size="lg" haptic="tap" onPress={() => skipBreak(library)} icon={<SkipForward size={16} strokeWidth={1.8} color={colors.ink} />} style={styles.grow} />
-                  <Button label="End pomodoro" size="lg" haptic="success" onPress={stop} icon={stopIcon} style={styles.grow} />
+                  <Button label="Skip break" variant="soft" size="lg" haptic="tap" onPress={() => skipBreak(library)} icon={<SkipForward size={16} strokeWidth={1.8} color={colors.ink} />} />
+                  <Button label="End pomodoro" size="lg" haptic="success" onPress={stop} icon={stopIcon} />
                 </>
               )}
               {timer && awaiting && (
                 <>
-                  <Button label="End pomodoro" variant="soft" size="lg" haptic="tap" onPress={() => discardTimer(library)} style={styles.grow} />
-                  <Button label={`Start round ${timer.cycle}`} size="lg" haptic="firm" onPress={() => resumeTimer(library)} icon={playIcon(colors.onPrimary)} style={styles.grow} />
+                  <Button label="End pomodoro" variant="soft" size="lg" haptic="tap" onPress={() => discardTimer(library)} />
+                  <Button label={`Start round ${timer.cycle}`} size="lg" haptic="firm" onPress={() => resumeTimer(library)} icon={playIcon(colors.onPrimary)} />
                 </>
               )}
               {timer && !isBreak && !awaiting && (
@@ -205,9 +205,8 @@ export function TimerScreen() {
                     haptic="tap"
                     onPress={() => (paused ? resumeTimer(library) : pauseTimer(library))}
                     icon={paused ? playIcon(colors.onAccent) : <Pause size={15} color={colors.ink} fill={colors.ink} />}
-                    style={styles.grow}
                   />
-                  <Button label="Stop and save" size="lg" haptic="success" onPress={stop} icon={stopIcon} style={styles.grow} />
+                  <Button label="Stop and save" size="lg" haptic="success" onPress={stop} icon={stopIcon} />
                 </>
               )}
             </View>
@@ -291,7 +290,7 @@ export function TimerScreen() {
               value={timer && !isBreak ? note : ''}
               onChangeText={changeNote}
             />
-            <Text style={[type.small, { color: colors.muted, paddingHorizontal: 4 }]}>It is saved with the session.</Text>
+            <Text style={[type.small, { color: colors.muted, paddingHorizontal: 4 }]}>Saved with the session</Text>
           </View>
         </FadeInUp>
       </ScrollView>
@@ -312,8 +311,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
   topicChip: { minHeight: 44, maxWidth: '100%', flexDirection: 'row', alignItems: 'center' },
   dot: { width: 10, height: 10, borderRadius: 5 },
-  buttons: { alignSelf: 'stretch', flexDirection: 'row' },
-  grow: { flex: 1 },
+  // Stacked at full width: two large pills side by side cut their labels at phone widths.
+  buttons: { alignSelf: 'stretch' },
   longReadout: { fontSize: 52, lineHeight: 58, letterSpacing: -2 },
   segments: { flexDirection: 'row' },
   segment: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center' },

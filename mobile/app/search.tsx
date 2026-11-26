@@ -1,8 +1,9 @@
 import { germanText } from '@lernzeit/core/german'
 import { useRouter } from 'expo-router'
-import { ChevronLeft, Search, SearchX, X } from 'lucide-react-native'
+import { ChevronLeft, ChevronRight, Search, SearchX, X } from 'lucide-react-native'
 import { useMemo, useState } from 'react'
-import { FlatList, KeyboardAvoidingView, Pressable as RNPressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { count } from '@lernzeit/core/text'
+import { FlatList, KeyboardAvoidingView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { CardPicture, GermanLine } from '../src/cards/CardPicture'
 import { useCards, useDecks } from '../src/cards/data'
@@ -46,9 +47,9 @@ export default function SearchPage() {
             style={[type.body, styles.input, { color: colors.ink }]}
           />
           {query ? (
-            <RNPressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear the search" hitSlop={12}>
+            <Pressable onPress={() => setQuery('')} scaleTo={0.85} accessibilityRole="button" accessibilityLabel="Clear the search" hitSlop={12}>
               <X size={18} strokeWidth={1.8} color={colors.muted} />
-            </RNPressable>
+            </Pressable>
           ) : null}
         </View>
       </View>
@@ -61,7 +62,7 @@ export default function SearchPage() {
         ListHeaderComponent={
           q && results.length ? (
             <Text style={[type.small, { color: colors.muted, paddingHorizontal: 4, paddingBottom: spacing.xs }]}>
-              {results.length > LIMIT ? `First ${LIMIT} of ${results.length} cards` : `${results.length} ${results.length === 1 ? 'card' : 'cards'}`}
+              {results.length > LIMIT ? `First ${LIMIT} of ${results.length} cards` : count(results.length, 'card')}
             </Text>
           ) : undefined
         }
@@ -70,7 +71,7 @@ export default function SearchPage() {
             {q ? (
               <EmptyState icon={SearchX} title="Nothing found" body={`No card has “${q}” in its German, English or tags.`} />
             ) : (
-              <EmptyState icon={Search} title="Search your cards" body={cards.length ? `Type a word in German or English to look through ${cards.length} cards.` : 'Once you add flashcards, you can find them here.'} />
+              <EmptyState icon={Search} title="Search your cards" body={cards.length ? `Type a word in German or English to look through ${count(cards.length, 'card')}.` : 'Once you add flashcards, you can find them here.'} />
             )}
           </FadeInUp>
         }
@@ -83,13 +84,14 @@ export default function SearchPage() {
               accessibilityLabel={`${germanText(item)}, ${item.english}`}
               style={[styles.row, { backgroundColor: colors.card, borderRadius: radius.block, padding: spacing.sm, paddingRight: spacing.md, gap: spacing.md }, shadow.card]}
             >
-              <CardPicture card={item} height={48} emojiSize={24} style={{ width: 48, borderRadius: 12 }} />
+              <CardPicture card={item} height={56} emojiSize={28} style={{ width: 56, borderRadius: 14 }} />
               <View style={[styles.grow, { gap: 2 }]}>
-                <GermanLine card={item} style={[type.bodyMedium, { color: colors.ink }]} />
+                <GermanLine card={item} numberOfLines={2} style={[type.bodyMedium, { color: colors.ink }]} />
                 <Text style={[type.small, { color: colors.muted }]} numberOfLines={1}>
                   {[item.english, deckName(item.deckId)].filter(Boolean).join(' · ')}
                 </Text>
               </View>
+              <ChevronRight size={18} strokeWidth={1.8} color={colors.muted} />
             </Pressable>
           </FadeInUp>
         )}

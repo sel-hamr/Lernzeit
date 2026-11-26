@@ -14,7 +14,7 @@ import { Ellipsis, Layers, Undo2, Volume2, X } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { KeyboardAvoidingView, Pressable as RNPressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { CardPicture, GermanLine } from '../cards/CardPicture'
+import { CardPicture, GermanLine, germanWrap } from '../cards/CardPicture'
 import { gradeReview, recordReviewTime, removeReviewTime, savePracticeRun, undoGrade, useCards, useDecks, useReviews } from '../cards/data'
 import { useSaveSettings, useSettings } from '../data/settings'
 import { newId } from '../data/ids'
@@ -249,7 +249,8 @@ export function PracticeScreen() {
   const suggested: Grade | null = check ? (check.verdict === 'wrong' ? 1 : 3) : null
   const now = Date.now()
   const preview = review && revealed ? previewGrades(review.fsrs, now, capped(review, now)) : undefined
-  const goodTone = scheme === 'dark' ? { bg: colors.ink, fg: colors.canvas } : { bg: colors.primary, fg: colors.onPrimary }
+  // Dark mode: a soft light grey, not a near-white slab (lime is Easy's colour).
+  const goodTone = scheme === 'dark' ? { bg: colors.ink2, fg: colors.canvas } : { bg: colors.primary, fg: colors.onPrimary }
   const tone = (g: Grade) => (g === 4 ? { bg: colors.accent, fg: colors.onAccent, sub: colors.accentInk } : g === 3 ? { ...goodTone, sub: goodTone.fg } : { bg: colors.card, fg: g === 1 ? colors.dangerInk : colors.ink, sub: colors.muted })
 
   return (
@@ -435,9 +436,9 @@ function Prompt({ card, review, listening, compact, onPlay }: { card: Card; revi
               {hint ? (
                 <Text style={[type.small, { color: colors.muted }]}>{`${wordKind(card)} · ${card.english}`}</Text>
               ) : (
-                <RNPressable onPress={() => setHint(true)} accessibilityRole="button" accessibilityLabel="Show a hint" hitSlop={10}>
+                <Pressable onPress={() => setHint(true)} scaleTo={0.94} accessibilityRole="button" accessibilityLabel="Show a hint" hitSlop={12}>
                   <Text style={[type.small, { color: colors.accentInk, textDecorationLine: 'underline' }]}>Show a hint</Text>
-                </RNPressable>
+                </Pressable>
               )}
             </View>
           ) : null}
@@ -449,7 +450,9 @@ function Prompt({ card, review, listening, compact, onPlay }: { card: Card; revi
           {hasPicture(card) && card.type !== 'cloze' ? picture(150, 64) : null}
           {!(compact && card.type === 'word') ? (
             <View style={{ alignItems: 'center', gap: 6 }}>
-              <Text style={big}>{card.english}</Text>
+              <Text style={big} {...germanWrap}>
+                {card.english}
+              </Text>
               {!compact ? <Text style={[type.small, { color: colors.muted }]}>{card.type === 'word' ? `${wordKind(card)} · in German` : 'Say it in German'}</Text> : null}
             </View>
           ) : null}
@@ -480,9 +483,14 @@ function Prompt({ card, review, listening, compact, onPlay }: { card: Card; revi
 function ClozeSentence({ text, reveal, style }: { text: string; reveal: boolean; style: object }) {
   const { colors } = useTheme()
   const cloze = parseCloze(text)
-  if (!cloze) return <Text style={style}>{stripCloze(text)}</Text>
+  if (!cloze)
+    return (
+      <Text style={style} {...germanWrap}>
+        {stripCloze(text)}
+      </Text>
+    )
   return (
-    <Text style={style}>
+    <Text style={style} {...germanWrap}>
       {cloze.before}
       {reveal ? <Text style={{ color: colors.accentInk, backgroundColor: colors.accentSoft }}>{cloze.answer}</Text> : '_____'}
       {cloze.after}
@@ -496,7 +504,9 @@ function Answer({ card, review, listening, onSpeak }: { card: Card; review: Card
   if (review.direction === 'deToEn' && !listening) {
     return (
       <View style={{ alignItems: 'center', gap: 6 }}>
-        <Text style={title}>{card.english}</Text>
+        <Text style={title} {...germanWrap}>
+          {card.english}
+        </Text>
         {card.exampleEn ? <Text style={[type.body, { color: colors.muted, textAlign: 'center' }]}>{card.exampleEn}</Text> : null}
       </View>
     )
@@ -555,7 +565,7 @@ function Verdict({ check, typed }: { check: CheckResult; typed: string }) {
 
 /** The end of a round: a ring fills and a check draws itself, then the numbers and what next. */
 function Done({ progress, onUndo, onMore, onLeave }: { progress: Progress; onUndo?: () => void; onMore?: () => void; onLeave: () => void }) {
-  const { colors, type, spacing, radius, shadow, fonts } = useTheme()
+  const { colors, type, spacing, radius, shadow } = useTheme()
   const insets = useSafeAreaInsets()
   const counts = countRatings(progress.ratings)
   const reviewed = progress.reviewed
@@ -589,12 +599,12 @@ function Done({ progress, onUndo, onMore, onLeave }: { progress: Progress; onUnd
           <Text style={[type.title, { color: colors.ink }]} accessibilityRole="header">
             Session done
           </Text>
-          <Text style={[type.body, { color: colors.muted, textAlign: 'center' }]}>{`${reviewed} reviewed, ${progress.correct} correct.`}</Text>
+          <Text style={[type.body, { color: colors.muted, textAlign: 'center' }]}>{`${reviewed} reviewed, ${progress.correct} correct`}</Text>
         </FadeInUp>
         <FadeInUp index={2} style={[styles.row, { gap: spacing.sm, alignSelf: 'stretch' }]}>
           {tiles.map(([label, n, color]) => (
             <View key={label} style={[styles.grow, { backgroundColor: colors.card, borderRadius: radius.block, paddingVertical: spacing.md, alignItems: 'center', gap: 2 }, shadow.card]}>
-              <Text style={[{ fontFamily: fonts.semibold, fontSize: 24, lineHeight: 30, color }, numbers]}>{n}</Text>
+              <Text style={[type.figure, { color }]}>{n}</Text>
               <Text style={[type.chip, { color: colors.muted }]}>{label}</Text>
             </View>
           ))}

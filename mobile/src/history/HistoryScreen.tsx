@@ -1,6 +1,7 @@
 import { dayResult, indexMinutes, topicStreak } from '@lernzeit/core/goals'
 import { dayHeat, heatmapWeeks, topicWeek, weekSummary, type HeatLevel } from '@lernzeit/core/history'
 import { addDays, formatClock, formatDayMonth, formatHM, formatLongDate, startOfWeek, weekDays, WEEKDAY_SHORT, weekdayOf } from '@lernzeit/core/time'
+import { count } from '@lernzeit/core/text'
 import type { Session, Topic } from '@lernzeit/core/types'
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3 } from 'lucide-react-native'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -19,7 +20,7 @@ const GAP = 4
 
 /** History: the week as a hero with its days, the topics and streaks, 16 weeks as a heatmap and the week's sessions by day. */
 export function HistoryScreen() {
-  const { colors, type, spacing, radius, shadow, topics: topicColors } = useTheme()
+  const { colors, type, spacing, radius, shadow, fonts, topics: topicColors } = useTheme()
   const topics = useLiveQuery(['topics'], (l) => l.list<Topic>('topics').sort((a, b) => a.order - b.order), [])
   const sessions = useLiveQuery(['sessions'], (l) => l.list<Session>('sessions'), [])
   const today = useToday()
@@ -54,7 +55,7 @@ export function HistoryScreen() {
             <Text style={[type.small, numbers, { color: colors.muted }]}>{summary.totalGoal ? `studied of ${formatHM(summary.totalGoal)} h` : 'studied, no goals this week'}</Text>
           </View>
           <AnimatedBar value={summary.totalGoal ? summary.totalMinutes / summary.totalGoal : 0} height={10} label="Week's goals progress" />
-          <Badge label={summary.countedDays ? `All goals hit on ${summary.allHitDays} of ${summary.countedDays} days` : 'No goals counted yet this week'} tone={summary.countedDays && summary.allHitDays === summary.countedDays ? 'lime' : 'accent'} />
+          <Badge label={summary.countedDays ? `All goals hit on ${summary.allHitDays} of ${count(summary.countedDays, 'day')}` : 'No goals counted yet this week'} tone={summary.countedDays && summary.allHitDays === summary.countedDays ? 'lime' : 'accent'} />
           <View style={[styles.days, { gap: spacing.xs, paddingTop: spacing.xs }]}>
             {days.map((day) => {
               const r = dayResult(active, index, day)
@@ -63,7 +64,7 @@ export function HistoryScreen() {
               return (
                 <View key={day} style={styles.dayCol} accessible accessibilityLabel={`${formatDayMonth(day)}, ${formatHM(r.totalMinutes)} hours${r.allHit && r.goalCount > 0 ? ', goals hit' : ''}`}>
                   <DayBar share={share} hit={r.allHit && r.goalCount > 0} index={days.indexOf(day)} />
-                  <Text style={[type.chip, { color: day === today ? colors.ink : colors.muted, fontFamily: day === today ? 'Geist_600SemiBold' : 'Geist_500Medium' }]}>{WEEKDAY_SHORT[weekdayOf(day)]}</Text>
+                  <Text style={[type.chip, { color: day === today ? colors.ink : colors.muted, fontFamily: day === today ? fonts.semibold : fonts.medium }]}>{WEEKDAY_SHORT[weekdayOf(day)]}</Text>
                 </View>
               )
             })}
@@ -72,7 +73,7 @@ export function HistoryScreen() {
       </FadeInUp>
 
       <FadeInUp index={1} style={{ gap: spacing.md }}>
-        <SectionHeader title="Topics" detail="this week · streak" />
+        <SectionHeader title="Topics" detail="Week and streak" />
         {active.length === 0 ? (
           <EmptyState icon={CalendarDays} title="No topics yet" body="Add a topic in Settings and its week shows up here." />
         ) : (
@@ -88,11 +89,11 @@ export function HistoryScreen() {
                   left={<View style={[styles.dot, { backgroundColor: topicDot(t.id) }]} />}
                   right={
                     <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                      <Text style={[type.bodyMedium, numbers, { color: colors.ink }]}>{`${s.current} ${s.current === 1 ? 'day' : 'days'}`}</Text>
-                      <Text style={[type.chip, numbers, { color: colors.muted }]}>{`best ${s.longest}`}</Text>
+                      <Text style={[type.bodyMedium, numbers, { color: colors.ink }]}>{count(s.current, 'day')}</Text>
+                      <Text style={[type.chip, numbers, { color: colors.muted }]}>{`Best ${s.longest}`}</Text>
                     </View>
                   }
-                  accessibilityLabel={`${t.name}: hit ${w.hits} of ${w.counted}. ${w.note}. Streak ${s.current} days, best ${s.longest}`}
+                  accessibilityLabel={`${t.name}: hit ${w.hits} of ${w.counted}. ${w.note}. Streak ${count(s.current, 'day')}, best ${s.longest}`}
                 />
               )
             })}
@@ -123,7 +124,7 @@ export function HistoryScreen() {
           grouped.map((group) => (
             <View key={group.day} style={{ gap: spacing.sm }}>
               <View style={[styles.between, { paddingHorizontal: 4 }]}>
-                <Text style={[type.small, { color: colors.ink2, fontFamily: 'Geist_600SemiBold' }]}>{group.day === today ? 'Today' : formatLongDate(group.day)}</Text>
+                <Text style={[type.small, { color: colors.ink2, fontFamily: fonts.semibold }]}>{group.day === today ? 'Today' : formatLongDate(group.day)}</Text>
                 <Text style={[type.small, numbers, { color: colors.muted }]}>{`${formatHM(group.minutes)} h`}</Text>
               </View>
               <GroupedList>
@@ -157,7 +158,7 @@ function DayBar({ share, hit, index }: { share: number; hit: boolean; index: num
   const animated = useAnimatedStyle(() => ({ height: `${Math.max(fill.value > 0 ? 8 : 0, fill.value * 100)}%` }))
   return (
     <View style={[styles.dayTrack, { backgroundColor: colors.track }]}>
-      <Animated.View style={[styles.dayFill, { backgroundColor: hit ? colors.accent : colors.inverse }, animated]} />
+      <Animated.View style={[styles.dayFill, { backgroundColor: hit ? colors.accent : colors.meter }, animated]} />
       {hit ? (
         <View style={styles.dayCheck}>
           <Check size={12} strokeWidth={2.6} color={colors.onAccent} />

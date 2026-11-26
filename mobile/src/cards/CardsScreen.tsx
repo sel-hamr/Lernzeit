@@ -5,7 +5,8 @@ import type { Card, Direction } from '@lernzeit/core/types'
 import { useRouter } from 'expo-router'
 import { ArrowUpDown, ChevronDown, ChevronRight, Copy, Ellipsis, History, Play, Plus, Search, SearchX, Upload, X } from 'lucide-react-native'
 import { useMemo, useState } from 'react'
-import { FlatList, Pressable as RNPressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { count } from '@lernzeit/core/text'
+import { FlatList, StyleSheet, Text, TextInput, View } from 'react-native'
 import { FadeInUp, Pressable } from '../motion'
 import { useLocalLibrary } from '../store/live'
 import { useTheme } from '../theme'
@@ -77,7 +78,7 @@ export function CardsScreen() {
         <Pressable
           onPress={() => setDeckSheet(true)}
           accessibilityRole="button"
-          accessibilityLabel={`Deck: ${deck?.name ?? 'All decks'}, ${total} cards`}
+          accessibilityLabel={`Deck: ${deck?.name ?? 'All decks'}, ${count(total, 'card')}`}
           style={[styles.deckPill, { backgroundColor: colors.card, borderRadius: radius.pill, paddingLeft: spacing.lg, paddingRight: spacing.md, gap: spacing.sm }, shadow.card]}
         >
           <Text style={[type.bodyMedium, { color: colors.ink, flexShrink: 1 }]} numberOfLines={1}>
@@ -104,9 +105,9 @@ export function CardsScreen() {
           style={[type.body, styles.grow, { color: colors.ink, paddingVertical: 0 }]}
         />
         {search ? (
-          <RNPressable onPress={() => setSearch('')} accessibilityRole="button" accessibilityLabel="Clear the search" hitSlop={12}>
+          <Pressable onPress={() => setSearch('')} scaleTo={0.85} accessibilityRole="button" accessibilityLabel="Clear the search" hitSlop={12}>
             <X size={18} strokeWidth={1.8} color={colors.muted} />
-          </RNPressable>
+          </Pressable>
         ) : null}
       </View>
       <View style={[styles.row, { gap: spacing.sm, flexWrap: 'wrap' }]}>
@@ -119,7 +120,7 @@ export function CardsScreen() {
         <Button label="Practise" icon={<Play size={14} color={colors.onPrimary} fill={colors.onPrimary} />} disabled={cards.length === 0} onPress={() => setPractise(true)} style={styles.grow} />
         <Button label="Add card" variant="soft" icon={<Plus size={17} strokeWidth={2} color={colors.ink} />} onPress={() => router.push({ pathname: '/card/edit', params: { deckId: targetDeck } })} disabled={decks.length === 0} style={styles.grow} />
       </View>
-      {shown.length ? <Text style={[type.small, { color: colors.muted, paddingHorizontal: 4, paddingTop: spacing.xs }]}>{`${shown.length} ${shown.length === 1 ? 'card' : 'cards'}`}</Text> : null}
+      {shown.length ? <Text style={[type.small, { color: colors.muted, paddingHorizontal: 4, paddingTop: spacing.xs }]}>{count(shown.length, 'card')}</Text> : null}
     </View>
   )
 
@@ -231,7 +232,7 @@ function CardRow({ card, onPress }: { card: Card; onPress: () => void }) {
     >
       <CardPicture card={card} height={56} emojiSize={28} style={{ width: 56, borderRadius: 14 }} />
       <View style={[styles.grow, { gap: 2 }]}>
-        <GermanLine card={card} style={[type.bodyMedium, { color: colors.ink }]} />
+        <GermanLine card={card} numberOfLines={2} style={[type.bodyMedium, { color: colors.ink }]} />
         <Text style={[type.small, { color: colors.muted }]} numberOfLines={1}>
           {card.english}
         </Text>

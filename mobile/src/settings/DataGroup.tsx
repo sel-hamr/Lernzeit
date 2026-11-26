@@ -1,3 +1,4 @@
+import { count } from '@lernzeit/core/text'
 import { dateKey } from '@lernzeit/core/time'
 import * as DocumentPicker from 'expo-document-picker'
 import { File, Paths } from 'expo-file-system'
@@ -51,7 +52,7 @@ export function DataGroup() {
       file.write(JSON.stringify(backup))
       if (!(await Sharing.isAvailableAsync())) return `Backup saved to ${file.uri}.`
       await Sharing.shareAsync(file.uri, { mimeType: 'application/json', dialogTitle: 'Lernzeit backup' })
-      return `Backup made: ${backup.cards.length} cards, ${backup.sessions.length} sessions, ${backup.images.length} pictures.`
+      return `Backup made: ${count(backup.cards.length, 'card')}, ${count(backup.sessions.length, 'session')}, ${count(backup.images.length, 'picture')}.`
     })
 
   const restoreIt = () =>
@@ -71,7 +72,7 @@ export function DataGroup() {
       if (!api) throw new Error('Sign in to restore a backup.')
       const done = await restoreBackup(library, api, expoImageFiles, raw)
       createServices().engine?.syncNow().catch(() => {})
-      return `Restored ${done.cards} cards and ${done.sessions} sessions. Uploading to the cloud now.`
+      return `Restored ${count(done.cards, 'card')} and ${count(done.sessions, 'session')}. Uploading to the cloud now.`
     })
 
   const resetIt = () =>

@@ -87,7 +87,7 @@ export function Button({
   )
 }
 
-/** A round 44 px button with one icon (Search, Menu, Close…), white on the canvas by default. */
+/** A round 44 px button with one icon (Search, Menu, Close…), white on the canvas by default. Icons are 20 px (18 in smaller buttons). */
 export function IconButton({
   icon: Icon,
   label,
@@ -135,7 +135,7 @@ export function IconButton({
       scaleTo={0.92}
       style={[{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: tone.bg, opacity: disabled ? 0.4 : 1 }, variant === 'card' && shadow.card]}
     >
-      <Icon size={iconSize ?? Math.round(size * 0.43)} strokeWidth={1.8} color={tone.fg} />
+      <Icon size={iconSize ?? (size >= 44 ? 20 : 18)} strokeWidth={1.8} color={tone.fg} />
       {badge ? <View style={[styles.badgeDot, { backgroundColor: badge, borderColor: tone.bg === 'transparent' ? colors.canvas : tone.bg }]} /> : null}
     </Pressable>
   )
@@ -166,7 +166,7 @@ export function Chip({ label, selected, onPress, color, icon, testID }: { label:
 
 /** A small pill with a word or number ("Done", "12"). */
 export function Badge({ label, tone = 'accent', icon }: { label: string; tone?: 'accent' | 'neutral' | 'danger' | 'inverse' | 'lime'; icon?: ReactNode }) {
-  const { colors, type, radius } = useTheme()
+  const { colors, type, radius, fonts } = useTheme()
   const t = {
     accent: { bg: colors.accentSoft, fg: colors.accentInk },
     lime: { bg: colors.accent, fg: colors.onAccent },
@@ -177,7 +177,7 @@ export function Badge({ label, tone = 'accent', icon }: { label: string; tone?: 
   return (
     <View style={[styles.badge, { backgroundColor: t.bg, borderRadius: radius.pill }]}>
       {icon}
-      <Text style={[type.chip, { color: t.fg, fontFamily: 'Geist_600SemiBold' }]} numberOfLines={1}>
+      <Text style={[type.chip, { color: t.fg, fontFamily: fonts.semibold }]} numberOfLines={1}>
         {label}
       </Text>
     </View>
@@ -435,9 +435,9 @@ export function SectionHeader({ title, detail, action }: { title: string; detail
         {title}
       </Text>
       {action ? (
-        <RNPressable onPress={action.onPress} accessibilityRole="button" accessibilityLabel={action.label} hitSlop={12}>
-          <Text style={[type.small, { color: colors.muted }]}>{action.label}</Text>
-        </RNPressable>
+        <Pressable onPress={action.onPress} scaleTo={0.94} accessibilityRole="button" accessibilityLabel={action.label} hitSlop={12}>
+          <Text style={[type.small, { color: colors.ink2 }]}>{action.label}</Text>
+        </Pressable>
       ) : detail ? (
         <Text style={[type.small, { color: colors.muted }]} numberOfLines={1}>
           {detail}
@@ -470,7 +470,7 @@ export function Section({ title, hint, children, testID }: { title: string; hint
     <View testID={testID} style={{ gap: spacing.sm }}>
       <SectionHeader title={title} />
       <GroupedList>{children}</GroupedList>
-      {hint ? <Text style={[type.small, { color: colors.muted, paddingHorizontal: spacing.xs + 4 }]}>{hint}</Text> : null}
+      {hint ? <Text style={[type.small, { color: colors.muted, paddingHorizontal: spacing.xs }]}>{hint}</Text> : null}
     </View>
   )
 }

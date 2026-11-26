@@ -10,7 +10,7 @@ import type { Doc, DocFolder, DocStatus } from '@lernzeit/core/types'
 import { useRouter } from 'expo-router'
 import { Ellipsis, FileText, Folder, FolderInput, FolderPlus, Pencil, Pin, Plus, Search, SearchX, Trash2, X } from 'lucide-react-native'
 import { useMemo, useState } from 'react'
-import { Pressable as RNPressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { StyleSheet, Text, TextInput, View } from 'react-native'
 import { Screen } from '../components/Screen'
 import { FadeInUp, Pressable } from '../motion'
 import { confirmDelete, notice } from '../notice'
@@ -103,9 +103,9 @@ export function DocsScreen({ folderId }: { folderId?: string }) {
             style={[type.body, styles.grow, { color: colors.ink, paddingVertical: 0 }]}
           />
           {query ? (
-            <RNPressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear the search" hitSlop={12}>
+            <Pressable onPress={() => setQuery('')} scaleTo={0.85} accessibilityRole="button" accessibilityLabel="Clear the search" hitSlop={12}>
               <X size={18} strokeWidth={1.8} color={colors.muted} />
-            </RNPressable>
+            </Pressable>
           ) : null}
         </View>
         <View style={[styles.row, { gap: spacing.sm, flexWrap: 'wrap' }]}>

@@ -20,11 +20,11 @@ export function CardDetail() {
   const decks = useDecks()
   const settings = useSettings()
   const router = useRouter()
-  const { colors, type, spacing, radius, shadow } = useTheme()
+  const { colors, type, spacing, radius, shadow, fonts } = useTheme()
   if (!card) {
     return (
       <Screen title="Card">
-        <EmptyState icon={SearchX} title="This card is gone." body="It was deleted, here or on another device." />
+        <EmptyState icon={SearchX} title="This card is gone" body="It was deleted, here or on another device." />
       </Screen>
     )
   }
@@ -58,7 +58,7 @@ export function CardDetail() {
         <View style={{ gap: spacing.xs, paddingHorizontal: spacing.sm, paddingBottom: spacing.sm }}>
           {deckName ? <Badge label={deckName} tone="accent" /> : null}
           <GermanLine card={card} style={[type.title, { color: colors.ink, paddingTop: spacing.xs }]} />
-          <Text style={[type.section, { color: colors.muted, fontFamily: 'Geist_500Medium' }]}>{card.english}</Text>
+          <Text style={[type.section, { color: colors.muted, fontFamily: fonts.medium }]}>{card.english}</Text>
         </View>
       </FadeInUp>
       {lines.length ? (

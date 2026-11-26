@@ -1,4 +1,5 @@
 import { parseCardsCsv, type CsvPreview } from '@lernzeit/core/csv'
+import { count } from '@lernzeit/core/text'
 import * as DocumentPicker from 'expo-document-picker'
 import { File } from 'expo-file-system'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -43,7 +44,7 @@ export function ImportCsv() {
     if (!preview) return
     try {
       const done = importCsvRows(library, preview.rows, deck)
-      setMessage(`Imported ${done.cards} cards${done.newDecks ? ` and ${done.newDecks} new ${done.newDecks === 1 ? 'deck' : 'decks'}` : ''}.`)
+      setMessage(`Imported ${count(done.cards, 'card')}${done.newDecks ? ` and ${count(done.newDecks, 'new deck')}` : ''}.`)
       setPreview(undefined)
       haptics.success()
     } catch (e) {
@@ -56,7 +57,7 @@ export function ImportCsv() {
       title="Import cards"
       footer={
         preview ? (
-          <Button label={`Import ${preview.rows.length} cards`} size="lg" disabled={preview.rows.length === 0 || (!deck && decks.length === 0 && preview.rows.some((r) => !r.deck))} onPress={run} />
+          <Button label={`Import ${count(preview.rows.length, 'card')}`} size="lg" disabled={preview.rows.length === 0 || (!deck && decks.length === 0 && preview.rows.some((r) => !r.deck))} onPress={run} />
         ) : imported ? (
           <Button label="Back to cards" size="lg" onPress={() => router.dismissTo('/flashcards')} />
         ) : undefined
@@ -85,7 +86,7 @@ export function ImportCsv() {
             </Text>
             <View style={[styles.row, { gap: spacing.sm, alignItems: 'baseline' }]}>
               <Text style={[type.hero, { color: colors.ink }]}>{preview.rows.length}</Text>
-              <Text style={[type.bodyMedium, { color: colors.muted }]}>{`cards ready${preview.skipped.length ? `, ${preview.skipped.length} rows skipped` : ''}`}</Text>
+              <Text style={[type.bodyMedium, { color: colors.muted }]}>{`${preview.rows.length === 1 ? 'card' : 'cards'} ready${preview.skipped.length ? `, ${count(preview.skipped.length, 'row')} skipped` : ''}`}</Text>
             </View>
             {preview.deckNames.length ? (
               <View style={[styles.row, { gap: spacing.xs, flexWrap: 'wrap' }]}>

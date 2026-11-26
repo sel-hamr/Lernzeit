@@ -1,5 +1,6 @@
 import { germanText } from '@lernzeit/core/german'
 import { formatPracticeTime } from '@lernzeit/core/practice'
+import { count } from '@lernzeit/core/text'
 import { elapsedMs, isPaused, remainingMs } from '@lernzeit/core/timer'
 import { formatHM, formatTimer } from '@lernzeit/core/time'
 import type { TodaySession, TodayView, TopicProgress } from '@lernzeit/core/today'
@@ -9,7 +10,7 @@ import { BookOpen, Clock3, Flame, Layers, Play, Target, Zap } from 'lucide-react
 import { useEffect, useMemo, useRef } from 'react'
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue, type SharedValue } from 'react-native-reanimated'
-import { CardPicture } from '../cards/CardPicture'
+import { CardPicture, germanWrap } from '../cards/CardPicture'
 import { useCards, useDecks } from '../cards/data'
 import { useHiddenFeatures } from '../features'
 import { AnimatedBar, FadeInUp, haptics, Pressable, RollingNumber } from '../motion'
@@ -97,11 +98,11 @@ function Hero({ view }: { view: TodayView }) {
     <View style={[{ backgroundColor: colors.card, borderRadius: radius.card, padding: spacing.xl, gap: spacing.md }, shadow.card]}>
       <View style={styles.between}>
         <Text style={[type.small, { color: colors.muted }]}>Studied today</Text>
-        <Badge label={goalStatus(view)} tone={view.progress.goalCount > 0 && view.progress.totalLeft === 0 ? 'lime' : 'accent'} />
+        <Badge label={goalStatus(view)} tone={view.progress.goalCount > 0 && view.progress.totalLeft === 0 ? 'lime' : 'neutral'} />
       </View>
       <View style={{ gap: 2 }}>
         <RollingNumber value={`${formatHM(totalDone)} h`} style={[type.hero, { color: colors.ink }]} />
-        <Text style={[type.small, { color: colors.muted }]}>{`studied of ${formatHM(totalGoal)} h today`}</Text>
+        {totalGoal ? <Text style={[type.small, numbers, { color: colors.muted }]}>{`of ${formatHM(totalGoal)} h goal`}</Text> : null}
       </View>
       <AnimatedBar value={totalGoal ? totalDone / totalGoal : 0} height={10} label="Today's goals progress" />
       {timerOn ? (
@@ -121,20 +122,20 @@ function Stats({ view }: { view: TodayView }) {
   const { practised, streak } = view
   return (
     <View style={styles.tiles}>
-      <StatTile icon={Zap} value={formatPracticeTime(practised.ms)} label={`flashcards practised · ${practised.reviewed} ${practised.reviewed === 1 ? 'card' : 'cards'}`} />
-      <StatTile icon={Flame} value={`${streak.days} ${streak.days === 1 ? 'day' : 'days'}`} label={streak.topicName ? `${streak.topicName} streak` : 'streak'} />
+      <StatTile icon={Zap} value={formatPracticeTime(practised.ms)} label={`${count(practised.reviewed, 'card')} practised`} />
+      <StatTile icon={Flame} value={count(streak.days, 'day')} label={streak.topicName ? `${streak.topicName} streak` : 'Streak'} />
     </View>
   )
 }
 
 function StatTile({ icon: Icon, value, label }: { icon: typeof Zap; value: string; label: string }) {
-  const { colors, type, spacing, radius, shadow, fonts } = useTheme()
+  const { colors, type, spacing, radius, shadow } = useTheme()
   return (
     <View style={[styles.tile, { backgroundColor: colors.card, borderRadius: radius.card, padding: spacing.lg, gap: spacing.sm }, shadow.card]}>
-      <Tile bg={colors.accentSoft} size={36}>
-        <Icon size={18} strokeWidth={1.9} color={colors.accentInk} />
+      <Tile bg={colors.raised} size={36}>
+        <Icon size={18} strokeWidth={1.8} color={colors.ink2} />
       </Tile>
-      <RollingNumber value={value} style={[{ fontFamily: fonts.semibold, fontSize: 26, lineHeight: 32, letterSpacing: -0.8, color: colors.ink }, numbers]} />
+      <RollingNumber value={value} fit style={[type.figure, { color: colors.ink }]} />
       <Text style={[type.chip, { color: colors.muted }]} numberOfLines={2}>
         {label}
       </Text>
@@ -160,7 +161,7 @@ function Decks() {
     <View style={{ gap: spacing.md }}>
       <SectionHeader title="Your decks" action={{ label: 'See all', onPress: () => router.navigate('/flashcards') }} />
       {items.length === 0 ? (
-        <EmptyState icon={Layers} title="No decks yet" body="Make a deck and add cards in the Cards tab, and they show up here." />
+        <EmptyState icon={Layers} title="No decks yet" body="Make a deck on the web, then add cards in the Cards tab." />
       ) : (
         <Animated.ScrollView
           horizontal
@@ -207,7 +208,7 @@ function DeckCard({ item, index, step, width, scrollX, onPress }: { item: Carous
         onPress={onPress}
         disabled={empty}
         accessibilityRole="button"
-        accessibilityLabel={empty ? `${item.deck.name}, no cards yet` : `Practise ${item.deck.name}, ${item.count} ${item.count === 1 ? 'card' : 'cards'}`}
+        accessibilityLabel={empty ? `${item.deck.name}, no cards yet` : `Practise ${item.deck.name}, ${count(item.count, 'card')}`}
         style={[styles.deck, { backgroundColor: tone.bg, borderRadius: radius.card, padding: spacing.xl }, item.tone === 'card' && shadow.card]}
       >
         <Text importantForAccessibility="no" numberOfLines={1} style={[styles.pattern, { color: tone.fg, fontFamily: fonts.semibold }]}>
@@ -217,7 +218,7 @@ function DeckCard({ item, index, step, width, scrollX, onPress }: { item: Carous
           <Text style={[type.section, { color: tone.fg }]} numberOfLines={2}>
             {item.deck.name}
           </Text>
-          <Text style={[type.small, numbers, { color: tone.fg, opacity: 0.7 }]}>{empty ? 'No cards yet' : `${item.count} ${item.count === 1 ? 'card' : 'cards'}`}</Text>
+          <Text style={[type.small, numbers, { color: tone.fg, opacity: 0.7 }]}>{empty ? 'No cards yet' : count(item.count, 'card')}</Text>
         </View>
         {empty ? null : (
           <View style={[styles.practise, { backgroundColor: item.tone === 'card' ? colors.accent : 'rgba(255, 255, 255, 0.9)', borderRadius: radius.pill }]}>
@@ -285,7 +286,7 @@ function DailyGoals({ rows }: { rows: TopicProgress[] }) {
     <View style={{ gap: spacing.md }}>
       <SectionHeader title="Daily goals" detail={withGoal.length ? `${withGoal.filter((r) => r.hit).length} of ${withGoal.length} done` : undefined} />
       {rows.length === 0 ? (
-        <EmptyState icon={Target} title="No topics yet" body="Topics hold your daily goals. Add one in Lernzeit on the web and it shows up here." />
+        <EmptyState icon={Target} title="No topics yet" body="Topics hold your daily goals. Add one in Settings and it shows up here." />
       ) : (
         <>
           <GroupedList>
@@ -348,7 +349,7 @@ function TodaysSessions({ sessions }: { sessions: TodaySession[] }) {
 }
 
 function WordOfTheDay({ card }: { card: Card | undefined }) {
-  const { colors, type, fonts, spacing, radius, shadow } = useTheme()
+  const { colors, type, spacing, radius, shadow } = useTheme()
   if (!card) {
     return (
       <View testID="word-of-the-day">
@@ -356,18 +357,20 @@ function WordOfTheDay({ card }: { card: Card | undefined }) {
       </View>
     )
   }
-  const title = { fontFamily: fonts.semibold, fontSize: 28, lineHeight: 34, letterSpacing: -0.7, color: colors.ink }
+  const title = { ...type.title, color: colors.ink }
   return (
     <View testID="word-of-the-day" style={[{ backgroundColor: colors.card, borderRadius: radius.card, padding: spacing.md, gap: spacing.md }, shadow.card]}>
       <CardPicture card={card} height={168} style={{ borderRadius: radius.block }} />
       <View style={{ paddingHorizontal: spacing.sm, paddingBottom: spacing.sm, gap: spacing.xs }}>
         <Text style={[type.small, { color: colors.muted }]}>Word of the day</Text>
         {card.type === 'word' && card.gender ? (
-          <Text style={title}>
+          <Text style={title} {...germanWrap}>
             <Text style={{ color: colors[card.gender] }}>{card.gender}</Text> <Text>{card.german}</Text>
           </Text>
         ) : (
-          <Text style={title}>{germanText(card)}</Text>
+          <Text style={title} {...germanWrap}>
+            {germanText(card)}
+          </Text>
         )}
         <Text style={[type.body, { color: colors.muted }]}>
           {card.gender ? 'the ' : ''}

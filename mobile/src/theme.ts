@@ -24,6 +24,8 @@ export type Palette = {
   lineStrong: string
   /** Empty progress bars. */
   track: string
+  /** Neutral fills on a track (chart bars): ink in light mode, a mid grey in dark mode. */
+  meter: string
   accent: string
   accentSoft: string
   /** Text and icons on `accentSoft`. */
@@ -123,6 +125,7 @@ export const palettes: Record<ColorScheme, Palette> = {
     line: '#E7E7EB',
     lineStrong: '#D6D6DC',
     track: '#EDEDF0',
+    meter: '#16181A',
     accent: '#D4F24A',
     accentSoft: '#EEF8C8',
     accentInk: '#4E6110',
@@ -162,6 +165,7 @@ export const palettes: Record<ColorScheme, Palette> = {
     line: '#2A2D31',
     lineStrong: '#3A3D42',
     track: '#2A2D31',
+    meter: '#8D9299',
     accent: '#D4F24A',
     accentSoft: '#2A3112',
     accentInk: '#DDF57A',
@@ -242,6 +246,8 @@ export const type = {
   title: { fontFamily: fonts.semibold, fontSize: 28, lineHeight: 34, letterSpacing: -0.7 },
   /** "Lernzeit" next to the mark. */
   brand: { fontFamily: fonts.semibold, fontSize: 20, lineHeight: 26, letterSpacing: -0.3 },
+  /** Figures in tiles ("12 min", "3 days"), shrunk to fit on one line. */
+  figure: { fontFamily: fonts.semibold, fontSize: 28, lineHeight: 34, letterSpacing: -0.8, ...numbers },
   /** Stat numbers. */
   stat: { fontFamily: fonts.semibold, fontSize: 40, lineHeight: 46, letterSpacing: -1.6, ...numbers },
   /** Timer countdown ("24:13"). */
@@ -275,7 +281,7 @@ export const spacing = {
   cardGap: 12,
 } as const
 
-/** Pill buttons are 52 px tall (small ones 44), round icon buttons 44. */
+/** Pill buttons are 48 px tall (sm 40 with a slop to 48, lg 56), round icon buttons 44, the floating add button 60. */
 export const sizes = { button: 52, buttonSmall: 44, icon: 44, fab: 60 } as const
 
 /** Soft depth for light cards only (y 8, blur 24, about 6 % black); dark mode stays flat. */

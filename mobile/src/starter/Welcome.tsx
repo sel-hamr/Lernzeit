@@ -1,7 +1,7 @@
 import Constants from 'expo-constants'
 import { ArrowLeft, BookOpen, Clock3, Layers, Target } from 'lucide-react-native'
-import { useRef, useState, type ReactNode } from 'react'
-import { Image, KeyboardAvoidingView, ScrollView, StyleSheet, Text, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { BackHandler, Image, KeyboardAvoidingView, ScrollView, StyleSheet, Text, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
 import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import mark from '../../assets/splash-icon.png'
@@ -56,6 +56,16 @@ function WelcomePages() {
     x.value = e.contentOffset.x
   })
   const settle = (e: NativeSyntheticEvent<NativeScrollEvent>) => setPage(Math.round(e.nativeEvent.contentOffset.x / width))
+  // Android back steps back a page; on the first page it leaves the app as before.
+  useEffect(() => {
+    if (page === 0) return
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setPage(page - 1)
+      pager.current?.scrollTo({ x: (page - 1) * width, animated: true })
+      return true
+    })
+    return () => sub.remove()
+  }, [page, width])
 
   const start = async () => {
     setBusy(true)
@@ -126,7 +136,7 @@ function WelcomePages() {
                 <View style={styles.fill}>
                   <Field value={custom} onChangeText={setCustom} onSubmitEditing={addCustom} placeholder="Another topic" accessibilityLabel="Another topic" returnKeyType="done" />
                 </View>
-                <Button label="Add" variant="soft" onPress={addCustom} />
+                <Button label="Add" variant="soft" onPress={addCustom} style={{ height: 52 }} />
               </View>
             </View>
           </Page>

@@ -25,7 +25,7 @@ export function MenuSheet({ open, onClose }: { open: boolean; onClose: () => voi
   const link = (key: string, label: string, Icon: LucideIcon, href: Href, path: string) => {
     const active = pathname === path
     return (
-      <View key={key} style={[styles.item, { borderRadius: radius.row, backgroundColor: active ? colors.raised : 'transparent', paddingHorizontal: spacing.md }]}>
+      <View key={key} style={[{ borderRadius: radius.row, backgroundColor: active ? colors.raised : 'transparent', paddingHorizontal: spacing.md }]}>
         <Row
           title={label}
           left={
@@ -46,7 +46,7 @@ export function MenuSheet({ open, onClose }: { open: boolean; onClose: () => voi
     <Sheet testID="menu-sheet" open={open} onClose={onClose} title="Menu" closeLabel="Close menu">
       {items.map(({ id, label, icon }) => link(id, label, icon, `/more/${id}` as Href, `/more/${id}`))}
       {link('settings', 'Settings', Settings, '/settings', '/settings')}
-      <View style={[styles.sync, { backgroundColor: colors.raised, borderRadius: radius.block, marginHorizontal: spacing.xs, marginTop: spacing.sm, paddingHorizontal: spacing.md }]}>
+      <View style={[{ backgroundColor: colors.raised, borderRadius: radius.block, marginHorizontal: spacing.xs, marginTop: spacing.sm, paddingHorizontal: spacing.md }]}>
         <Row
           title="Sync"
           subtitle={sync.label}
@@ -64,7 +64,5 @@ export function MenuSheet({ open, onClose }: { open: boolean; onClose: () => voi
 }
 
 const styles = StyleSheet.create({
-  item: {},
-  sync: {},
   dot: { width: 10, height: 10, borderRadius: 5, marginRight: 4 },
 })
