@@ -2,7 +2,7 @@ import { dateKey } from '@lernzeit/core/time'
 import * as DocumentPicker from 'expo-document-picker'
 import { File, Paths } from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
-import { Download, RotateCcw, Trash2, Upload } from 'lucide-react-native'
+import { Compass, Download, RotateCcw, Trash2, Upload } from 'lucide-react-native'
 import { useState } from 'react'
 import { Alert, Text, View } from 'react-native'
 import { exportBackup, resetAllData, restoreBackup } from '../data/backup'
@@ -10,7 +10,8 @@ import { createServices } from '../services'
 import { useLocalLibrary } from '../store/live'
 import { expoImageFiles } from '../sync/expoFiles'
 import { useTheme } from '../theme'
-import { Button, Card, Field, Sheet } from '../ui'
+import { Button, Field, Section, Sheet } from '../ui'
+import { ActionRow } from './groups'
 
 const confirm = (title: string, message: string, action: string) =>
   new Promise<boolean>((resolve) =>
@@ -23,7 +24,7 @@ const confirm = (title: string, message: string, action: string) =>
 /** Your data: a JSON backup you can share, restore from a file, and reset everything. */
 export function DataGroup() {
   const library = useLocalLibrary()
-  const { colors, type, spacing } = useTheme()
+  const { colors, type, spacing, radius } = useTheme()
   const [busy, setBusy] = useState<'export' | 'restore' | 'reset'>()
   const [message, setMessage] = useState<{ text: string; error?: boolean }>()
   const [resetOpen, setResetOpen] = useState(false)
@@ -85,28 +86,42 @@ export function DataGroup() {
     })
 
   return (
-    <Card title="Your data" hint="A backup is one file with everything, pictures included. It also opens in the web app.">
-      <Button label="Export a backup" variant="outline" icon={<Download size={16} color={colors.ink} />} busy={busy === 'export'} disabled={!!busy} onPress={() => void exportIt()} />
-      <Button label="Restore from a backup" variant="outline" icon={<Upload size={16} color={colors.ink} />} busy={busy === 'restore'} disabled={!!busy} onPress={() => void restoreIt()} />
-      <Button label="Delete all data" variant="danger" icon={<Trash2 size={16} color={colors.redInk} />} disabled={!!busy} onPress={() => setResetOpen(true)} />
+    <>
+      <Section title="Your data" hint="A backup is one file with everything, pictures included. It also opens in the web app.">
+        <ActionRow label="Export a backup" icon={Download} busy={busy === 'export'} disabled={!!busy} onPress={() => void exportIt()} />
+        <ActionRow label="Restore from a backup" icon={Upload} busy={busy === 'restore'} disabled={!!busy} onPress={() => void restoreIt()} />
+      </Section>
       {message ? (
-        <Text style={[type.body, { color: message.error ? colors.redInk : colors.sageInk }]} accessibilityRole={message.error ? 'alert' : undefined} accessibilityLiveRegion="polite">
-          {message.text}
-        </Text>
-      ) : null}
-      <Sheet open={resetOpen} onClose={() => (busy ? undefined : setResetOpen(false))} title="Delete all data?">
-        <View style={{ gap: spacing.md, paddingHorizontal: spacing.md, paddingBottom: spacing.md }}>
-          <Text style={[type.body, { color: colors.ink2 }]}>
-            This deletes your whole library in the cloud and on every device you use, this phone included: topics, sessions, cards, stories, everything. It cannot be undone. Export a backup first if you might want it back.
+        <View style={{ backgroundColor: message.error ? colors.dangerSoft : colors.accentSoft, borderRadius: radius.row, padding: spacing.lg }}>
+          <Text style={[type.body, { color: message.error ? colors.dangerInk : colors.accentInk }]} accessibilityRole={message.error ? 'alert' : undefined} accessibilityLiveRegion="polite">
+            {message.text}
           </Text>
-          <Field label={'Type "reset" to confirm'} value={typed} onChangeText={setTyped} autoCapitalize="none" autoCorrect={false} />
+        </View>
+      ) : null}
+      <Section title="Danger zone" hint="Deletes your library everywhere. Export a backup first.">
+        <ActionRow label="Delete all data" icon={Trash2} tone="danger" disabled={!!busy} onPress={() => setResetOpen(true)} />
+      </Section>
+      <Sheet
+        open={resetOpen}
+        onClose={() => (busy ? undefined : setResetOpen(false))}
+        title="Delete all data?"
+        footer={
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            <Button label="Delete everything" variant="danger" icon={<RotateCcw size={16} color={colors.redInk} />} busy={busy === 'reset'} disabled={typed.trim().toLowerCase() !== 'reset' || !!busy} onPress={() => void resetIt()} />
-            <Button label="Cancel" variant="outline" disabled={!!busy} onPress={() => setResetOpen(false)} />
+            <Button label="Cancel" variant="soft" disabled={!!busy} onPress={() => setResetOpen(false)} style={{ flex: 1 }} />
+            <Button label="Delete everything" variant="danger" haptic="warning" icon={<RotateCcw size={16} color={colors.dangerInk} />} busy={busy === 'reset'} disabled={typed.trim().toLowerCase() !== 'reset' || !!busy} onPress={() => void resetIt()} style={{ flex: 1 }} />
           </View>
+        }
+      >
+        <View style={{ gap: spacing.md, paddingHorizontal: spacing.md, paddingBottom: spacing.md }}>
+          <View style={{ backgroundColor: colors.dangerSoft, borderRadius: radius.row, padding: spacing.lg }}>
+            <Text style={[type.body, { color: colors.dangerInk }]}>
+              This deletes your whole library in the cloud and on every device you use, this phone included: topics, sessions, cards, stories, everything. It cannot be undone. Export a backup first if you might want it back.
+            </Text>
+          </View>
+          <Field label={'Type "reset" to confirm'} value={typed} onChangeText={setTyped} autoCapitalize="none" autoCorrect={false} />
         </View>
       </Sheet>
-    </Card>
+    </>
   )
 }
 
@@ -115,10 +130,10 @@ export function TourGroup() {
   const library = useLocalLibrary()
   const [started, setStarted] = useState(false)
   return (
-    <Card title="Walkthrough" hint="A few cards on Today, Cards, the Timer and the menu.">
-      <Button
+    <Section title="Walkthrough" hint="A few cards on Today, Cards, the Timer and the menu.">
+      <ActionRow
         label={started ? 'Starting' : 'Show the walkthrough again'}
-        variant="outline"
+        icon={Compass}
         disabled={started}
         onPress={() => {
           setStarted(true)
@@ -126,6 +141,6 @@ export function TourGroup() {
           setTimeout(() => setStarted(false), 500)
         }}
       />
-    </Card>
+    </Section>
   )
 }

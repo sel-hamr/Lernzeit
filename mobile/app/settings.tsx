@@ -1,17 +1,19 @@
 import { count } from '@lernzeit/core/text'
 import { timeAgo } from '@lernzeit/core/syncIndicator'
-import { LogOut, RefreshCw } from 'lucide-react-native'
-import { useState, type ReactNode } from 'react'
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Cloud, CloudOff, LogOut, RefreshCw } from 'lucide-react-native'
+import { useState } from 'react'
+import { Alert, StyleSheet, Text, View } from 'react-native'
 import { failureMessage, useAccount, useAccountService } from '../src/account'
 import { Screen } from '../src/components/Screen'
 import { levelColor, useSyncIndicator } from '../src/components/syncIndicator'
+import { FadeInUp } from '../src/motion'
 import { DataGroup, TourGroup } from '../src/settings/DataGroup'
 import { AppearanceGroup, AudioGroup, DecksGroup, FeaturesGroup, RemindersGroup, TimerGroup, TopicsGroup } from '../src/settings/groups'
 import { useLocalLibrary } from '../src/store/live'
 import { useSyncEngine } from '../src/sync/engineContext'
 import { useSyncStatus } from '../src/sync/status'
 import { useTheme } from '../src/theme'
+import { Button, Row, Section, Tile } from '../src/ui'
 
 /** What a stuck change is, in a word. */
 const RECORD_NOUN: Record<string, string> = {
@@ -27,20 +29,16 @@ const RECORD_NOUN: Record<string, string> = {
   topics: 'A topic',
 }
 
-/** Settings: the account, topics and goals, decks, timer, audio, features, theme and reminders. */
+/** Settings: the account and sync, topics and goals, decks, timer, audio, features, theme, reminders, the walkthrough and your data. */
 export default function SettingsPage() {
+  const groups = [AccountGroup, TopicsGroup, DecksGroup, TimerGroup, AudioGroup, FeaturesGroup, AppearanceGroup, RemindersGroup, TourGroup, DataGroup]
   return (
     <Screen title="Settings">
-      <AccountGroup />
-      <TopicsGroup />
-      <DecksGroup />
-      <TimerGroup />
-      <AudioGroup />
-      <FeaturesGroup />
-      <AppearanceGroup />
-      <RemindersGroup />
-      <TourGroup />
-      <DataGroup />
+      {groups.map((Group, i) => (
+        <FadeInUp key={i} index={i} style={{ gap: 16 }}>
+          <Group />
+        </FadeInUp>
+      ))}
     </Screen>
   )
 }
@@ -99,77 +97,72 @@ function AccountGroup() {
   }
 
   return (
-    <View style={{ gap: spacing.lg }}>
-      <View style={{ gap: spacing.xs }}>
-        <Text style={[type.section, { color: colors.ink }]} accessibilityRole="header">
-          Account
-        </Text>
-        <Text style={[type.body, { color: colors.muted }]}>Your library syncs with your Lernzeit cloud. This phone keeps a copy, so it works offline too.</Text>
-      </View>
-
-      <View style={styles.rowBetween}>
-        <View style={[styles.grow, { gap: 2 }]}>
-          <Text style={[type.bodyMedium, { color: colors.ink }]} numberOfLines={1}>
-            {account?.email}
-          </Text>
-          <Text style={[type.small, { color: colors.muted }]}>{status.lastSyncedAt ? `Last synced ${timeAgo(status.lastSyncedAt)}` : 'Not synced yet'}</Text>
+    <>
+      <Section title="Account" hint="Your library syncs with your Lernzeit cloud. This phone keeps a copy, so it works offline too.">
+        <Row
+          title={account?.email ?? ''}
+          subtitle="Signed in"
+          left={
+            <Tile bg={colors.accent} size={40}>
+              <Text style={[type.section, { color: colors.onAccent }]}>{(account?.email ?? '?').slice(0, 1).toUpperCase()}</Text>
+            </Tile>
+          }
+        />
+        <View style={{ paddingVertical: spacing.md }}>
+          <Button label="Sign out" variant="soft" disabled={busy !== undefined} busy={busy === 'signOut'} onPress={() => void leave()} icon={<LogOut size={16} strokeWidth={1.8} color={colors.ink} />} />
         </View>
-        <View style={[styles.chip, { backgroundColor: colors.neutralChip, borderRadius: radius.pill, gap: spacing.xs }]} accessible accessibilityLabel={`Sync: ${sync.label}`}>
-          <View style={[styles.dot, { backgroundColor: levelColor(colors, sync.level) }]} />
-          <Text style={[type.chip, { color: colors.neutralInk }]}>{sync.label}</Text>
-        </View>
-      </View>
+      </Section>
 
-      {status.stuck.length > 0 ? (
-        <View style={[styles.stuck, { backgroundColor: colors.field, borderRadius: radius.row, padding: spacing.lg, gap: spacing.sm }]}>
-          {status.stuck.map((change) => (
-            <Text key={`${change.tbl}/${change.id}`} style={[type.small, { color: colors.ink2 }]}>
-              {RECORD_NOUN[change.tbl] ?? 'A change'} can’t be uploaded. {change.reason}
+      <Section title="Sync">
+        <Row
+          title="Lernzeit cloud"
+          subtitle={status.lastSyncedAt ? `Last synced ${timeAgo(status.lastSyncedAt)}` : 'Not synced yet'}
+          left={
+            <Tile bg={sync.level === 'error' ? colors.dangerSoft : sync.level === 'ok' ? colors.accentSoft : colors.raised} size={40}>
+              {status.state === 'offline' || sync.level === 'error' ? (
+                <CloudOff size={18} strokeWidth={1.8} color={sync.level === 'error' ? colors.dangerInk : colors.ink} />
+              ) : (
+                <Cloud size={18} strokeWidth={1.8} color={sync.level === 'ok' ? colors.accentInk : colors.ink} />
+              )}
+            </Tile>
+          }
+          right={
+            <View style={[styles.chip, { backgroundColor: colors.chip, borderRadius: radius.pill, gap: spacing.xs }]} accessible accessibilityLabel={`Sync: ${sync.label}`}>
+              <View style={[styles.dot, { backgroundColor: levelColor(colors, sync.level) }]} />
+              <Text style={[type.chip, { color: colors.ink2 }]}>{sync.label}</Text>
+            </View>
+          }
+        />
+        {status.state === 'offline' ? (
+          <View style={{ paddingVertical: spacing.md }}>
+            <Text style={[type.small, { color: colors.ink2 }]}>You are offline. This phone keeps working, and your changes upload when the connection is back.</Text>
+          </View>
+        ) : null}
+        {status.stuck.length > 0 ? (
+          <View style={{ paddingVertical: spacing.md, gap: spacing.sm }}>
+            {status.stuck.map((change) => (
+              <Text key={`${change.tbl}/${change.id}`} style={[type.small, { color: colors.dangerInk }]}>
+                {RECORD_NOUN[change.tbl] ?? 'A change'} can’t be uploaded. {change.reason}
+              </Text>
+            ))}
+          </View>
+        ) : null}
+        {message ? (
+          <View style={{ paddingVertical: spacing.md }}>
+            <Text style={[type.body, { color: message.error ? colors.dangerInk : colors.accentInk }]} accessibilityRole={message.error ? 'alert' : undefined} accessibilityLiveRegion="polite">
+              {message.text}
             </Text>
-          ))}
+          </View>
+        ) : null}
+        <View style={{ paddingVertical: spacing.md }}>
+          <Button label="Sync now" variant="soft" haptic="tap" disabled={syncing || busy === 'signOut' || !engine} busy={syncing} onPress={() => void syncHere()} icon={<RefreshCw size={16} strokeWidth={1.8} color={colors.ink} />} />
         </View>
-      ) : null}
-
-      {message ? (
-        <Text style={[type.body, { color: message.error ? colors.redInk : colors.sageInk }]} accessibilityRole={message.error ? 'alert' : undefined} accessibilityLiveRegion="polite">
-          {message.text}
-        </Text>
-      ) : null}
-
-      <View style={[styles.buttons, { gap: spacing.sm }]}>
-        <OutlineButton label="Sync now" disabled={syncing || busy === 'signOut' || !engine} busy={syncing} onPress={syncHere} icon={<RefreshCw size={15} strokeWidth={1.8} color={colors.ink} />} />
-        <OutlineButton label="Sign out" disabled={busy !== undefined} busy={busy === 'signOut'} onPress={leave} icon={<LogOut size={15} strokeWidth={1.8} color={colors.ink} />} />
-      </View>
-    </View>
-  )
-}
-
-function OutlineButton({ label, icon, disabled, busy, onPress }: { label: string; icon: ReactNode; disabled: boolean; busy: boolean; onPress: () => void | Promise<void> }) {
-  const { colors, type, spacing, radius } = useTheme()
-  return (
-    <Pressable
-      onPress={() => void onPress()}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled, busy }}
-      style={({ pressed }) => [
-        styles.button,
-        { borderColor: colors.lineStrong, borderRadius: radius.pill, gap: spacing.sm, paddingHorizontal: spacing.xl, backgroundColor: pressed ? colors.field : 'transparent', opacity: disabled && !busy ? 0.5 : 1 },
-      ]}
-    >
-      {busy ? <ActivityIndicator size="small" color={colors.ink} /> : icon}
-      <Text style={[type.bodyMedium, { color: colors.ink }]}>{label}</Text>
-    </Pressable>
+      </Section>
+    </>
   )
 }
 
 const styles = StyleSheet.create({
-  rowBetween: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  grow: { flex: 1 },
   chip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, minHeight: 28 },
   dot: { width: 6, height: 6, borderRadius: 3 },
-  stuck: {},
-  buttons: { flexDirection: 'row', flexWrap: 'wrap' },
-  button: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
 })

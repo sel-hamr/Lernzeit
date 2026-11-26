@@ -1,4 +1,7 @@
-import type { Deck } from '@lernzeit/core/types'
+import type { Card, Deck } from '@lernzeit/core/types'
+import { cardMatches } from '../src/cards/search'
+import { sessionsByDay } from '../src/history/sessionsByDay'
+import { ringProgress } from '../src/timer/ring'
 import { pillStart, tabWeight } from '../src/components/BottomBar'
 import { flyTarget, ratingForSwipe } from '../src/practice/swipe'
 import { deckCarousel } from '../src/today/decks'
@@ -88,5 +91,40 @@ describe('the tab bar pill', () => {
     expect(pillStart(4, 3)).toBe(3)
     expect(pillStart(4, 1.5)).toBeGreaterThan(pillStart(4, 1))
     expect(pillStart(4, 1.5)).toBeLessThan(pillStart(4, 2))
+  })
+})
+
+describe('the timer ring', () => {
+  it('is empty before a start and fills with the phase, or once an hour when counting up', () => {
+    expect(ringProgress(0, 25 * 60_000, false)).toBe(0)
+    expect(ringProgress(5 * 60_000, 20 * 60_000, true)).toBeCloseTo(0.2)
+    expect(ringProgress(25 * 60_000, 0, true)).toBe(1)
+    expect(ringProgress(90 * 60_000, undefined, true)).toBeCloseTo(0.5)
+    expect(ringProgress(0, 0, true)).toBe(0)
+  })
+})
+
+describe('sessions by day', () => {
+  const session = (id: string, date: string, start: number, minutes = 30) => ({ id, topicId: 't', date, start, end: start + minutes * 60_000, minutes, source: 'timer' as const })
+  it('groups the week’s sessions by day, newest day and latest session first, with the day’s minutes', () => {
+    const days = ['2026-11-23', '2026-11-24', '2026-11-25']
+    const grouped = sessionsByDay([session('a', '2026-11-23', 1), session('b', '2026-11-25', 5, 20), session('c', '2026-11-25', 9, 15), session('x', '2026-11-30', 3)], days)
+    expect(grouped.map((g) => [g.day, g.minutes, g.sessions.map((s) => s.id)])).toEqual([
+      ['2026-11-25', 35, ['c', 'b']],
+      ['2026-11-23', 30, ['a']],
+    ])
+    expect(sessionsByDay([], days)).toEqual([])
+  })
+})
+
+describe('card search', () => {
+  const card = { id: 'c', deckId: 'd', type: 'word', german: 'Hund', gender: 'der', english: 'dog', tags: ['animals'], createdAt: 1 } as unknown as Card
+  it('matches the German with its article, the English and the tags, ignoring case', () => {
+    expect(cardMatches(card, 'HUND')).toBe(true)
+    expect(cardMatches(card, 'der hu')).toBe(true)
+    expect(cardMatches(card, 'Dog')).toBe(true)
+    expect(cardMatches(card, 'anim')).toBe(true)
+    expect(cardMatches(card, 'cat')).toBe(false)
+    expect(cardMatches(card, '  ')).toBe(true)
   })
 })

@@ -1,8 +1,10 @@
+import { CalendarCheck, Clock3, Layers, Menu, type LucideIcon } from 'lucide-react-native'
 import { useState } from 'react'
-import { Modal, Pressable, Text, View } from 'react-native'
+import { Modal, StyleSheet, Text, View } from 'react-native'
+import { FadeInUp } from '../motion'
 import { useLiveQuery, useLocalLibrary } from '../store/live'
 import { useTheme } from '../theme'
-import { Button } from '../ui'
+import { Button, Tile } from '../ui'
 import { libraryIsEmpty } from './starter'
 
 export const TOUR_STEPS = [
@@ -21,34 +23,56 @@ function useTourPending(): boolean {
   }, [])
 }
 
-/** A few overlay cards, once per phone; Settings can start it again. */
+const STEP_ICON: LucideIcon[] = [CalendarCheck, Layers, Clock3, Menu]
+
+/** A few overlay cards, once per phone; Settings can start it again. Android back skips it. */
 export function Tour() {
   const pending = useTourPending()
   const library = useLocalLibrary()
-  const { colors, type, spacing, radius } = useTheme()
+  const { colors, type, spacing, radius, shadow } = useTheme()
   const [step, setStep] = useState(0)
   const done = () => {
     library.put('kv', { key: 'tour', value: 'seen' })
     setStep(0)
   }
   const s = TOUR_STEPS[step]
+  const Icon = STEP_ICON[step] ?? Menu
+  const lastStep = step === TOUR_STEPS.length - 1
   return (
-    <Modal visible={pending} transparent animationType="fade" onRequestClose={done} statusBarTranslucent>
-      <View style={{ flex: 1, backgroundColor: colors.scrim, justifyContent: 'center', padding: spacing.xl }}>
-        <View style={{ backgroundColor: colors.main, borderRadius: radius.section, padding: spacing.xl, gap: spacing.lg, borderWidth: 1, borderColor: colors.line }}>
-          <Text style={[type.chip, { color: colors.muted }]}>{`${step + 1} of ${TOUR_STEPS.length}`}</Text>
-          <Text style={[type.title, { color: colors.ink }]} accessibilityRole="header">
-            {s.title}
-          </Text>
-          <Text style={[type.body, { color: colors.ink2 }]}>{s.text}</Text>
-          <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
-            <Button label={step === TOUR_STEPS.length - 1 ? 'Done' : 'Next'} onPress={() => (step === TOUR_STEPS.length - 1 ? done() : setStep(step + 1))} />
-            <Pressable onPress={done} accessibilityRole="button" accessibilityLabel="Skip the walkthrough" style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.md }}>
-              <Text style={[type.bodyMedium, { color: colors.muted }]}>Skip</Text>
-            </Pressable>
+    <Modal visible={pending} transparent animationType="fade" onRequestClose={done} statusBarTranslucent navigationBarTranslucent>
+      <View style={[styles.backdrop, { backgroundColor: colors.scrim, padding: spacing.xl }]}>
+        <FadeInUp key={step}>
+          <View style={[{ backgroundColor: colors.card, borderRadius: radius.card, padding: spacing.xl, gap: spacing.lg }, shadow.float]}>
+            <View style={styles.between}>
+              <Tile bg={colors.accent} size={48}>
+                <Icon size={22} strokeWidth={1.8} color={colors.onAccent} />
+              </Tile>
+              <View style={[styles.dots, { gap: 6 }]} accessible accessibilityLabel={`${step + 1} of ${TOUR_STEPS.length}`}>
+                {TOUR_STEPS.map((t, i) => (
+                  <View key={t.title} style={[styles.dot, { width: i === step ? 22 : 8, backgroundColor: i === step ? colors.ink : colors.lineStrong }]} />
+                ))}
+              </View>
+            </View>
+            <Text style={[type.title, { color: colors.ink }]} accessibilityRole="header">
+              {s.title}
+            </Text>
+            <Text style={[type.body, { color: colors.ink2 }]}>{s.text}</Text>
+            <View style={[styles.row, { gap: spacing.sm }]}>
+              <Button label="Skip" variant="soft" onPress={done} style={styles.grow} />
+              <Button label={lastStep ? 'Done' : 'Next'} haptic={lastStep ? 'success' : 'tap'} onPress={() => (lastStep ? done() : setStep(step + 1))} style={styles.grow} />
+            </View>
           </View>
-        </View>
+        </FadeInUp>
       </View>
     </Modal>
   )
 }
+
+const styles = StyleSheet.create({
+  backdrop: { flex: 1, justifyContent: 'center' },
+  between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  row: { flexDirection: 'row', alignItems: 'center' },
+  grow: { flex: 1 },
+  dots: { flexDirection: 'row', alignItems: 'center' },
+  dot: { height: 8, borderRadius: 4 },
+})

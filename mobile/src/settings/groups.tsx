@@ -1,15 +1,15 @@
 /*
  * The Settings groups below Account: topics and daily goals, decks, timer, audio, features,
- * appearance and reminders. Shared settings sync; this device's own (voice, theme, reminders) stay
- * here (DEVICE_SETTING_KEYS), as on the web.
+ * appearance and reminders, each a titled white grouped list. Shared settings sync; this device's
+ * own (voice, theme, reminders) stay here (DEVICE_SETTING_KEYS), as on the web.
  */
 import { describeGoals, uniformGoals, withGoalChange } from '@lernzeit/core/goals'
 import { formatHM, WEEKDAYS, WEEKDAY_LONG } from '@lernzeit/core/time'
 import type { Deck, EndSound, ThemePref, TimerMode, Topic, TopicColor, WeekGoals } from '@lernzeit/core/types'
 import * as Speech from 'expo-speech'
-import { Plus, Trash2 } from 'lucide-react-native'
+import { Layers, Plus, Trash2, Volume2 } from 'lucide-react-native'
 import { useEffect, useState } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { newId } from '../data/ids'
 import { useToday } from '../data/useToday'
 import { useSaveSettings, useSettings } from '../data/settings'
@@ -18,30 +18,62 @@ import { useLiveQuery, useLocalLibrary } from '../store/live'
 import { TOPIC_COLOR_KEYS, useTheme } from '../theme'
 import { setUpNotifications } from '../timer/notify'
 import { isTime, normalTime } from '../timer/reminders'
-import { Button, Card, Chip, Field, SelectRow, Sheet, Stepper, ToggleRow } from '../ui'
+import { Button, Chip, Field, IconButton, Row, Section, SelectRow, Sheet, Stepper, Tile, ToggleRow } from '../ui'
 
+/** A row that does something ("Add a topic"): a soft tile with its icon and the label. */
+export function ActionRow({ label, icon, onPress, tone = 'normal', busy, disabled }: { label: string; icon: typeof Plus; onPress: () => void; tone?: 'normal' | 'accent' | 'danger'; busy?: boolean; disabled?: boolean }) {
+  const { colors, type } = useTheme()
+  const Icon = icon
+  const bg = tone === 'accent' ? colors.accentSoft : tone === 'danger' ? colors.dangerSoft : colors.raised
+  const fg = tone === 'accent' ? colors.accentInk : tone === 'danger' ? colors.dangerInk : colors.ink
+  return (
+    <View style={{ opacity: disabled && !busy ? 0.4 : 1 }}>
+      <Row
+        title={
+          <Text style={[type.bodyMedium, { color: tone === 'danger' ? colors.dangerInk : colors.ink }]} numberOfLines={1}>
+            {busy ? `${label}…` : label}
+          </Text>
+        }
+        left={
+          <Tile bg={bg} size={36}>
+            <Icon size={18} strokeWidth={1.8} color={fg} />
+          </Tile>
+        }
+        onPress={disabled || busy ? undefined : onPress}
+        accessibilityLabel={label}
+      />
+    </View>
+  )
+}
 
 // ---------------------------------------------------------------- Topics
 
 export function TopicsGroup() {
   const library = useLocalLibrary()
-  const { colors, type, topics: palettes } = useTheme()
+  const { topics: palettes } = useTheme()
   const today = useToday()
   const topics = useLiveQuery(['topics'], (l) => l.list<Topic>('topics').sort((a, b) => a.order - b.order), [])
   const [editing, setEditing] = useState<Topic | 'new'>()
   const fmt = (m: number) => formatHM(m)
   return (
-    <Card title="Topics and daily goals" hint="Study time is logged against a topic; each has a goal per weekday.">
-      {topics.map((t) => (
-        <Pressable key={t.id} onPress={() => setEditing(t)} accessibilityRole="button" accessibilityLabel={`Edit ${t.name}`} style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12, opacity: t.archived ? 0.55 : 1 }}>
-          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: (palettes[t.color] ?? palettes.stone).dot }} />
-          <View style={{ flex: 1 }}>
-            <Text style={[type.bodyMedium, { color: colors.ink }]}>{t.name + (t.archived ? ' (archived)' : '')}</Text>
-            <Text style={[type.small, { color: colors.muted }]}>{describeGoals(t.goalMinutes, fmt)}</Text>
-          </View>
-        </Pressable>
-      ))}
-      <Button label="Add a topic" variant="outline" icon={<Plus size={16} color={colors.ink} />} onPress={() => setEditing('new')} />
+    <>
+      <Section title="Topics and daily goals" hint="Study time is logged against a topic; each has a goal per weekday.">
+        {[
+          ...topics.map((t) => (
+            <View key={t.id} style={{ opacity: t.archived ? 0.55 : 1 }}>
+              <Row
+                title={t.name + (t.archived ? ' (archived)' : '')}
+                subtitle={describeGoals(t.goalMinutes, fmt)}
+                left={<View style={[styles.dot, { backgroundColor: (palettes[t.color] ?? palettes.stone).dot }]} />}
+                chevron
+                onPress={() => setEditing(t)}
+                accessibilityLabel={`Edit ${t.name}`}
+              />
+            </View>
+          )),
+          <ActionRow key="add" label="Add a topic" icon={Plus} tone="accent" onPress={() => setEditing('new')} />,
+        ]}
+      </Section>
       {editing ? (
         <TopicSheet
           topic={editing === 'new' ? undefined : editing}
@@ -59,35 +91,43 @@ export function TopicsGroup() {
           }}
         />
       ) : null}
-    </Card>
+    </>
   )
 }
 
 function TopicSheet({ topic, onClose, onSave }: { topic?: Topic; onClose: () => void; onSave: (input: { name: string; color: TopicColor; goals: WeekGoals; archived: boolean }) => void }) {
-  const { colors, type, spacing, topics: palettes } = useTheme()
+  const { colors, type, spacing, radius, topics: palettes } = useTheme()
   const [name, setName] = useState(topic?.name ?? '')
   const [color, setColor] = useState<TopicColor>(topic?.color ?? 'sage')
   const [goals, setGoals] = useState<WeekGoals>(topic?.goalMinutes ?? uniformGoals(60))
   const [archived, setArchived] = useState(topic?.archived ?? false)
   return (
-    <Sheet open onClose={onClose} title={topic ? 'Edit topic' : 'New topic'}>
+    <Sheet
+      open
+      onClose={onClose}
+      title={topic ? 'Edit topic' : 'New topic'}
+      footer={
+        <View style={[styles.row, { gap: spacing.sm }]}>
+          <Button label="Cancel" variant="soft" onPress={onClose} style={styles.grow} />
+          <Button label="Save" haptic="success" disabled={!name.trim() && !topic} onPress={() => onSave({ name: name.trim(), color, goals, archived })} style={styles.grow} />
+        </View>
+      }
+    >
       <View style={{ gap: spacing.md, paddingHorizontal: spacing.md, paddingBottom: spacing.md }}>
         <Field label="Name" value={name} onChangeText={setName} placeholder="German" />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+        <View style={[styles.wrap, { gap: spacing.sm }]}>
           {TOPIC_COLOR_KEYS.map((c) => (
             <Chip key={c} label={c} selected={color === c} color={palettes[c].dot} onPress={() => setColor(c)} />
           ))}
         </View>
-        <Text style={[type.small, { color: colors.muted }]}>Daily goal per weekday</Text>
-        {WEEKDAYS.map((d) => (
-          <Stepper key={d} label={WEEKDAY_LONG[d]} value={goals[d]} step={15} max={720} onChange={(v) => setGoals({ ...goals, [d]: v })} />
-        ))}
-        <Button label="Same as Monday every day" variant="outline" onPress={() => setGoals(uniformGoals(goals.mon))} />
-        {topic ? <ToggleRow label="Archived" hint="Leaves Today and the timer; its history stays." value={archived} onChange={setArchived} /> : null}
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          <Button label="Save" disabled={!name.trim() && !topic} onPress={() => onSave({ name: name.trim(), color, goals, archived })} />
-          <Button label="Cancel" variant="outline" onPress={onClose} />
+        <Text style={[type.small, { color: colors.muted, paddingHorizontal: 4 }]}>Daily goal per weekday</Text>
+        <View style={{ backgroundColor: colors.raised, borderRadius: radius.block, paddingHorizontal: spacing.lg, paddingVertical: spacing.xs }}>
+          {WEEKDAYS.map((d) => (
+            <Stepper key={d} label={WEEKDAY_LONG[d]} value={goals[d]} step={15} max={720} onChange={(v) => setGoals({ ...goals, [d]: v })} />
+          ))}
         </View>
+        <Button label="Same as Monday every day" variant="soft" size="sm" onPress={() => setGoals(uniformGoals(goals.mon))} />
+        {topic ? <ToggleRow label="Archived" hint="Leaves Today and the timer; its history stays." value={archived} onChange={setArchived} /> : null}
       </View>
     </Sheet>
   )
@@ -97,25 +137,36 @@ function TopicSheet({ topic, onClose, onSave }: { topic?: Topic; onClose: () => 
 
 export function DecksGroup() {
   const library = useLocalLibrary()
-  const { colors, type } = useTheme()
+  const { colors } = useTheme()
   const decks = useLiveQuery(['decks'], (l) => l.list<Deck>('decks').sort((a, b) => a.order - b.order), [])
   const [editing, setEditing] = useState<Deck>()
   if (decks.length === 0) return null
   return (
-    <Card title="Decks" hint="Name, daily limits and which directions are practised.">
-      {decks.map((d) => (
-        <Pressable key={d.id} onPress={() => setEditing(d)} accessibilityRole="button" accessibilityLabel={`Edit deck ${d.name}`} style={{ minHeight: 48, justifyContent: 'center' }}>
-          <Text style={[type.bodyMedium, { color: colors.ink }]}>{d.name}</Text>
-          <Text style={[type.small, { color: colors.muted }]}>{`${d.newPerDay} new, ${d.reviewsPerDay} reviews a day`}</Text>
-        </Pressable>
-      ))}
+    <>
+      <Section title="Decks" hint="Name, daily limits and which directions are practised.">
+        {decks.map((d) => (
+          <Row
+            key={d.id}
+            title={d.name}
+            subtitle={`${d.newPerDay} new, ${d.reviewsPerDay} reviews a day`}
+            left={
+              <Tile bg={colors.raised} size={36}>
+                <Layers size={18} strokeWidth={1.8} color={colors.ink} />
+              </Tile>
+            }
+            chevron
+            onPress={() => setEditing(d)}
+            accessibilityLabel={`Edit deck ${d.name}`}
+          />
+        ))}
+      </Section>
       {editing ? <DeckSheet deck={editing} onClose={() => setEditing(undefined)} onSave={(next) => (library.put('decks', next), setEditing(undefined))} /> : null}
-    </Card>
+    </>
   )
 }
 
 function DeckSheet({ deck, onClose, onSave }: { deck: Deck; onClose: () => void; onSave: (deck: Deck) => void }) {
-  const { spacing } = useTheme()
+  const { colors, spacing, radius } = useTheme()
   const [name, setName] = useState(deck.name)
   const [newPerDay, setNew] = useState(deck.newPerDay)
   const [reviews, setReviews] = useState(deck.reviewsPerDay)
@@ -126,18 +177,26 @@ function DeckSheet({ deck, onClose, onSave }: { deck: Deck; onClose: () => void;
     { key: 'deToEn', label: 'German to English', hint: 'See the German, recall the English.' },
   ]
   return (
-    <Sheet open onClose={onClose} title="Edit deck">
+    <Sheet
+      open
+      onClose={onClose}
+      title="Edit deck"
+      footer={
+        <View style={[styles.row, { gap: spacing.sm }]}>
+          <Button label="Cancel" variant="soft" onPress={onClose} style={styles.grow} />
+          <Button label="Save" haptic="success" onPress={() => onSave({ ...deck, name: name.trim() || deck.name, newPerDay, reviewsPerDay: reviews, directions: dirs })} style={styles.grow} />
+        </View>
+      }
+    >
       <View style={{ gap: spacing.md, paddingHorizontal: spacing.md, paddingBottom: spacing.md }}>
         <Field label="Name" value={name} onChangeText={setName} />
-        <Stepper label="New cards a day" value={newPerDay} step={5} max={500} unit="" onChange={setNew} />
-        <Stepper label="Reviews a day" value={reviews} step={25} max={5000} unit="" onChange={setReviews} />
+        <View style={{ backgroundColor: colors.raised, borderRadius: radius.block, paddingHorizontal: spacing.lg, paddingVertical: spacing.xs }}>
+          <Stepper label="New cards a day" value={newPerDay} step={5} max={500} unit="" onChange={setNew} />
+          <Stepper label="Reviews a day" value={reviews} step={25} max={5000} unit="" onChange={setReviews} />
+        </View>
         {toggles.map((t) => (
           <ToggleRow key={t.key} label={t.label} hint={t.hint} value={dirs[t.key]} onChange={(on) => setDirs({ ...dirs, [t.key]: on })} />
         ))}
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          <Button label="Save" onPress={() => onSave({ ...deck, name: name.trim() || deck.name, newPerDay, reviewsPerDay: reviews, directions: dirs })} />
-          <Button label="Cancel" variant="outline" onPress={onClose} />
-        </View>
       </View>
     </Sheet>
   )
@@ -151,8 +210,9 @@ export function TimerGroup() {
   const settings = useSettings()
   const save = useSaveSettings()
   return (
-    <Card title="Timer" hint="Used by the Timer tab. The end of a session rings as a notification, also with the app closed.">
+    <Section title="Timer" hint="Used by the Timer tab. The end of a session rings as a notification, also with the app closed.">
       <SelectRow<TimerMode>
+        inline
         label="Default mode"
         value={settings.defaultTimerMode}
         options={[
@@ -165,13 +225,14 @@ export function TimerGroup() {
       <Stepper label="Pomodoro focus" value={settings.pomodoroFocus} step={5} min={5} max={120} onChange={(v) => save({ pomodoroFocus: v })} />
       <Stepper label="Pomodoro break" value={settings.pomodoroBreak} step={1} min={1} max={60} onChange={(v) => save({ pomodoroBreak: v })} />
       <SelectRow<EndSound>
+        inline
         label="At the end"
         value={settings.endSound}
         options={(Object.keys(END_SOUND_LABEL) as EndSound[]).map((s) => ({ value: s, label: END_SOUND_LABEL[s] }))}
         onChange={(v) => save({ endSound: v })}
       />
       <ToggleRow label="Count review time" hint="Flashcard practice counts toward the topic goal." value={settings.countReviewTime} onChange={(v) => save({ countReviewTime: v })} />
-    </Card>
+    </Section>
   )
 }
 
@@ -192,8 +253,9 @@ export function AudioGroup() {
   }, [])
   const current = voices.find((v) => v.identifier === settings.voiceURI)
   return (
-    <Card title="Audio" hint="German words are spoken with a voice on this phone.">
+    <Section title="Audio" hint="German words are spoken with a voice on this phone.">
       <SelectRow
+        inline
         label="German voice"
         value={settings.voiceURI ?? ''}
         display={current?.name ?? 'Phone default'}
@@ -202,8 +264,8 @@ export function AudioGroup() {
       />
       <Stepper label="Speed" value={Math.round(settings.speechRate * 100)} step={5} min={50} max={150} unit="%" onChange={(v) => save({ speechRate: v / 100 })} />
       <ToggleRow label="Play audio on reveal" hint="Say the German word when the answer shows." value={settings.autoPlayAudio} onChange={(v) => save({ autoPlayAudio: v })} />
-      <Button label="Test voice" variant="outline" onPress={() => Speech.speak('Guten Tag, wie geht es dir?', { language: 'de-DE', rate: settings.speechRate, voice: settings.voiceURI })} />
-    </Card>
+      <ActionRow label="Test voice" icon={Volume2} onPress={() => Speech.speak('Guten Tag, wie geht es dir?', { language: 'de-DE', rate: settings.speechRate, voice: settings.voiceURI })} />
+    </Section>
   )
 }
 
@@ -214,7 +276,7 @@ export function FeaturesGroup() {
   const save = useSaveSettings()
   const on = enabledFeatureIds(settings.hiddenFeatures)
   return (
-    <Card title="Features" hint="Turn off what you do not use. It leaves the bars, and nothing you saved is deleted.">
+    <Section title="Features" hint="Turn off what you do not use. It leaves the bars, and nothing you saved is deleted.">
       {FEATURES.map((f) => (
         <ToggleRow
           key={f.id}
@@ -228,7 +290,7 @@ export function FeaturesGroup() {
           }}
         />
       ))}
-    </Card>
+    </Section>
   )
 }
 
@@ -238,8 +300,9 @@ export function AppearanceGroup() {
   const device = useLiveQuery(['kv'], (l) => l.get<{ value?: { theme?: ThemePref } }>('kv', 'deviceSettings')?.value?.theme, [])
   const save = useSaveSettings()
   return (
-    <Card title="Appearance">
+    <Section title="Appearance">
       <SelectRow<ThemePref>
+        inline
         label="Theme"
         value={device ?? 'system'}
         options={[
@@ -251,13 +314,14 @@ export function AppearanceGroup() {
           save({ theme: v })
         }}
       />
-    </Card>
+    </Section>
   )
 }
 
 // ---------------------------------------------------------------- Reminders
 
 export function RemindersGroup() {
+  const { colors, type, spacing } = useTheme()
   const settings = useSettings()
   const save = useSaveSettings()
   const [draft, setDraft] = useState('')
@@ -277,41 +341,42 @@ export function RemindersGroup() {
     setDraft('')
     setNote(undefined)
   }
+  const rows = [<ToggleRow key="on" label="Goal reminders" value={settings.remindersEnabled} onChange={(v) => void toggle(v)} />]
+  if (settings.remindersEnabled) {
+    for (const t of settings.reminderTimes) {
+      rows.push(
+        <Row
+          key={t}
+          title={<Text style={[type.bodyMedium, { color: colors.ink, fontVariant: ['tabular-nums'] }]}>{t}</Text>}
+          right={<IconButton icon={Trash2} label={`Remove ${t}`} variant="ghost" size={40} iconSize={18} haptic="tap" onPress={() => save({ reminderTimes: settings.reminderTimes.filter((x) => x !== t) })} />}
+        />,
+      )
+    }
+    rows.push(
+      <View key="add" style={[styles.row, { gap: spacing.sm, paddingVertical: spacing.md }]}>
+        <View style={styles.grow}>
+          <Field value={draft} onChangeText={setDraft} placeholder="18:30" accessibilityLabel="Add a time" keyboardType="numbers-and-punctuation" onSubmitEditing={add} />
+        </View>
+        <Button label="Add" variant="soft" onPress={add} />
+      </View>,
+    )
+  }
+  if (note)
+    rows.push(
+      <Text key="note" style={[type.small, { color: colors.dangerInk, paddingVertical: spacing.md }]} accessibilityRole="alert">
+        {note}
+      </Text>,
+    )
   return (
-    <Card title="Reminders" hint="A notification at these times if a goal is still open. Skipped once today's goals are met.">
-      <ToggleRow label="Goal reminders" value={settings.remindersEnabled} onChange={(v) => void toggle(v)} />
-      {settings.remindersEnabled ? (
-        <>
-          {settings.reminderTimes.map((t) => (
-            <View key={t} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 40 }}>
-              <ReminderTime time={t} />
-              <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${t}`} hitSlop={8} onPress={() => save({ reminderTimes: settings.reminderTimes.filter((x) => x !== t) })}>
-                <RemoveIcon />
-              </Pressable>
-            </View>
-          ))}
-          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}>
-            <View style={{ flex: 1 }}>
-              <Field label="Add a time" value={draft} onChangeText={setDraft} placeholder="18:30" keyboardType="numbers-and-punctuation" onSubmitEditing={add} />
-            </View>
-            <Button label="Add" variant="outline" onPress={add} />
-          </View>
-        </>
-      ) : null}
-      {note ? <NoteText text={note} /> : null}
-    </Card>
+    <Section title="Reminders" hint="A notification at these times if a goal is still open. Skipped once today's goals are met.">
+      {rows}
+    </Section>
   )
 }
 
-function ReminderTime({ time }: { time: string }) {
-  const { colors, type } = useTheme()
-  return <Text style={[type.bodyMedium, { color: colors.ink }]}>{time}</Text>
-}
-function RemoveIcon() {
-  const { colors } = useTheme()
-  return <Trash2 size={18} strokeWidth={1.7} color={colors.muted} />
-}
-function NoteText({ text }: { text: string }) {
-  const { colors, type } = useTheme()
-  return <Text style={[type.small, { color: colors.redInk }]}>{text}</Text>
-}
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center' },
+  grow: { flex: 1 },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap' },
+  dot: { width: 12, height: 12, borderRadius: 6, marginHorizontal: 12 },
+})

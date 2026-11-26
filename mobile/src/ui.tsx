@@ -225,6 +225,7 @@ export function SelectRow<T extends string>({
   options,
   onChange,
   disabled,
+  inline,
 }: {
   label: string
   value: T
@@ -232,6 +233,8 @@ export function SelectRow<T extends string>({
   options: { value: T; label: string }[]
   onChange: (value: T) => void
   disabled?: boolean
+  /** A plain row for a grouped list: the label on the left, the value and a chevron on the right. */
+  inline?: boolean
 }) {
   const { colors, type, spacing, radius } = useTheme()
   const [open, setOpen] = useState(false)
@@ -241,16 +244,17 @@ export function SelectRow<T extends string>({
       <Pressable
         onPress={() => setOpen(true)}
         disabled={disabled}
+        scaleTo={inline ? 0.98 : undefined}
         accessibilityRole="button"
         accessibilityLabel={`${label}: ${shown}`}
-        style={[styles.selectRow, { backgroundColor: colors.raised, borderRadius: radius.row, paddingHorizontal: spacing.lg, opacity: disabled ? 0.4 : 1 }]}
+        style={[styles.selectRow, !inline && { backgroundColor: colors.raised, borderRadius: radius.row, paddingHorizontal: spacing.lg }, { opacity: disabled ? 0.4 : 1 }]}
       >
-        <Text style={[type.small, { color: colors.muted }]}>{label}</Text>
+        <Text style={inline ? [type.bodyMedium, { color: colors.ink }] : [type.small, { color: colors.muted }]}>{label}</Text>
         <View style={styles.selectValue}>
-          <Text style={[type.bodyMedium, { color: colors.ink, flexShrink: 1 }]} numberOfLines={1}>
+          <Text style={[inline ? type.body : type.bodyMedium, { color: inline ? colors.muted : colors.ink, flexShrink: 1 }]} numberOfLines={1}>
             {shown}
           </Text>
-          <ChevronDown size={16} strokeWidth={1.8} color={colors.muted} />
+          {inline ? <ChevronRight size={18} strokeWidth={1.8} color={colors.muted} /> : <ChevronDown size={16} strokeWidth={1.8} color={colors.muted} />}
         </View>
       </Pressable>
       <Sheet open={open} onClose={() => setOpen(false)} title={label}>
@@ -455,6 +459,18 @@ export function GroupedList({ children, style, testID }: { children: ReactNode; 
           {row}
         </Fragment>
       ))}
+    </View>
+  )
+}
+
+/** A titled grouped list on the canvas, with an optional muted line under it (Settings' groups). */
+export function Section({ title, hint, children, testID }: { title: string; hint?: string; children: ReactNode; testID?: string }) {
+  const { colors, type, spacing } = useTheme()
+  return (
+    <View testID={testID} style={{ gap: spacing.sm }}>
+      <SectionHeader title={title} />
+      <GroupedList>{children}</GroupedList>
+      {hint ? <Text style={[type.small, { color: colors.muted, paddingHorizontal: spacing.xs + 4 }]}>{hint}</Text> : null}
     </View>
   )
 }

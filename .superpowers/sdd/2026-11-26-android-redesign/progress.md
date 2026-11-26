@@ -76,3 +76,53 @@ Deferred and known:
 - Screens not restyled yet (Timer, History, Settings, Sign-in, Welcome/Tour, backup, practice history) pick up the new primitives and colours through the aliases. Some still set `colors.main`, a white page; that is stage R2.
 - The account has no name, only an email, so the greeting has no name. The avatar shows the email's first letter.
 - In Practice, a card whose content overflows scrolls inside the card. Then only sideways swipes rate it; the tiles still work.
+
+## Stage R2: Timer, History, Settings, sign-in, welcome and the rest (done)
+
+What was built:
+
+- **Timer:**
+  - A white hero card with a state badge, the mode, round and start time, and a 16 px `AnimatedRing` (up to 280 px). The ring shows the share of the phase done, or the share of the current hour for a free timer (`src/timer/ring.ts`, tested). It is lime while running, grey while paused and blue on a break.
+  - A big tabular time inside the ring (52 px once it has hours), with the caption under it.
+  - A topic chip with the topic's dot opens a topic sheet. Start, Pause/Resume and Stop are large pills with haptics (firm on start, success on stop).
+  - A Session card with a segmented Countdown / Pomodoro / Free control and the length row, and a note card. It is keyboard-safe (KeyboardAvoidingView).
+  - With no topics, it shows an empty state.
+  - The pending-note sheet has a check tile and a pinned Skip / Save note footer.
+- **History:**
+  - A hero with week arrows (round buttons), a rolling total, an animated bar and a goals badge.
+  - Seven day columns that grow on a spring one after another, lime with a check when every goal was hit.
+  - Topics as grouped rows: hits, the core note and the streak.
+  - The 16-week heatmap is built from Views now, with columns that pop in one after another and an outline on today. It has a Less…Hit legend.
+  - New: the week's sessions grouped by day (`src/history/sessionsByDay.ts`, tested), with times, notes and minutes, plus an empty state.
+- **Practice history:** two summary tiles (cards, time) and the rounds grouped by day as rows, with an empty state.
+- **Settings:**
+  - Every group is a `Section` (a new primitive in ui.tsx: a header, a white `GroupedList` and a muted footnote).
+  - Rows have chevrons and switches. `SelectRow` gained `inline` (the label left, the value and a chevron right).
+  - `ActionRow` in `settings/groups.tsx` is a tile plus a label (Add a topic, Test voice, Export, Restore, Walkthrough).
+  - Account (an avatar initial, the email, Sign out) and Sync (a cloud tile tinted by level, the last sync, the status chip, an offline line, stuck changes, the message and Sync now).
+  - Your data, then a Danger zone with Delete all data. The reset sheet has a danger block and a pinned footer.
+  - The topic and deck sheets have pinned Cancel / Save footers, and their steppers sit in a raised block.
+  - The sections enter staggered.
+- **Sign-in:** a canvas with the mark in a white tile, a 34 px title, a white form card with focus edges, an eye toggle (an IconButton), the error in a danger block and the black `Button` pill (busy state). Remove-data is a danger pill.
+- **Welcome:**
+  - Three pages in a paged horizontal scroll: an intro on a lime tile with three points, the topics, and the goal with the German starter.
+  - Animated dots stretch with the scroll position.
+  - Back, Next and Let's start buttons. Start empty is reachable on every page, and the last page has Get started / Set up and download.
+- **Walkthrough:** a white floating card with a lime icon tile per step, step dots, Skip / Next pills, and a staggered entrance per step. Android back skips it (as before).
+- **Search:**
+  - Now a real search of the cards, through `cardMatches` (`src/cards/search.ts`, tested), which the Cards tab uses too.
+  - A pill field that autofocuses, and result rows with thumbnails, the deck and a count.
+  - Empty states for nothing typed and for no match.
+- **Placeholder** (the menu pages until R3, and Stories) is an `EmptyState` card. Stories gets the page gutter.
+
+Tests:
+
+- New in `test/redesign.test.ts`: `ringProgress`, `sessionsByDay` and `cardMatches`.
+- The shell search test now types a query and checks the results and the no-match state.
+- Mobile: 20 suites, 190 tests. Root: vitest 651 and worker 195.
+
+Deferred and known:
+
+- Not checked on a device yet (R4).
+- The Welcome is an overlay, not a modal, so Android back there still leaves the app as before. Every sheet and the walkthrough close on back.
+- The menu pages and Stories are still placeholders (R3).

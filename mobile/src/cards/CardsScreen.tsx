@@ -12,6 +12,7 @@ import { useTheme } from '../theme'
 import { Badge, Button, Chip, EmptyState, Field, IconButton, OptionRow, Sheet, Tile } from '../ui'
 import { CardPicture, GermanLine } from './CardPicture'
 import { INCOMPLETE_TAG, quickAddCard, useCards, useDecks } from './data'
+import { cardMatches } from './search'
 
 type Filter = 'all' | 'incomplete' | 'nopicture'
 type Sort = 'newest' | 'oldest' | 'german' | 'english'
@@ -57,7 +58,7 @@ export function CardsScreen() {
       if (deck && c.deckId !== deck.id) return false
       if (filter === 'incomplete' && !c.tags.includes(INCOMPLETE_TAG)) return false
       if (filter === 'nopicture' && (c.imageId || c.emoji)) return false
-      return !q || [c.english, germanText(c), c.german, ...c.tags].some((t) => t.toLowerCase().includes(q))
+      return cardMatches(c, q)
     })
     const by: Record<Sort, (a: Card, b: Card) => number> = {
       newest: (a, b) => b.createdAt - a.createdAt,

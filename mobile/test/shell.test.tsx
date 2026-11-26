@@ -135,11 +135,19 @@ describe('the menu', () => {
 })
 
 describe('search', () => {
-  it('opens the placeholder search page', async () => {
-    useServices()
+  it('opens the search page and finds cards as you type', async () => {
+    const { library } = useServices()
+    library.put('decks', { id: 'd1', name: 'Animals', order: 0 })
+    library.put('cards', { id: 'c1', deckId: 'd1', type: 'word', german: 'Hund', gender: 'der', english: 'dog', tags: [], createdAt: 1 })
+    library.put('cards', { id: 'c2', deckId: 'd1', type: 'word', german: 'Katze', gender: 'die', english: 'cat', tags: [], createdAt: 2 })
     await open()
     await fireEvent.press(await screen.findByRole('button', { name: 'Search' }))
-    expect(await screen.findByText('Search comes in the next update')).toBeTruthy()
+    expect(await screen.findByText('Search your cards')).toBeTruthy()
+    await fireEvent.changeText(screen.getByPlaceholderText('Search your cards'), 'hund')
+    expect(await screen.findByRole('button', { name: 'der Hund, dog' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Katze/ })).toBeNull()
+    await fireEvent.changeText(screen.getByPlaceholderText('Search your cards'), 'zebra')
+    expect(await screen.findByText('Nothing found')).toBeTruthy()
   })
 })
 

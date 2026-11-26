@@ -1,15 +1,17 @@
 import { formatClock, formatHM, formatMinutesShort, formatTimer, MINUTE } from '@lernzeit/core/time'
 import { elapsedMs, isAwaitingFocus, isPaused, phaseLengthMs, remainingMs } from '@lernzeit/core/timer'
 import type { TimerMode } from '@lernzeit/core/types'
-import { Pause, Play, SkipForward, Square } from 'lucide-react-native'
+import { ChevronDown, Coffee, NotebookPen, Pause, Play, SkipForward, Square, Target } from 'lucide-react-native'
 import { useEffect, useRef, useState } from 'react'
-import { ScrollView, Text, View } from 'react-native'
+import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { useSaveSettings, useSettings } from '../data/settings'
+import { AnimatedRing, FadeInUp, Pressable } from '../motion'
 import { useLocalLibrary } from '../store/live'
 import { useTodayView } from '../today/useTodayView'
 import { numbers, useTheme } from '../theme'
-import { Button, Chip, Field, SelectRow } from '../ui'
+import { Badge, Button, EmptyState, Field, OptionRow, SelectRow, Sheet } from '../ui'
 import { useActiveTimer, useNow, useTopics } from './hooks'
+import { ringProgress } from './ring'
 import { discardTimer, patchTimer, pauseTimer, resumeTimer, skipBreak, startTimer, stopTimer } from './timerStore'
 
 const MODE_LABEL: Record<TimerMode, string> = { countdown: 'Countdown', pomodoro: 'Pomodoro', free: 'Free' }
@@ -25,9 +27,10 @@ const POMODORO_PRESETS: [number, number][] = [
 /** Countdown length offered for a topic: what is left today, or 25 min once the goal is met. */
 export const defaultCountdown = (leftMinutes: number) => (leftMinutes >= 5 ? Math.round(leftMinutes) : 25)
 
-/** The Timer tab: topic, mode, Start / Pause / Stop, and "What did you learn?". */
+/** The Timer tab: a big ring with the time, the topic chip, Start / Pause / Stop, the setup and the note. */
 export function TimerScreen() {
-  const { colors, type, spacing, radius } = useTheme()
+  const { colors, type, spacing, radius, shadow, topics: topicColors } = useTheme()
+  const { width } = useWindowDimensions()
   const library = useLocalLibrary()
   const timer = useActiveTimer()
   const topics = useTopics()
@@ -36,6 +39,7 @@ export function TimerScreen() {
   const view = useTodayView()
   const now = useNow(!!timer && !isPaused(timer))
   const [message, setMessage] = useState<string>()
+  const [topicSheet, setTopicSheet] = useState(false)
 
   const firstOpen = view.progress.topics.find((r) => r.goal > 0 && !r.hit)?.topic ?? topics[0]
   const [pickedTopic, setPickedTopic] = useState<string>()
@@ -81,8 +85,8 @@ export function TimerScreen() {
 
   const state = !timer ? 'Ready' : isBreak ? 'Break' : awaiting ? 'Ready' : paused ? 'Paused' : 'Running'
   const subtitle = timer
-    ? [topic?.name, MODE_LABEL[timer.mode].toLowerCase(), timer.mode === 'pomodoro' ? `round ${timer.cycle}` : null, `started ${formatClock(timer.firstStartedAt)}`].filter(Boolean).join(' · ')
-    : 'Pick a topic and press Start. The time goes to that topic when you stop.'
+    ? [MODE_LABEL[timer.mode], timer.mode === 'pomodoro' ? `round ${timer.cycle}` : null, `started ${formatClock(timer.firstStartedAt)}`].filter(Boolean).join(' · ')
+    : 'Time goes to the topic when you stop'
 
   const start = () => {
     if (!topicId) return
@@ -100,121 +104,217 @@ export function TimerScreen() {
     const saved = stopTimer(library)
     setMessage(saved ? undefined : 'Under a minute, so nothing was saved')
   }
+  const pickTopic = (id: string) => {
+    setTopicSheet(false)
+    if (timer) patchTimer(library, { topicId: id })
+    else {
+      setPickedTopic(id)
+      setPickedMinutes(undefined)
+    }
+  }
 
   const lengthOptions = [...new Set([...PRESETS, ...(leftToday >= 5 ? [Math.round(leftToday)] : []), timer?.targetMinutes ?? setupMinutes])].sort((a, b) => a - b)
   const pomodoroOptions = [...new Map([[settings.pomodoroFocus, settings.pomodoroBreak] as [number, number], ...POMODORO_PRESETS].map((p) => [`${p[0]}/${p[1]}`, p] as const)).values()]
 
   const afterLeft = !row || row.goal === 0 ? null : Math.max(0, row.left - Math.ceil((isBreak || mode === 'free' ? 0 : (remaining ?? 0) / MINUTE) - 1e-6))
+  const goalLine = !topic ? '' : afterLeft === null ? `${topic.name} has no goal today` : afterLeft === 0 ? `${topic.name} goal reached after this session` : `${topic.name}: ${formatHM(afterLeft)} h left today after this session`
 
-  const toneBg = isBreak ? colors.buttonSoft : colors.soft
+  const ringSize = Math.max(200, Math.min(280, width - spacing.pageX * 2 - spacing.xxl * 2))
+  const progress = ringProgress(elapsed, remaining, !!timer && !awaiting)
+  const ringColor = isBreak ? colors.blueBar : paused ? colors.lineStrong : colors.accent
+  const dotFor = (key: string | undefined) => (key ? (topicColors[key as keyof typeof topicColors] ?? topicColors.stone).dot : colors.muted)
+  const long = readout.length > 5
+  const playIcon = (color: string) => <Play size={15} color={color} fill={color} />
+  const stopIcon = <Square size={12} color={colors.onPrimary} fill={colors.onPrimary} />
+  const card = [{ backgroundColor: colors.card, borderRadius: radius.card, padding: spacing.xl, gap: spacing.md }, shadow.card]
+
+  if (topics.length === 0 && !timer) {
+    return (
+      <ScrollView style={{ backgroundColor: colors.canvas }} contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: spacing.xs, paddingBottom: spacing.xxl }}>
+        <FadeInUp>
+          <EmptyState icon={Target} title="No topics yet" body="The timer logs time against a topic. Add one in Settings, then come back to start." />
+        </FadeInUp>
+      </ScrollView>
+    )
+  }
+
   return (
-    <ScrollView
-      style={{ backgroundColor: colors.canvas }}
-      contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: 0, paddingBottom: spacing.xxxl, gap: spacing.xl }}
-      keyboardShouldPersistTaps="handled"
-    >
-      {/* The page name is in the header above; the day line stays here. */}
-      <Text style={[type.body, { color: colors.muted, paddingHorizontal: 4 }]}>{subtitle}</Text>
+    <KeyboardAvoidingView behavior="padding" style={styles.fill}>
+      <ScrollView
+        style={{ backgroundColor: colors.canvas }}
+        contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: spacing.xs, paddingBottom: spacing.xxl, gap: spacing.cardGap }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <FadeInUp index={0}>
+          <View testID="timer-hero" style={[card, styles.hero, { gap: spacing.lg }]}>
+            <View style={styles.between}>
+              <Badge label={state} tone={state === 'Running' ? 'lime' : state === 'Break' ? 'accent' : 'neutral'} icon={isBreak ? <Coffee size={12} strokeWidth={2} color={colors.accentInk} /> : undefined} />
+              <Text style={[type.small, numbers, { color: colors.muted, flexShrink: 1 }]} numberOfLines={1}>
+                {subtitle}
+              </Text>
+            </View>
+            <AnimatedRing value={progress} size={ringSize} stroke={16} color={ringColor} label={`${state}, ${Math.round(progress * 100)} percent`}>
+              <View style={{ alignItems: 'center', gap: 2, paddingHorizontal: spacing.xl }}>
+                <Text
+                  testID="timer-readout"
+                  accessibilityLabel={`${readout} ${remaining !== undefined ? 'left' : 'studied'}${paused ? ', paused' : ''}`}
+                  style={[type.timer, { color: colors.ink, opacity: paused && !awaiting ? 0.45 : 1 }, long && styles.longReadout]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  {readout}
+                </Text>
+                <Text style={[type.small, { color: colors.muted, textAlign: 'center' }]} numberOfLines={2}>
+                  {caption}
+                </Text>
+              </View>
+            </AnimatedRing>
+            <Pressable
+              onPress={() => setTopicSheet(true)}
+              haptic="select"
+              accessibilityRole="button"
+              accessibilityLabel={`Topic: ${topic?.name ?? 'none'}`}
+              style={[styles.topicChip, { backgroundColor: colors.raised, borderRadius: radius.pill, paddingHorizontal: spacing.lg, gap: spacing.sm }]}
+            >
+              <View style={[styles.dot, { backgroundColor: dotFor(topic?.color) }]} />
+              <Text style={[type.bodyMedium, { color: colors.ink, flexShrink: 1 }]} numberOfLines={1}>
+                {topic?.name ?? 'Pick a topic'}
+              </Text>
+              <ChevronDown size={16} strokeWidth={1.8} color={colors.muted} />
+            </Pressable>
+            <View style={[styles.buttons, { gap: spacing.sm }]}>
+              {!timer && <Button label="Start" size="lg" haptic="firm" disabled={!topicId} onPress={start} icon={playIcon(colors.onPrimary)} style={styles.grow} />}
+              {timer && isBreak && (
+                <>
+                  <Button label="Skip break" variant="soft" size="lg" haptic="tap" onPress={() => skipBreak(library)} icon={<SkipForward size={16} strokeWidth={1.8} color={colors.ink} />} style={styles.grow} />
+                  <Button label="End pomodoro" size="lg" haptic="success" onPress={stop} icon={stopIcon} style={styles.grow} />
+                </>
+              )}
+              {timer && awaiting && (
+                <>
+                  <Button label="End pomodoro" variant="soft" size="lg" haptic="tap" onPress={() => discardTimer(library)} style={styles.grow} />
+                  <Button label={`Start round ${timer.cycle}`} size="lg" haptic="firm" onPress={() => resumeTimer(library)} icon={playIcon(colors.onPrimary)} style={styles.grow} />
+                </>
+              )}
+              {timer && !isBreak && !awaiting && (
+                <>
+                  <Button
+                    label={paused ? 'Resume' : 'Pause'}
+                    variant={paused ? 'accent' : 'soft'}
+                    size="lg"
+                    haptic="tap"
+                    onPress={() => (paused ? resumeTimer(library) : pauseTimer(library))}
+                    icon={paused ? playIcon(colors.onAccent) : <Pause size={15} color={colors.ink} fill={colors.ink} />}
+                    style={styles.grow}
+                  />
+                  <Button label="Stop and save" size="lg" haptic="success" onPress={stop} icon={stopIcon} style={styles.grow} />
+                </>
+              )}
+            </View>
+            {message ? (
+              <Text style={[type.small, { color: colors.muted, textAlign: 'center' }]} accessibilityLiveRegion="polite">
+                {message}
+              </Text>
+            ) : null}
+          </View>
+        </FadeInUp>
 
-      <View style={{ backgroundColor: toneBg, borderColor: colors.line, borderWidth: 1, borderRadius: radius.section, padding: spacing.xl, gap: spacing.lg, alignItems: 'center' }}>
-        <View style={{ backgroundColor: state === 'Running' ? colors.sage : colors.neutralChip, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: 4 }}>
-          <Text style={[type.chip, { color: state === 'Running' ? colors.sageInk : colors.neutralInk }]}>{state}</Text>
-        </View>
-        <Text accessibilityLabel={`${readout} ${remaining !== undefined ? 'left' : 'studied'}${paused ? ', paused' : ''}`} style={[type.timer, { color: colors.ink, opacity: paused && !awaiting ? 0.5 : 1 }]}>
-          {readout}
-        </Text>
-        <Text style={[type.body, { color: colors.muted, textAlign: 'center' }]}>{caption}</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.sm }}>
-          {!timer && <Button label="Start" disabled={!topicId} onPress={start} icon={<Play size={14} color={colors.onDark} fill={colors.onDark} />} style={{ minWidth: 160 }} />}
-          {timer && isBreak && (
-            <>
-              <Button label="Skip break" variant="outline" onPress={() => skipBreak(library)} icon={<SkipForward size={16} strokeWidth={1.8} color={colors.ink} />} />
-              <Button label="End pomodoro" onPress={stop} icon={<Square size={12} color={colors.onDark} fill={colors.onDark} />} />
-            </>
-          )}
-          {timer && awaiting && (
-            <>
-              <Button label="End pomodoro" variant="outline" onPress={() => discardTimer(library)} />
-              <Button label={`Start round ${timer.cycle}`} onPress={() => resumeTimer(library)} icon={<Play size={14} color={colors.onDark} fill={colors.onDark} />} />
-            </>
-          )}
-          {timer && !isBreak && !awaiting && (
-            <>
-              <Button
-                label={paused ? 'Resume' : 'Pause'}
-                variant="outline"
-                onPress={() => (paused ? resumeTimer(library) : pauseTimer(library))}
-                icon={paused ? <Play size={14} color={colors.ink} fill={colors.ink} /> : <Pause size={14} color={colors.ink} fill={colors.ink} />}
+        <FadeInUp index={1}>
+          <View style={card}>
+            <Text style={[type.section, { color: colors.ink }]} accessibilityRole="header">
+              Session
+            </Text>
+            <View style={[styles.segments, { backgroundColor: colors.raised, borderRadius: radius.pill, padding: 4 }]}>
+              {(['countdown', 'pomodoro', 'free'] as TimerMode[]).map((m) => {
+                const on = mode === m
+                return (
+                  <Pressable
+                    key={m}
+                    haptic="select"
+                    scaleTo={0.95}
+                    accessibilityRole="button"
+                    accessibilityLabel={MODE_LABEL[m]}
+                    accessibilityState={{ selected: on, disabled: isBreak || awaiting }}
+                    onPress={() => {
+                      if (isBreak || awaiting) return
+                      if (timer) patchTimer(library, { mode: m, targetMinutes: m === 'countdown' ? setupMinutes : undefined })
+                      else setPickedMode(m)
+                      saveSettings({ defaultTimerMode: m })
+                    }}
+                    style={[styles.segment, { borderRadius: radius.pill, backgroundColor: on ? colors.card : 'transparent' }, on && shadow.card]}
+                  >
+                    <Text style={[type.small, { color: on ? colors.ink : colors.muted }]}>{MODE_LABEL[m]}</Text>
+                  </Pressable>
+                )
+              })}
+            </View>
+            {mode === 'pomodoro' ? (
+              <SelectRow
+                label="Length"
+                value={`${timer?.targetMinutes ?? settings.pomodoroFocus}/${timer?.breakMinutes ?? settings.pomodoroBreak}`}
+                display={`${timer?.targetMinutes ?? settings.pomodoroFocus} min focus, ${timer?.breakMinutes ?? settings.pomodoroBreak} min break`}
+                disabled={isBreak}
+                options={pomodoroOptions.map(([f, b]) => ({ value: `${f}/${b}`, label: `${f} min focus, ${b} min break` }))}
+                onChange={(v) => {
+                  const [focus, rest] = v.split('/').map(Number)
+                  saveSettings({ pomodoroFocus: focus, pomodoroBreak: rest })
+                  if (timer) patchTimer(library, { targetMinutes: focus, breakMinutes: rest })
+                }}
               />
-              <Button label="Stop and save" onPress={stop} icon={<Square size={12} color={colors.onDark} fill={colors.onDark} />} />
-            </>
-          )}
-        </View>
-        {message ? <Text style={[type.body, { color: colors.muted }]}>{message}</Text> : null}
-      </View>
+            ) : mode === 'countdown' ? (
+              <SelectRow
+                label="Length"
+                value={String(timer?.targetMinutes ?? setupMinutes)}
+                display={formatMinutesShort(timer?.targetMinutes ?? setupMinutes)}
+                options={lengthOptions.map((m) => ({ value: String(m), label: `${formatMinutesShort(m)}${m === Math.round(leftToday) ? ' (rest of today’s goal)' : ''}` }))}
+                onChange={(v) => (timer ? patchTimer(library, { targetMinutes: Number(v) }) : setPickedMinutes(Number(v)))}
+              />
+            ) : null}
+            {goalLine ? <Text style={[type.small, numbers, { color: colors.muted, paddingHorizontal: 4 }]}>{goalLine}</Text> : null}
+          </View>
+        </FadeInUp>
 
-      <View style={{ gap: spacing.sm }}>
-        <SelectRow
-          label="Topic"
-          value={topicId ?? ''}
-          display={topic?.name ?? 'Add a topic in Settings'}
-          options={topics.map((t) => ({ value: t.id, label: t.name }))}
-          onChange={(v) => (timer ? patchTimer(library, { topicId: v }) : (setPickedTopic(v), setPickedMinutes(undefined)))}
-        />
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          {(['countdown', 'pomodoro', 'free'] as TimerMode[]).map((m) => (
-            <Chip
-              key={m}
-              label={MODE_LABEL[m]}
-              selected={mode === m}
-              onPress={() => {
-                if (isBreak || awaiting) return
-                if (timer) patchTimer(library, { mode: m, targetMinutes: m === 'countdown' ? setupMinutes : undefined })
-                else setPickedMode(m)
-                saveSettings({ defaultTimerMode: m })
-              }}
+        <FadeInUp index={2}>
+          <View style={card}>
+            <View style={[styles.row, { gap: spacing.sm }]}>
+              <NotebookPen size={18} strokeWidth={1.8} color={colors.ink2} />
+              <Text style={[type.section, { color: colors.ink }]} accessibilityRole="header">
+                What did you learn?
+              </Text>
+            </View>
+            <Field
+              accessibilityLabel="What did you learn?"
+              multiline
+              maxLength={200}
+              editable={!!timer && !isBreak}
+              placeholder={timer && !isBreak ? 'One line about this session' : 'Start a session to take a note'}
+              value={timer && !isBreak ? note : ''}
+              onChangeText={changeNote}
             />
-          ))}
-        </View>
-        {mode === 'pomodoro' ? (
-          <SelectRow
-            label="Length"
-            value={`${timer?.targetMinutes ?? settings.pomodoroFocus}/${timer?.breakMinutes ?? settings.pomodoroBreak}`}
-            display={`${timer?.targetMinutes ?? settings.pomodoroFocus} min focus, ${timer?.breakMinutes ?? settings.pomodoroBreak} min break`}
-            disabled={isBreak}
-            options={pomodoroOptions.map(([f, b]) => ({ value: `${f}/${b}`, label: `${f} min focus, ${b} min break` }))}
-            onChange={(v) => {
-              const [focus, rest] = v.split('/').map(Number)
-              saveSettings({ pomodoroFocus: focus, pomodoroBreak: rest })
-              if (timer) patchTimer(library, { targetMinutes: focus, breakMinutes: rest })
-            }}
-          />
-        ) : mode === 'countdown' ? (
-          <SelectRow
-            label="Length"
-            value={String(timer?.targetMinutes ?? setupMinutes)}
-            display={formatMinutesShort(timer?.targetMinutes ?? setupMinutes)}
-            options={lengthOptions.map((m) => ({ value: String(m), label: `${formatMinutesShort(m)}${m === Math.round(leftToday) ? ' (rest of today’s goal)' : ''}` }))}
-            onChange={(v) => (timer ? patchTimer(library, { targetMinutes: Number(v) }) : setPickedMinutes(Number(v)))}
-          />
-        ) : null}
-        <Text style={[type.small, { color: colors.muted }]}>
-          {!topic ? '' : afterLeft === null ? `${topic.name} has no goal today` : afterLeft === 0 ? `${topic.name} goal reached after this session` : `${topic.name}: ${formatHM(afterLeft)} h left today after this session`}
-        </Text>
-      </View>
+            <Text style={[type.small, { color: colors.muted, paddingHorizontal: 4 }]}>It is saved with the session.</Text>
+          </View>
+        </FadeInUp>
+      </ScrollView>
 
-      <View style={{ gap: spacing.sm }}>
-        <Field
-          label="What did you learn?"
-          multiline
-          maxLength={200}
-          editable={!!timer && !isBreak}
-          placeholder={timer && !isBreak ? 'One line about this session' : 'Start a session to take a note'}
-          value={timer && !isBreak ? note : ''}
-          onChangeText={changeNote}
-        />
-        <Text style={[type.small, numbers, { color: colors.muted }]}>It is saved with the session.</Text>
-      </View>
-    </ScrollView>
+      <Sheet open={topicSheet} onClose={() => setTopicSheet(false)} title="Topic">
+        {topics.map((t) => (
+          <OptionRow key={t.id} label={t.name} selected={t.id === topicId} onPress={() => pickTopic(t.id)} icon={<View style={[styles.dot, { backgroundColor: dotFor(t.color) }]} />} />
+        ))}
+      </Sheet>
+    </KeyboardAvoidingView>
   )
 }
+
+const styles = StyleSheet.create({
+  fill: { flex: 1 },
+  hero: { alignItems: 'center' },
+  between: { alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  row: { flexDirection: 'row', alignItems: 'center' },
+  topicChip: { minHeight: 44, maxWidth: '100%', flexDirection: 'row', alignItems: 'center' },
+  dot: { width: 10, height: 10, borderRadius: 5 },
+  buttons: { alignSelf: 'stretch', flexDirection: 'row' },
+  grow: { flex: 1 },
+  longReadout: { fontSize: 52, lineHeight: 58, letterSpacing: -2 },
+  segments: { flexDirection: 'row' },
+  segment: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
+})
