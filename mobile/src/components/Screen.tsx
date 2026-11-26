@@ -1,38 +1,42 @@
 import { useRouter } from 'expo-router'
 import { ChevronLeft } from 'lucide-react-native'
 import type { ReactNode } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTheme } from '../theme'
+import { IconButton } from '../ui'
 
-/** A page outside the tabs (Settings, a menu page, Search): a back button and its title. */
-export function Screen({ title, children }: { title: string; children?: ReactNode }) {
+/**
+ * A page outside the tabs (Settings, a menu page, the card editor): a round back button and the
+ * title on the canvas, the content scrolling under it and an optional `footer` (a Save pill) pinned
+ * at the bottom. Fields stay above the keyboard.
+ */
+export function Screen({ title, children, footer, right }: { title: string; children?: ReactNode; footer?: ReactNode; right?: ReactNode }) {
   const { colors, type, spacing } = useTheme()
   const insets = useSafeAreaInsets()
   const router = useRouter()
   return (
-    <View style={[styles.page, { backgroundColor: colors.main, paddingTop: insets.top }]}>
-      <View style={[styles.header, { borderBottomColor: colors.line, backgroundColor: colors.sidebar, paddingHorizontal: spacing.xs }]}>
-        <Pressable
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          hitSlop={4}
-          style={styles.back}
-        >
-          <ChevronLeft size={22} strokeWidth={1.7} color={colors.ink2} />
-        </Pressable>
-        <Text style={[type.section, { color: colors.ink }]} accessibilityRole="header">
+    <KeyboardAvoidingView behavior="padding" style={[styles.page, { backgroundColor: colors.canvas, paddingTop: insets.top }]}>
+      <View style={[styles.header, { paddingHorizontal: spacing.pageX - 4, gap: spacing.md }]}>
+        <IconButton icon={ChevronLeft} label="Back" iconSize={22} onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
+        <Text style={[type.section, styles.title, { color: colors.ink }]} accessibilityRole="header" numberOfLines={1}>
           {title}
         </Text>
+        {right}
       </View>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: spacing.pageTop, paddingBottom: insets.bottom + spacing.xxl, gap: spacing.xxl }}>{children}</ScrollView>
-    </View>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: spacing.sm, paddingBottom: footer ? spacing.xl : insets.bottom + spacing.xxl, gap: spacing.lg }}
+      >
+        {children}
+      </ScrollView>
+      {footer ? <View style={{ paddingHorizontal: spacing.pageX, paddingTop: spacing.sm, paddingBottom: insets.bottom + spacing.md, backgroundColor: colors.canvas }}>{footer}</View> : null}
+    </KeyboardAvoidingView>
   )
 }
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  header: { height: 56, flexDirection: 'row', alignItems: 'center', gap: 4, borderBottomWidth: 1 },
-  back: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
+  header: { height: 64, flexDirection: 'row', alignItems: 'center' },
+  title: { flex: 1, fontSize: 20, lineHeight: 26 },
 })

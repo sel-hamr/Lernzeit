@@ -1,13 +1,14 @@
 import type { Card, CardType, Conjugation, Gender } from '@lernzeit/core/types'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { Camera, Images, Trash2 } from 'lucide-react-native'
+import { Camera, ImagePlus, Images, Trash2, X } from 'lucide-react-native'
 import { useState } from 'react'
-import { Alert, Image, Text, View } from 'react-native'
+import { Alert, Image, StyleSheet, Text, View } from 'react-native'
 import { Screen } from '../components/Screen'
 import { useLiveQuery, useLocalLibrary } from '../store/live'
 import type { ImageFile } from '../store/library'
 import { useTheme } from '../theme'
-import { Button, Chip, Field, SelectRow } from '../ui'
+import { FadeInUp } from '../motion'
+import { Button, Card as Panel, Chip, Field, SelectRow } from '../ui'
 import { deleteCard, saveCard, useDecks, type ImageChange } from './data'
 import { pickCardImage } from './images'
 
@@ -23,7 +24,7 @@ export function CardEditor() {
   const { id, deckId: deckParam } = useLocalSearchParams<{ id?: string; deckId?: string }>()
   const library = useLocalLibrary()
   const router = useRouter()
-  const { colors, type, spacing } = useTheme()
+  const { colors, type, spacing, radius, shadow } = useTheme()
   const decks = useDecks()
   const existing = useLiveQuery(['cards'], (l) => (id ? l.get<Card>('cards', String(id)) : undefined), [id])
   const [form, setForm] = useState(() => ({
@@ -97,62 +98,122 @@ export function CardEditor() {
       },
     ])
 
+  const small = (label: string, Icon: typeof Camera, onPress: () => void) => <Button label={label} variant="soft" size="sm" icon={<Icon size={15} strokeWidth={1.9} color={colors.ink} />} onPress={onPress} />
+
   return (
-    <Screen title={existing ? 'Edit card' : 'New card'}>
-      <View style={{ gap: spacing.md }}>
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          {TYPES.map((t) => (
-            <Chip key={t.value} label={t.label} selected={form.type === t.value} onPress={() => set('type', t.value)} />
-          ))}
+    <Screen
+      title={existing ? 'Edit card' : 'New card'}
+      footer={
+        <View style={[styles.row, { gap: spacing.sm }]}>
+          {existing ? <Button label="Delete" variant="danger" icon={<Trash2 size={16} color={colors.dangerInk} />} onPress={remove} /> : null}
+          <Button label="Save card" size="lg" onPress={save} haptic="tap" style={styles.grow} />
         </View>
-        <SelectRow label="Deck" value={form.deckId} display={decks.find((d) => d.id === form.deckId)?.name ?? 'No deck'} options={decks.map((d) => ({ value: d.id, label: d.name }))} onChange={(v) => set('deckId', v)} />
-        <Field label="English" value={form.english} onChangeText={(v) => set('english', v)} autoCapitalize="none" />
-        <Field
-          label={form.type === 'cloze' ? 'German sentence, gap in {{ }}' : form.type === 'word' ? 'German (without article)' : 'German'}
-          value={form.german}
-          onChangeText={(v) => set('german', v)}
-          autoCapitalize="none"
-          multiline={form.type !== 'word'}
-        />
-        {form.type === 'word' ? (
-          <>
-            <Text style={[type.small, { color: colors.muted }]}>Article</Text>
-            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              {GENDERS.map((g) => (
-                <Chip key={g || 'none'} label={g || 'None'} selected={form.gender === g} onPress={() => set('gender', g)} />
-              ))}
+      }
+    >
+      <FadeInUp index={0}>
+        <View style={[styles.picture, { borderRadius: radius.card, backgroundColor: colors.card }, shadow.card]}>
+          {shown ? (
+            <>
+              <Image source={{ uri: shown.path }} accessibilityLabel="Card picture" resizeMode="cover" style={styles.fill} />
+              <View style={[styles.overlay, { gap: spacing.sm, padding: spacing.md }]}>
+                {small('Camera', Camera, () => void pick('camera'))}
+                {small('Gallery', Images, () => void pick('gallery'))}
+                {small('Remove', X, () => setImage({ kind: 'remove' }))}
+              </View>
+            </>
+          ) : (
+            <View style={[styles.empty, { gap: spacing.md }]}>
+              <View style={[styles.tile, { backgroundColor: colors.accentSoft }]}>
+                <ImagePlus size={26} strokeWidth={1.8} color={colors.accentInk} />
+              </View>
+              <Text style={[type.small, { color: colors.muted }]}>A picture helps the word stick</Text>
+              <View style={[styles.row, { gap: spacing.sm }]}>
+                {small('Camera', Camera, () => void pick('camera'))}
+                {small('Gallery', Images, () => void pick('gallery'))}
+              </View>
             </View>
-            <Field label="Plural" value={form.plural} onChangeText={(v) => set('plural', v)} autoCapitalize="none" />
+          )}
+        </View>
+      </FadeInUp>
+
+      <FadeInUp index={1}>
+        <Panel>
+          <View style={[styles.row, { gap: spacing.sm }]}>
+            {TYPES.map((t) => (
+              <Chip key={t.value} label={t.label} selected={form.type === t.value} onPress={() => set('type', t.value)} />
+            ))}
+          </View>
+          <SelectRow label="Deck" value={form.deckId} display={decks.find((d) => d.id === form.deckId)?.name ?? 'No deck'} options={decks.map((d) => ({ value: d.id, label: d.name }))} onChange={(v) => set('deckId', v)} />
+        </Panel>
+      </FadeInUp>
+
+      <FadeInUp index={2}>
+        <Panel title="Words">
+          <Field label="English" value={form.english} onChangeText={(v) => set('english', v)} autoCapitalize="none" />
+          <Field
+            label={form.type === 'cloze' ? 'German sentence, gap in {{ }}' : form.type === 'word' ? 'German (without article)' : 'German'}
+            value={form.german}
+            onChangeText={(v) => set('german', v)}
+            autoCapitalize="none"
+            multiline={form.type !== 'word'}
+          />
+          {form.type === 'word' ? (
+            <>
+              <Text style={[type.small, { color: colors.muted, paddingHorizontal: 4 }]}>Article</Text>
+              <View style={[styles.row, { gap: spacing.sm }]}>
+                {GENDERS.map((g) => (
+                  <Chip key={g || 'none'} label={g || 'None'} color={g ? colors[g] : undefined} selected={form.gender === g} onPress={() => set('gender', g)} />
+                ))}
+              </View>
+              <Field label="Plural" value={form.plural} onChangeText={(v) => set('plural', v)} autoCapitalize="none" />
+            </>
+          ) : null}
+        </Panel>
+      </FadeInUp>
+
+      {form.type === 'word' ? (
+        <FadeInUp index={3}>
+          <Panel title="Verb" hint="Conjugation, six forms per line: fahre, fährst, fährt, fahren, fahrt, fahren">
             <Field label="Verb forms (ich, du, er, wir, ihr, sie)" value={form.verbForms} onChangeText={(v) => set('verbForms', v)} autoCapitalize="none" />
-            <Text style={[type.small, { color: colors.muted }]}>Conjugation, six forms per line: fahre, fährst, fährt, fahren, fahrt, fahren</Text>
             <Field label="Present" value={form.present} onChangeText={(v) => set('present', v)} autoCapitalize="none" />
             <Field label="Past" value={form.past} onChangeText={(v) => set('past', v)} autoCapitalize="none" />
             <Field label="Perfect" value={form.perfect} onChangeText={(v) => set('perfect', v)} autoCapitalize="none" />
-          </>
-        ) : null}
-        <Field label="Example (German)" value={form.exampleDe} onChangeText={(v) => set('exampleDe', v)} multiline />
-        <Field label="Example (English)" value={form.exampleEn} onChangeText={(v) => set('exampleEn', v)} multiline />
-        <Field label="Emoji (used when there is no picture)" value={form.emoji} onChangeText={(v) => set('emoji', v)} />
-        <Field label="Tags, separated by commas" value={form.tags} onChangeText={(v) => set('tags', v)} autoCapitalize="none" />
+          </Panel>
+        </FadeInUp>
+      ) : null}
 
-        <Text style={[type.small, { color: colors.muted }]}>Picture</Text>
-        {shown ? <Image source={{ uri: shown.path }} accessibilityLabel="Card picture" resizeMode="cover" style={{ width: '100%', height: 160, borderRadius: 10 }} /> : null}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-          <Button label="Camera" variant="outline" icon={<Camera size={16} color={colors.ink} />} onPress={() => void pick('camera')} />
-          <Button label="Gallery" variant="outline" icon={<Images size={16} color={colors.ink} />} onPress={() => void pick('gallery')} />
-          {shown ? <Button label="Remove" variant="outline" onPress={() => setImage({ kind: 'remove' })} /> : null}
-        </View>
+      <FadeInUp index={4}>
+        <Panel title="Examples">
+          <Field label="Example (German)" value={form.exampleDe} onChangeText={(v) => set('exampleDe', v)} multiline />
+          <Field label="Example (English)" value={form.exampleEn} onChangeText={(v) => set('exampleEn', v)} multiline />
+        </Panel>
+      </FadeInUp>
 
-        {error ? (
-          <Text style={[type.body, { color: colors.redInk }]} accessibilityRole="alert">
+      <FadeInUp index={5}>
+        <Panel title="Extras">
+          <Field label="Emoji (used when there is no picture)" value={form.emoji} onChangeText={(v) => set('emoji', v)} />
+          <Field label="Tags, separated by commas" value={form.tags} onChangeText={(v) => set('tags', v)} autoCapitalize="none" />
+        </Panel>
+      </FadeInUp>
+
+      {error ? (
+        <View style={[styles.error, { backgroundColor: colors.dangerSoft, borderRadius: radius.row, padding: spacing.lg }]}>
+          <Text style={[type.bodyMedium, { color: colors.dangerInk }]} accessibilityRole="alert">
             {error}
           </Text>
-        ) : null}
-        <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
-          <Button label="Save card" onPress={save} />
-          {existing ? <Button label="Delete" variant="danger" icon={<Trash2 size={16} color={colors.redInk} />} onPress={remove} /> : null}
         </View>
-      </View>
+      ) : null}
     </Screen>
   )
 }
+
+const styles = StyleSheet.create({
+  grow: { flex: 1 },
+  fill: { width: '100%', height: '100%' },
+  row: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+  picture: { height: 220, overflow: 'hidden' },
+  overlay: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', flexWrap: 'wrap' },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  tile: { width: 56, height: 56, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  error: {},
+})

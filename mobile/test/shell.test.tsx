@@ -53,7 +53,7 @@ describe('the bottom bar', () => {
   it('has Today, Cards, Stories and Timer, and opens on Today', async () => {
     useServices()
     await open()
-    expect(await screen.findByText('Lernzeit')).toBeTruthy()
+    expect(await screen.findByTestId('page-title')).toBeTruthy()
     expect(tabNames()).toEqual(['Today', 'Cards', 'Stories', 'Timer'])
     expect(screen.getByRole('tab', { name: 'Today' }).props.accessibilityState.selected).toBe(true)
   })
@@ -61,14 +61,14 @@ describe('the bottom bar', () => {
   it('leaves a turned-off tab out without replacing it', async () => {
     useServices({ hidden: ['stories'] })
     await open()
-    await screen.findByText('Lernzeit')
+    await screen.findByTestId('page-title')
     expect(tabNames()).toEqual(['Today', 'Cards', 'Timer'])
   })
 
   it('follows the synced settings live', async () => {
     const { library } = useServices()
     await open()
-    await screen.findByText('Lernzeit')
+    await screen.findByTestId('page-title')
     expect(tabNames()).toHaveLength(4)
     library.put('kv', { key: 'settings', value: { hiddenFeatures: ['timer', 'flashcards'] } })
     await waitFor(() => expect(tabNames()).toEqual(['Today', 'Stories']))
@@ -88,21 +88,21 @@ describe('the menu', () => {
   it('lists the other pages and Settings, with the sync row', async () => {
     useServices()
     await open()
-    await screen.findByText('Lernzeit')
+    await screen.findByTestId('page-title')
     expect(menuLinks(await openMenu())).toEqual(['Grammar', 'Questions', 'Docs', 'History', 'Board', 'Settings', 'Sync: Synced'])
   })
 
   it('leaves out a turned-off page and never lists a tab', async () => {
     useServices({ hidden: ['stories', 'grammar', 'board'] })
     await open()
-    await screen.findByText('Lernzeit')
+    await screen.findByTestId('page-title')
     expect(menuLinks(await openMenu())).toEqual(['Questions', 'Docs', 'History', 'Settings', 'Sync: Synced'])
   })
 
   it('closes on the back button and on the backdrop', async () => {
     useServices()
     await open()
-    await screen.findByText('Lernzeit')
+    await screen.findByTestId('page-title')
     let sheet = await openMenu()
     await fireEvent(sheet, 'requestClose')
     await waitFor(() => expect(screen.queryByTestId('menu-sheet')).toBeNull())
@@ -115,7 +115,7 @@ describe('the menu', () => {
   it('opens a page, closes itself and comes back with the back button', async () => {
     useServices()
     await open()
-    await screen.findByText('Lernzeit')
+    await screen.findByTestId('page-title')
     await fireEvent.press(within(await openMenu()).getByRole('link', { name: 'Grammar' }))
     expect(await screen.findByText('Coming in the next update')).toBeTruthy()
     expect(screen.getAllByRole('header').map((h) => h.props.children)).toContain('Grammar')
@@ -127,7 +127,7 @@ describe('the menu', () => {
   it('marks the sync state on the Menu button while it needs a look', async () => {
     const { library } = useServices()
     await open()
-    await screen.findByText('Lernzeit')
+    await screen.findByTestId('page-title')
     setSyncStatus({ state: 'offline' })
     library.put('decks', { id: 'd1', name: 'One' })
     expect(await screen.findByRole('button', { name: 'Menu, Sync: Offline · 1 change waiting' })).toBeTruthy()
@@ -146,7 +146,7 @@ describe('search', () => {
 describe('Settings → Account', () => {
   const engineWith = (syncNow: () => Promise<{ pushed: number; pulled: number }>): SyncEngine => ({ syncNow: jest.fn(syncNow) })
   const goToSettings = async () => {
-    await screen.findByText('Lernzeit')
+    await screen.findByTestId('page-title')
     await fireEvent.press(within(await openMenu()).getByRole('link', { name: 'Settings' }))
     return screen.findByText('Your library syncs with your Lernzeit cloud. This phone keeps a copy, so it works offline too.')
   }
@@ -257,7 +257,7 @@ describe('signing in as another account', () => {
     const login = jest.fn(async () => ({ email: 'x@y.z', token: 't' }))
     const { library } = useServices({ login })
     await open()
-    await screen.findByText('Lernzeit')
+    await screen.findByTestId('page-title')
     // A 401 signed the phone out but kept its data and who it belonged to.
     library.setMeta('lastAccount', 'a@b.c')
     library.put('decks', { id: 'd1', name: 'One' })
@@ -274,7 +274,7 @@ describe('signing in as another account', () => {
     await waitFor(() => expect(library.count('decks')).toBe(0))
     await waitFor(() => expect(screen.queryByText(/This phone has data from/)).toBeNull())
     await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }))
-    expect(await screen.findByText('Lernzeit')).toBeTruthy()
+    expect(await screen.findByTestId('page-title')).toBeTruthy()
     expect(login).toHaveBeenCalledTimes(1)
   })
 })
@@ -288,7 +288,7 @@ describe('the removal confirmation', () => {
   it('hides the remove link when the email changes', async () => {
     const { library } = useServices()
     await open()
-    await screen.findByText('Lernzeit')
+    await screen.findByTestId('page-title')
     library.setMeta('lastAccount', 'a@b.c')
     library.put('decks', { id: 'd1', name: 'One' })
     await mockServices.account.signedOut()

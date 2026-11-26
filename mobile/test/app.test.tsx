@@ -30,7 +30,7 @@ describe('the app shell', () => {
   it('opens on the home screen through the root layout', async () => {
     useServices({ account: { email: 'a@b.c' } })
     await renderRouter(routes, { initialUrl: '/' })
-    expect(await screen.findByText('Lernzeit')).toHaveStyle({ color: palettes.light.ink })
+    expect(await screen.findByTestId('page-title')).toHaveStyle({ color: palettes.light.ink })
   })
 })
 
@@ -39,13 +39,13 @@ describe('signing in', () => {
     const services = useServices()
     await renderRouter(routes, { initialUrl: '/' })
     expect(await screen.findByText('Sign in')).toBeTruthy()
-    expect(screen.queryByText('Lernzeit', { exact: true })).toBeNull()
+    expect(screen.queryByTestId('page-title')).toBeNull()
     expect(screen.getByPlaceholderText('Password').props.secureTextEntry).toBe(true)
 
     await fireEvent.changeText(screen.getByPlaceholderText('Email'), 'a@b.c')
     await fireEvent.changeText(screen.getByPlaceholderText('Password'), 'pw')
     await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }))
-    expect(await screen.findByText('Lernzeit')).toBeTruthy()
+    expect(await screen.findByTestId('page-title')).toBeTruthy()
     expect(services.library.getMeta('account')).toEqual({ email: 'a@b.c' })
   })
 
@@ -53,7 +53,7 @@ describe('signing in', () => {
     const login = jest.fn(async () => { throw new OfflineError() })
     useServices({ account: { email: 'a@b.c' }, login })
     await renderRouter(routes, { initialUrl: '/' })
-    expect(await screen.findByText('Lernzeit')).toBeTruthy()
+    expect(await screen.findByTestId('page-title')).toBeTruthy()
     expect(screen.queryByText('Sign in')).toBeNull()
     expect(login).not.toHaveBeenCalled()
   })
@@ -61,7 +61,7 @@ describe('signing in', () => {
   it('goes back to sign-in when the account is removed (a 401)', async () => {
     const services = useServices({ account: { email: 'a@b.c' } })
     await renderRouter(routes, { initialUrl: '/' })
-    expect(await screen.findByText('Lernzeit')).toBeTruthy()
+    expect(await screen.findByTestId('page-title')).toBeTruthy()
     await services.account.signedOut()
     expect(await screen.findByText('Sign in')).toBeTruthy()
   })
@@ -81,9 +81,12 @@ describe('signing in', () => {
 })
 
 describe('theme', () => {
-  it('has the SPEC §11 tokens in light and dark', () => {
-    expect(palettes.light).toMatchObject({ sidebar: '#F7F7F4', main: '#FFFFFF', ink: '#1C211E', buttonDark: '#22302A', sage: '#E3ECDA' })
-    expect(palettes.dark).toMatchObject({ sidebar: '#141816', main: '#1A1F1C', ink: '#E6E9E4', buttonDark: '#DFE9D5' })
+  it('has the Lime tokens in light and dark, with the older names mapped onto them', () => {
+    expect(palettes.light).toMatchObject({ canvas: '#F2F2F4', card: '#FFFFFF', ink: '#16181A', accent: '#D4F24A', accentSoft: '#EEF8C8', primary: '#16181A', onPrimary: '#FFFFFF', danger: '#E5484D' })
+    expect(palettes.dark).toMatchObject({ canvas: '#0E0F11', card: '#1A1C1F', ink: '#F2F3F5', accent: '#D4F24A', primary: '#D4F24A', onPrimary: '#16181A' })
+    expect(palettes.light).toMatchObject({ sidebar: '#F2F2F4', main: '#FFFFFF', buttonDark: '#16181A', sage: '#EEF8C8' })
+    expect(themes.light.radius.card).toBe(28)
+    expect(themes.dark.shadow.card).toEqual({})
     expect(Object.keys(palettes.dark).sort()).toEqual(Object.keys(palettes.light).sort())
     expect(themes.dark.type.stat.fontVariant).toEqual(['tabular-nums'])
   })
@@ -94,7 +97,7 @@ describe('theme', () => {
     try {
       useServices({ account: { email: 'a@b.c' } })
       await renderRouter(routes, { initialUrl: '/' })
-      expect(await screen.findByText('Lernzeit')).toHaveStyle({ color: palettes.dark.ink })
+      expect(await screen.findByTestId('page-title')).toHaveStyle({ color: palettes.dark.ink })
     } finally {
       jest.mocked(useColorScheme).mockReturnValue('light')
     }

@@ -1,70 +1,59 @@
 import { germanText } from '@lernzeit/core/german'
 import { formatPracticeTime } from '@lernzeit/core/practice'
-import { formatHM } from '@lernzeit/core/time'
-import { pastelIndex, type TodaySession, type TodayView, type TopicProgress } from '@lernzeit/core/today'
-import type { Card, TopicColor } from '@lernzeit/core/types'
-import { Check, Clock3 } from 'lucide-react-native'
-import type { ReactNode } from 'react'
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { useRouter } from 'expo-router'
 import { elapsedMs, isPaused, remainingMs } from '@lernzeit/core/timer'
-import { formatTimer } from '@lernzeit/core/time'
-import { Pressable } from 'react-native'
-import { useActiveTimer, useNow } from '../timer/hooks'
-import { useLiveQuery } from '../store/live'
+import { formatHM, formatTimer } from '@lernzeit/core/time'
+import type { TodaySession, TodayView, TopicProgress } from '@lernzeit/core/today'
+import type { Card, TopicColor } from '@lernzeit/core/types'
+import { useRouter } from 'expo-router'
+import { BookOpen, Clock3, Flame, Layers, Play, Target, Zap } from 'lucide-react-native'
+import { useEffect, useMemo, useRef } from 'react'
+import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
+import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue, type SharedValue } from 'react-native-reanimated'
+import { CardPicture } from '../cards/CardPicture'
+import { useCards, useDecks } from '../cards/data'
+import { useHiddenFeatures } from '../features'
+import { AnimatedBar, FadeInUp, haptics, Pressable, RollingNumber } from '../motion'
 import { numbers, useTheme } from '../theme'
+import { useActiveTimer, useNow } from '../timer/hooks'
+import { Badge, Button, EmptyState, GroupedList, Row, SectionHeader, Tile } from '../ui'
+import { deckCarousel, type CarouselDeck } from './decks'
 import { useTodayView } from './useTodayView'
 
-/** The Today tab: the day's goals, sessions and word, live from the local store (SPEC §11.5). */
+/** Today: the hero with today's time, your decks, the goals, the sessions and the word, live from the local store. */
 export function TodayScreen() {
   const view = useTodayView()
-  const { colors, type, spacing } = useTheme()
+  const { colors, spacing } = useTheme()
   return (
-    <ScrollView
-      style={{ backgroundColor: colors.main }}
-      contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: spacing.pageTop, paddingBottom: spacing.xxxl, gap: spacing.xl }}
-    >
-      <View style={{ gap: spacing.xs }}>
-        <Text style={[type.title, { color: colors.ink }]} accessibilityRole="header">
-          Today
-        </Text>
-        <Text style={[type.body, { color: colors.muted }]}>{view.subtitle}</Text>
-      </View>
+    <ScrollView style={{ backgroundColor: colors.canvas }} contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: spacing.xs, paddingBottom: spacing.xxl, gap: spacing.cardGap }}>
       <RunningTimer view={view} />
-      <StatStrip view={view} />
-      <DailyGoals rows={view.progress.topics} />
-      <TodaysSessions sessions={view.sessions} />
-      <WordOfTheDay card={view.word} />
+      <FadeInUp index={0}>
+        <Hero view={view} />
+      </FadeInUp>
+      <FadeInUp index={1}>
+        <Stats view={view} />
+      </FadeInUp>
+      <FadeInUp index={2}>
+        <Decks />
+      </FadeInUp>
+      <FadeInUp index={3}>
+        <DailyGoals rows={view.progress.topics} />
+      </FadeInUp>
+      <FadeInUp index={4}>
+        <TodaysSessions sessions={view.sessions} />
+      </FadeInUp>
+      <FadeInUp index={5}>
+        <WordOfTheDay card={view.word} />
+      </FadeInUp>
     </ScrollView>
   )
 }
 
-function Section({ title, children, testID }: { title?: string; children: ReactNode; testID?: string }) {
-  const { colors, type, spacing, radius } = useTheme()
-  return (
-    <View
-      testID={testID}
-      style={{ backgroundColor: colors.main, borderColor: colors.line, borderWidth: 1, borderRadius: radius.section, paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xs }}
-    >
-      {title ? (
-        <Text style={[type.section, { color: colors.ink, paddingBottom: spacing.sm }]} accessibilityRole="header">
-          {title}
-        </Text>
-      ) : null}
-      {children}
-    </View>
-  )
-}
-
-function Empty({ title, children, icon }: { title: string; children: string; icon?: ReactNode }) {
-  const { colors, type, spacing } = useTheme()
-  return (
-    <View style={[styles.empty, { borderTopColor: colors.line, paddingVertical: spacing.xl, gap: spacing.xs }]}>
-      {icon}
-      <Text style={[type.bodyMedium, { color: colors.ink }]}>{title}</Text>
-      <Text style={[type.body, { color: colors.muted, textAlign: 'center' }]}>{children}</Text>
-    </View>
-  )
+/** "No goals today", "Every goal reached" or "1:20 h left". */
+function goalStatus(view: TodayView): string {
+  const { goalCount, totalLeft } = view.progress
+  if (goalCount === 0) return 'No goals today'
+  if (totalLeft === 0) return 'Every goal reached'
+  return `${formatHM(totalLeft)} h left`
 }
 
 /** The running timer, a tap away from the Timer tab. */
@@ -78,55 +67,166 @@ function RunningTimer({ view }: { view: TodayView }) {
   const shown = formatTimer(remainingMs(timer, now) ?? elapsedMs(timer, now))
   const state = timer.phase === 'break' ? 'Break' : isPaused(timer) ? 'Paused' : 'Running'
   return (
-    <Pressable
-      onPress={() => router.navigate('/timer')}
-      accessibilityRole="button"
-      accessibilityLabel={`Timer ${state}, ${shown}, ${name}`}
-      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.sage, borderColor: colors.sageBorder, borderWidth: 1, borderRadius: radius.section, padding: spacing.lg }}
-    >
-      <View style={{ gap: 2 }}>
-        <Text style={[type.chip, { color: colors.sageInk }]}>{`Timer ${state.toLowerCase()}`}</Text>
-        <Text style={[type.bodyMedium, { color: colors.sageInk }]}>{name}</Text>
-      </View>
-      <Text style={[type.section, numbers, { color: colors.sageInk }]}>{shown}</Text>
-    </Pressable>
-  )
-}
-
-function StatStrip({ view }: { view: TodayView }) {
-  const { colors, type, fonts, spacing, radius } = useTheme()
-  const { progress, practised, streak } = view
-  const days = `${streak.days} ${streak.days === 1 ? 'day' : 'days'}`
-  const items = [
-    { value: `${formatHM(progress.totalDone)} h`, label: `studied of ${formatHM(progress.totalGoal)} h today` },
-    { value: formatPracticeTime(practised.ms), label: `flashcards practised · ${practised.reviewed} ${practised.reviewed === 1 ? 'card' : 'cards'}` },
-    { value: days, label: streak.topicName ? `${streak.topicName} streak` : 'streak' },
-  ]
-  return (
-    <View style={[styles.strip, { borderColor: colors.line, borderRadius: radius.section, backgroundColor: colors.soft }]}>
-      {items.map((item, i) => (
-        <View key={item.label} style={[styles.stat, { padding: spacing.md, gap: spacing.xs, borderLeftWidth: i ? 1 : 0, borderLeftColor: colors.line }]}>
-          <Text style={[{ fontFamily: fonts.regular, fontSize: 22, lineHeight: 28, color: colors.ink }, numbers]}>{item.value}</Text>
-          <Text style={[type.chip, { color: colors.muted }]}>{item.label}</Text>
+    <FadeInUp>
+      <Pressable
+        onPress={() => router.navigate('/timer')}
+        accessibilityRole="button"
+        accessibilityLabel={`Timer ${state}, ${shown}, ${name}`}
+        style={[styles.between, { backgroundColor: colors.inverse, borderRadius: radius.card, paddingHorizontal: spacing.xl, paddingVertical: spacing.lg }]}
+      >
+        <View style={{ gap: 6, flex: 1 }}>
+          <Badge label={`Timer ${state.toLowerCase()}`} tone="lime" />
+          <Text style={[type.bodyMedium, { color: colors.onInverse }]} numberOfLines={1}>
+            {name}
+          </Text>
         </View>
-      ))}
+        <Text style={[type.title, numbers, { color: colors.onInverse }]}>{shown}</Text>
+      </Pressable>
+    </FadeInUp>
+  )
+}
+
+/** Time studied today against the goals, a big number, a bar and the way to the timer. */
+function Hero({ view }: { view: TodayView }) {
+  const { colors, type, spacing, radius, shadow } = useTheme()
+  const router = useRouter()
+  const timer = useActiveTimer()
+  const timerOn = !useHiddenFeatures().includes('timer')
+  const { totalDone, totalGoal } = view.progress
+  return (
+    <View style={[{ backgroundColor: colors.card, borderRadius: radius.card, padding: spacing.xl, gap: spacing.md }, shadow.card]}>
+      <View style={styles.between}>
+        <Text style={[type.small, { color: colors.muted }]}>Studied today</Text>
+        <Badge label={goalStatus(view)} tone={view.progress.goalCount > 0 && view.progress.totalLeft === 0 ? 'lime' : 'accent'} />
+      </View>
+      <View style={{ gap: 2 }}>
+        <RollingNumber value={`${formatHM(totalDone)} h`} style={[type.hero, { color: colors.ink }]} />
+        <Text style={[type.small, { color: colors.muted }]}>{`studied of ${formatHM(totalGoal)} h today`}</Text>
+      </View>
+      <AnimatedBar value={totalGoal ? totalDone / totalGoal : 0} height={10} label="Today's goals progress" />
+      {timerOn ? (
+        <Button
+          label={timer ? 'Open the timer' : 'Start studying'}
+          icon={<Play size={15} color={colors.onPrimary} fill={colors.onPrimary} />}
+          onPress={() => router.navigate('/timer')}
+          style={{ marginTop: spacing.xs }}
+        />
+      ) : null}
     </View>
   )
 }
 
-function ProgressBar({ value, color, label }: { value: number; color: string; label: string }) {
-  const { colors } = useTheme()
-  const percent = Math.round(Math.max(0, Math.min(1, value)) * 100)
+/** Flashcards practised and the streak, as two tiles. */
+function Stats({ view }: { view: TodayView }) {
+  const { practised, streak } = view
   return (
-    <View
-      accessible
-      accessibilityRole="progressbar"
-      accessibilityLabel={label}
-      accessibilityValue={{ min: 0, max: 100, now: percent }}
-      style={[styles.track, { backgroundColor: colors.track }]}
-    >
-      <View style={{ width: `${percent}%`, height: '100%', borderRadius: 4, backgroundColor: color }} />
+    <View style={styles.tiles}>
+      <StatTile icon={Zap} value={formatPracticeTime(practised.ms)} label={`flashcards practised · ${practised.reviewed} ${practised.reviewed === 1 ? 'card' : 'cards'}`} />
+      <StatTile icon={Flame} value={`${streak.days} ${streak.days === 1 ? 'day' : 'days'}`} label={streak.topicName ? `${streak.topicName} streak` : 'streak'} />
     </View>
+  )
+}
+
+function StatTile({ icon: Icon, value, label }: { icon: typeof Zap; value: string; label: string }) {
+  const { colors, type, spacing, radius, shadow, fonts } = useTheme()
+  return (
+    <View style={[styles.tile, { backgroundColor: colors.card, borderRadius: radius.card, padding: spacing.lg, gap: spacing.sm }, shadow.card]}>
+      <Tile bg={colors.accentSoft} size={36}>
+        <Icon size={18} strokeWidth={1.9} color={colors.accentInk} />
+      </Tile>
+      <RollingNumber value={value} style={[{ fontFamily: fonts.semibold, fontSize: 26, lineHeight: 32, letterSpacing: -0.8, color: colors.ink }, numbers]} />
+      <Text style={[type.chip, { color: colors.muted }]} numberOfLines={2}>
+        {label}
+      </Text>
+    </View>
+  )
+}
+
+/** "Your decks": a snapping carousel, the next card peeking in; the one in front is full size, the rest at 0.94. */
+function Decks() {
+  const decks = useDecks()
+  const cards = useCards()
+  const router = useRouter()
+  const { spacing } = useTheme()
+  const { width } = useWindowDimensions()
+  const items = useMemo(() => deckCarousel(decks, cards), [decks, cards])
+  const scrollX = useSharedValue(0)
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollX.value = e.contentOffset.x
+  })
+  const cardWidth = Math.min(300, Math.round(width - spacing.pageX * 2 - 64))
+  const step = cardWidth + spacing.md
+  return (
+    <View style={{ gap: spacing.md }}>
+      <SectionHeader title="Your decks" action={{ label: 'See all', onPress: () => router.navigate('/flashcards') }} />
+      {items.length === 0 ? (
+        <EmptyState icon={Layers} title="No decks yet" body="Make a deck and add cards in the Cards tab, and they show up here." />
+      ) : (
+        <Animated.ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={step}
+          decelerationRate="fast"
+          disableIntervalMomentum
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          style={{ marginHorizontal: -spacing.pageX }}
+          contentContainerStyle={{ paddingHorizontal: spacing.pageX, gap: spacing.md, paddingVertical: 6 }}
+        >
+          {items.map((item, i) => (
+            <DeckCard
+              key={item.deck.id}
+              item={item}
+              index={i}
+              step={step}
+              width={cardWidth}
+              scrollX={scrollX}
+              onPress={() => router.push({ pathname: '/practice', params: { cards: 'all', decks: item.deck.id } })}
+            />
+          ))}
+        </Animated.ScrollView>
+      )}
+    </View>
+  )
+}
+
+function DeckCard({ item, index, step, width, scrollX, onPress }: { item: CarouselDeck; index: number; step: number; width: number; scrollX: SharedValue<number>; onPress: () => void }) {
+  const { colors, type, spacing, radius, shadow, fonts } = useTheme()
+  const reduced = useReducedMotion()
+  const tone = { accent: { bg: colors.accent, fg: colors.onAccent }, inverse: { bg: colors.inverse, fg: colors.onInverse }, card: { bg: colors.card, fg: colors.ink } }[item.tone]
+  const scale = useAnimatedStyle(() => {
+    if (reduced) return {}
+    const distance = Math.abs(scrollX.value - index * step) / step
+    return { transform: [{ scale: interpolate(Math.min(distance, 1), [0, 1], [1, 0.94]) }] }
+  })
+  const pattern = item.deck.name.replace(/[^A-Za-zÄÖÜäöüß]/g, '').slice(0, 6).toUpperCase()
+  const empty = item.count === 0
+  return (
+    <Animated.View style={[{ width }, scale]}>
+      <Pressable
+        onPress={onPress}
+        disabled={empty}
+        accessibilityRole="button"
+        accessibilityLabel={empty ? `${item.deck.name}, no cards yet` : `Practise ${item.deck.name}, ${item.count} ${item.count === 1 ? 'card' : 'cards'}`}
+        style={[styles.deck, { backgroundColor: tone.bg, borderRadius: radius.card, padding: spacing.xl }, item.tone === 'card' && shadow.card]}
+      >
+        <Text importantForAccessibility="no" numberOfLines={1} style={[styles.pattern, { color: tone.fg, fontFamily: fonts.semibold }]}>
+          {pattern}
+        </Text>
+        <View style={{ gap: 2 }}>
+          <Text style={[type.section, { color: tone.fg }]} numberOfLines={2}>
+            {item.deck.name}
+          </Text>
+          <Text style={[type.small, numbers, { color: tone.fg, opacity: 0.7 }]}>{empty ? 'No cards yet' : `${item.count} ${item.count === 1 ? 'card' : 'cards'}`}</Text>
+        </View>
+        {empty ? null : (
+          <View style={[styles.practise, { backgroundColor: item.tone === 'card' ? colors.accent : 'rgba(255, 255, 255, 0.9)', borderRadius: radius.pill }]}>
+            <Play size={11} color={colors.onAccent} fill={colors.onAccent} />
+            <Text style={[type.chip, { color: colors.onAccent, fontFamily: fonts.semibold }]}>Practise</Text>
+          </View>
+        )}
+      </Pressable>
+    </Animated.View>
   )
 }
 
@@ -135,149 +235,136 @@ function useTopicColors(color: TopicColor | undefined) {
   return topics[color ?? 'stone'] ?? topics.stone
 }
 
+/** Two letters for a topic tile: "German" -> "Ge", "Machine learning" -> "ML". */
+function abbreviation(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean)
+  if (words.length > 1) return (words[0]![0]! + words[1]![0]!).toUpperCase()
+  const [a = '', b = ''] = [...(words[0] ?? '')]
+  return (a.toUpperCase() + b.toLowerCase()) || '·'
+}
+
 function GoalRow({ row }: { row: TopicProgress }) {
-  const { colors, type, spacing } = useTheme()
+  const { colors, type, fonts } = useTheme()
   const palette = useTopicColors(row.topic.color)
   const { goal, done, left, hit } = row
+  // A goal reached while you look: a little success buzz.
+  const wasHit = useRef(hit)
+  useEffect(() => {
+    if (hit && !wasHit.current) haptics.success()
+    wasHit.current = hit
+  }, [hit])
   return (
-    <View style={[styles.goal, { borderTopColor: colors.line, paddingVertical: spacing.md, gap: spacing.sm }]}>
-      <View style={styles.between}>
-        <View style={[styles.inline, { gap: spacing.sm, flex: 1 }]}>
-          <View style={[styles.dot, { backgroundColor: palette.dot }]} />
-          <Text style={[type.bodyMedium, { color: colors.ink, flexShrink: 1 }]} numberOfLines={1}>
-            {row.topic.name}
-          </Text>
-        </View>
-        <Text style={[type.body, numbers, { color: colors.muted }]}>
-          {`${formatHM(done)} of ${formatHM(goal)} h`}
-        </Text>
-      </View>
-      <ProgressBar value={goal ? done / goal : 0} color={palette.bar} label={`${row.topic.name} progress`} />
-      <View style={styles.end}>
-        {goal === 0 ? (
-          <Text style={[type.bodyMedium, { color: colors.muted }]}>No goal</Text>
+    <Row
+      left={
+        <Tile bg={palette.soft}>
+          <Text style={{ fontFamily: fonts.semibold, fontSize: 13, color: palette.ink }}>{abbreviation(row.topic.name)}</Text>
+        </Tile>
+      }
+      title={row.topic.name}
+      subtitle={<Text style={[type.small, numbers, { color: colors.muted }]}>{`${formatHM(done)} of ${formatHM(goal)} h`}</Text>}
+      right={
+        goal === 0 ? (
+          <Text style={[type.small, { color: colors.muted }]}>No goal</Text>
         ) : hit ? (
-          <View style={[styles.inline, { gap: 4 }]}>
-            <Check size={15} strokeWidth={2.2} color={colors.sageInk} />
-            <Text style={[type.bodyMedium, { color: colors.sageInk }]}>Done</Text>
-          </View>
+          <Badge label="Done" tone="accent" />
         ) : (
-          <Text style={[type.bodyMedium, numbers, { color: colors.ink }]}>{formatHM(left)} left</Text>
-        )}
-      </View>
-    </View>
+          <View style={styles.mini}>
+            <AnimatedBar value={done / goal} height={6} label={`${row.topic.name} progress`} />
+            <Text style={[type.chip, numbers, { color: colors.ink2, textAlign: 'right' }]}>{`${formatHM(left)} left`}</Text>
+          </View>
+        )
+      }
+    />
   )
 }
 
 function DailyGoals({ rows }: { rows: TopicProgress[] }) {
-  const { colors, type } = useTheme()
+  const { colors, type, spacing } = useTheme()
+  const withGoal = rows.filter((r) => r.goal > 0)
   return (
-    <Section title="Daily goals">
+    <View style={{ gap: spacing.md }}>
+      <SectionHeader title="Daily goals" detail={withGoal.length ? `${withGoal.filter((r) => r.hit).length} of ${withGoal.length} done` : undefined} />
       {rows.length === 0 ? (
-        <Empty title="No topics yet">Topics hold your daily goals. Add one in Lernzeit on the web and it shows up here.</Empty>
+        <EmptyState icon={Target} title="No topics yet" body="Topics hold your daily goals. Add one in Lernzeit on the web and it shows up here." />
       ) : (
         <>
-          {rows.map((row) => (
-            <GoalRow key={row.topic.id} row={row} />
-          ))}
-          <Text style={[type.small, { color: colors.muted, paddingBottom: 12 }]}>Resets at midnight</Text>
+          <GroupedList>
+            {rows.map((row) => (
+              <GoalRow key={row.topic.id} row={row} />
+            ))}
+          </GroupedList>
+          <Text style={[type.chip, { color: colors.muted, paddingHorizontal: 4 }]}>Resets at midnight</Text>
         </>
       )}
-    </Section>
-  )
-}
-
-function SessionRow({ session }: { session: TodaySession }) {
-  const { colors, type, spacing, radius } = useTheme()
-  const palette = useTopicColors(session.topicColor)
-  return (
-    <View testID="session-row" style={[styles.session, { borderTopColor: colors.line, paddingVertical: spacing.md, gap: spacing.md }]}>
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text style={[type.small, numbers, { color: colors.muted }]}>
-          {session.startClock}–{session.endClock}
-        </Text>
-        <Text style={[type.bodyMedium, { color: colors.ink }]}>{session.topicName ?? 'Deleted topic'}</Text>
-        {session.note ? (
-          <Text style={[type.small, { color: colors.muted }]} numberOfLines={2}>
-            {session.note}
-          </Text>
-        ) : null}
-      </View>
-      <View style={{ backgroundColor: session.topicColor ? palette.soft : colors.neutralChip, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: 3 }}>
-        <Text style={[type.chip, numbers, { color: session.topicColor ? palette.ink : colors.neutralInk }]}>{session.minutes} min</Text>
-      </View>
     </View>
   )
 }
 
-function TodaysSessions({ sessions }: { sessions: TodaySession[] }) {
-  const { colors } = useTheme()
+function SessionRow({ session }: { session: TodaySession }) {
+  const { colors, type } = useTheme()
+  const palette = useTopicColors(session.topicColor)
   return (
-    <Section title="Today's sessions" testID="today-sessions">
-      {sessions.length === 0 ? (
-        <Empty title="No sessions yet today" icon={<Clock3 size={20} strokeWidth={1.6} color={colors.muted} />}>
-          Time you log with the timer shows up here.
-        </Empty>
-      ) : (
-        sessions.map((s) => <SessionRow key={s.id} session={s} />)
-      )}
-    </Section>
+    <Row
+      testID="session-row"
+      left={
+        <Tile bg={session.topicColor ? palette.soft : colors.raised}>
+          <Clock3 size={18} strokeWidth={1.9} color={session.topicColor ? palette.ink : colors.ink2} />
+        </Tile>
+      }
+      title={session.topicName ?? 'Deleted topic'}
+      subtitle={
+        <View style={{ gap: 1 }}>
+          <Text style={[type.small, numbers, { color: colors.muted }]}>
+            {session.startClock}–{session.endClock}
+          </Text>
+          {session.note ? (
+            <Text style={[type.small, { color: colors.ink2 }]} numberOfLines={2}>
+              {session.note}
+            </Text>
+          ) : null}
+        </View>
+      }
+      right={<Badge label={`${session.minutes} min`} tone="neutral" />}
+    />
   )
 }
 
-/** First letter of the word, skipping articles: "der Hund" -> "H". */
-function initial(text: string): string {
-  const word = text.replace(/^(der|die|das)\s+/i, '').trim()
-  return [...word][0]?.toUpperCase() ?? ''
-}
-
-/** The card's file on this phone if it has one, else its emoji, else the word's first letter, on its soft pastel. */
-function CardPicture({ card }: { card: Card }) {
-  const { pastels, colors } = useTheme()
-  const file = useLiveQuery(['imageFiles'], (library) => (card.imageId ? library.imageFile(card.imageId) : undefined), [card.imageId])
-  const background = pastels[pastelIndex(card.id)]
+function TodaysSessions({ sessions }: { sessions: TodaySession[] }) {
+  const { spacing } = useTheme()
   return (
-    <View style={[styles.picture, { backgroundColor: background }]}>
-      {file ? (
-        <Image
-          source={{ uri: file.path }}
-          accessibilityLabel={card.english}
-          resizeMode="contain"
-          style={file.fit === 'cover' ? styles.fill : [styles.fill, { padding: 8 }]}
-        />
-      ) : card.emoji && !card.imageId ? (
-        <Text accessibilityRole="image" accessibilityLabel={card.english} style={styles.emoji}>
-          {card.emoji}
-        </Text>
+    <View testID="today-sessions" style={{ gap: spacing.md }}>
+      <SectionHeader title="Today's sessions" detail={sessions.length ? `${sessions.length}` : undefined} />
+      {sessions.length === 0 ? (
+        <EmptyState icon={Clock3} title="No sessions yet today" body="Time you log with the timer shows up here." />
       ) : (
-        <Text importantForAccessibility="no" style={[styles.initial, { color: colors.onPastel }]}>
-          {initial(card.german)}
-        </Text>
+        <GroupedList>
+          {sessions.map((s) => (
+            <SessionRow key={s.id} session={s} />
+          ))}
+        </GroupedList>
       )}
     </View>
   )
 }
 
 function WordOfTheDay({ card }: { card: Card | undefined }) {
-  const { colors, type, fonts, spacing } = useTheme()
+  const { colors, type, fonts, spacing, radius, shadow } = useTheme()
   if (!card) {
     return (
-      <Section testID="word-of-the-day">
-        <Empty title="Word of the day">Add flashcards and a learned word will show up here every day.</Empty>
-      </Section>
+      <View testID="word-of-the-day">
+        <EmptyState icon={BookOpen} title="Word of the day" body="Add flashcards and a learned word will show up here every day." />
+      </View>
     )
   }
-  const title = { fontFamily: fonts.semibold, fontSize: 24, lineHeight: 30, letterSpacing: -0.24, color: colors.ink }
+  const title = { fontFamily: fonts.semibold, fontSize: 28, lineHeight: 34, letterSpacing: -0.7, color: colors.ink }
   return (
-    <View testID="word-of-the-day" style={[styles.word, { borderColor: colors.line, backgroundColor: colors.main, padding: spacing.md, gap: spacing.md }]}>
-      <CardPicture card={card} />
+    <View testID="word-of-the-day" style={[{ backgroundColor: colors.card, borderRadius: radius.card, padding: spacing.md, gap: spacing.md }, shadow.card]}>
+      <CardPicture card={card} height={168} style={{ borderRadius: radius.block }} />
       <View style={{ paddingHorizontal: spacing.sm, paddingBottom: spacing.sm, gap: spacing.xs }}>
-        <Text style={[type.chip, { color: colors.muted }]}>Word of the day</Text>
+        <Text style={[type.small, { color: colors.muted }]}>Word of the day</Text>
         {card.type === 'word' && card.gender ? (
           <Text style={title}>
-            <Text style={{ color: colors[card.gender] }}>{card.gender}</Text>
-            {' '}
-            <Text>{card.german}</Text>
+            <Text style={{ color: colors[card.gender] }}>{card.gender}</Text> <Text>{card.german}</Text>
           </Text>
         ) : (
           <Text style={title}>{germanText(card)}</Text>
@@ -287,26 +374,22 @@ function WordOfTheDay({ card }: { card: Card | undefined }) {
           {card.english}
           {card.plural ? ` · plural ${card.plural}` : ''}
         </Text>
-        {card.exampleDe ? <Text style={[type.body, { color: colors.ink, paddingTop: spacing.xs }]}>{card.exampleDe}</Text> : null}
+        {card.exampleDe ? (
+          <View style={{ backgroundColor: colors.raised, borderRadius: radius.row, padding: spacing.md, marginTop: spacing.xs }}>
+            <Text style={[type.body, { color: colors.ink }]}>{card.exampleDe}</Text>
+          </View>
+        ) : null}
       </View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  strip: { flexDirection: 'row', borderWidth: 1, overflow: 'hidden' },
-  stat: { flex: 1 },
-  empty: { alignItems: 'center', borderTopWidth: 1 },
-  goal: { borderTopWidth: 1 },
   between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  inline: { flexDirection: 'row', alignItems: 'center' },
-  end: { alignItems: 'flex-end' },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  track: { height: 8, borderRadius: 4, overflow: 'hidden' },
-  session: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1 },
-  word: { borderWidth: 1, borderRadius: 16 },
-  picture: { height: 150, borderRadius: 10, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  fill: { width: '100%', height: '100%' },
-  emoji: { fontSize: 64, lineHeight: 80 },
-  initial: { fontFamily: 'Geist_600SemiBold', fontSize: 64, lineHeight: 72, opacity: 0.15 },
+  tiles: { flexDirection: 'row', gap: 12 },
+  tile: { flex: 1 },
+  deck: { height: 156, justifyContent: 'space-between', overflow: 'hidden' },
+  pattern: { position: 'absolute', right: -6, bottom: -14, fontSize: 56, lineHeight: 64, letterSpacing: -3, opacity: 0.1 },
+  practise: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6 },
+  mini: { width: 84, gap: 6 },
 })

@@ -8,6 +8,7 @@ import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import * as SystemUI from 'expo-system-ui'
 import { useEffect, useState, type ReactNode } from 'react'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { AccountProvider, backfillLastAccount, useAccount } from '../src/account'
 import { createServices } from '../src/services'
@@ -48,17 +49,19 @@ export default function RootLayout() {
   // If the fonts fail to load, the app still opens, in the system font.
   if (!ready) return null
   return (
-    <SafeAreaProvider>
-      <LocalLibraryProvider library={services.library}>
-        <AccountProvider service={services.account}>
-          <SyncEngineProvider engine={services.engine}>
-            <SettingsTheme>
-              <Screens />
-            </SettingsTheme>
-          </SyncEngineProvider>
-        </AccountProvider>
-      </LocalLibraryProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <LocalLibraryProvider library={services.library}>
+          <AccountProvider service={services.account}>
+            <SyncEngineProvider engine={services.engine}>
+              <SettingsTheme>
+                <Screens />
+              </SettingsTheme>
+            </SyncEngineProvider>
+          </AccountProvider>
+        </LocalLibraryProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   )
 }
 
@@ -69,13 +72,13 @@ function Screens() {
 
   // The window behind the screens (seen during transitions and the keyboard) matches the theme.
   useEffect(() => {
-    SystemUI.setBackgroundColorAsync(colors.sidebar).catch(() => {})
-  }, [colors.sidebar])
+    SystemUI.setBackgroundColorAsync(colors.canvas).catch(() => {})
+  }, [colors.canvas])
 
   return (
     <>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.main } }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.canvas } }}>
         <Stack.Protected guard={signedIn}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="more/[id]" />

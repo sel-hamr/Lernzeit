@@ -3,12 +3,13 @@ import { directionsFor } from '@lernzeit/core/srs'
 import { ALL_DIRECTIONS } from '@lernzeit/core/practice'
 import type { Card, Direction } from '@lernzeit/core/types'
 import { useRouter } from 'expo-router'
-import { ChevronDown, Ellipsis, History, Plus, Play, Upload } from 'lucide-react-native'
+import { ArrowUpDown, ChevronDown, ChevronRight, Copy, Ellipsis, History, Play, Plus, Search, SearchX, Upload, X } from 'lucide-react-native'
 import { useMemo, useState } from 'react'
-import { FlatList, Pressable, Text, View } from 'react-native'
+import { FlatList, Pressable as RNPressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { FadeInUp, Pressable } from '../motion'
 import { useLocalLibrary } from '../store/live'
 import { useTheme } from '../theme'
-import { Button, Chip, Field, Sheet } from '../ui'
+import { Badge, Button, Chip, EmptyState, Field, IconButton, OptionRow, Sheet, Tile } from '../ui'
 import { CardPicture, GermanLine } from './CardPicture'
 import { INCOMPLETE_TAG, quickAddCard, useCards, useDecks } from './data'
 
@@ -20,17 +21,23 @@ const SORTS: [Sort, string][] = [
   ['german', 'German A-Z'],
   ['english', 'English A-Z'],
 ]
+const FILTERS: [Filter, string][] = [
+  ['all', 'All'],
+  ['incomplete', 'Incomplete'],
+  ['nopicture', 'No picture'],
+]
 const DIRECTION_LABEL: Record<Direction, string> = { imageToDe: 'Picture to German', enToDe: 'English to German', deToEn: 'German to English', cloze: 'Fill the gap' }
 
-/** The Cards tab: a deck button and sheet, search, filter and sort, a grid of cards, quick add and Practise. */
+/** The Cards tab: a deck pill and sheet, search, filter and sort, the card list, Practise, quick add. */
 export function CardsScreen() {
-  const { colors, type, spacing, radius } = useTheme()
+  const { colors, type, spacing, radius, shadow } = useTheme()
   const router = useRouter()
   const library = useLocalLibrary()
   const decks = useDecks()
   const cards = useCards()
   const [deckId, setDeckId] = useState('all')
   const [deckSheet, setDeckSheet] = useState(false)
+  const [sortSheet, setSortSheet] = useState(false)
   const [menu, setMenu] = useState(false)
   const [practise, setPractise] = useState(false)
   const [add, setAdd] = useState(false)
@@ -62,134 +69,186 @@ export function CardsScreen() {
   }, [cards, deck, filter, search, sort])
 
   const total = deck ? (counts.get(deck.id) ?? 0) : cards.length
+  const targetDeck = deck?.id ?? decks[0]?.id ?? ''
   const header = (
-    <View style={{ gap: spacing.md, paddingBottom: spacing.md }}>
-      <Text style={[type.title, { color: colors.ink }]} accessibilityRole="header">
-        Cards
-      </Text>
-      <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
+    <View style={{ gap: spacing.md, paddingBottom: spacing.sm }}>
+      <View style={[styles.row, { gap: spacing.sm }]}>
         <Pressable
           onPress={() => setDeckSheet(true)}
           accessibilityRole="button"
           accessibilityLabel={`Deck: ${deck?.name ?? 'All decks'}, ${total} cards`}
-          style={{ flex: 1, minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, backgroundColor: colors.field, borderRadius: radius.row }}
+          style={[styles.deckPill, { backgroundColor: colors.card, borderRadius: radius.pill, paddingLeft: spacing.lg, paddingRight: spacing.md, gap: spacing.sm }, shadow.card]}
         >
-          <Text style={[type.bodyMedium, { color: colors.ink }]} numberOfLines={1}>{`${deck?.name ?? 'All decks'} · ${total}`}</Text>
-          <ChevronDown size={16} strokeWidth={1.7} color={colors.muted} />
+          <Text style={[type.bodyMedium, { color: colors.ink, flexShrink: 1 }]} numberOfLines={1}>
+            {deck?.name ?? 'All decks'}
+          </Text>
+          <Badge label={String(total)} tone="neutral" />
+          <ChevronDown size={18} strokeWidth={1.8} color={colors.muted} />
         </Pressable>
-        <Pressable onPress={() => setMenu(true)} accessibilityRole="button" accessibilityLabel="More" style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
-          <Ellipsis size={20} strokeWidth={1.7} color={colors.ink2} />
-        </Pressable>
+        <IconButton icon={Ellipsis} label="More" onPress={() => setMenu(true)} />
       </View>
-      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-        <Button label="Practise" icon={<Play size={14} color={colors.onDark} fill={colors.onDark} />} disabled={cards.length === 0} onPress={() => setPractise(true)} style={{ flex: 1 }} />
-        <Button label="Add card" variant="outline" icon={<Plus size={16} color={colors.ink} />} onPress={() => router.push({ pathname: '/card/edit', params: { deckId: deck?.id ?? decks[0]?.id ?? '' } })} disabled={decks.length === 0} style={{ flex: 1 }} />
+      <View style={[styles.search, { backgroundColor: colors.card, borderRadius: radius.row, paddingHorizontal: spacing.lg, gap: spacing.sm }]}>
+        <Search size={18} strokeWidth={1.8} color={colors.muted} />
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search cards"
+          placeholderTextColor={colors.muted}
+          accessibilityLabel="Search cards"
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+          selectionColor={colors.ink}
+          cursorColor={colors.ink}
+          style={[type.body, styles.grow, { color: colors.ink, paddingVertical: 0 }]}
+        />
+        {search ? (
+          <RNPressable onPress={() => setSearch('')} accessibilityRole="button" accessibilityLabel="Clear the search" hitSlop={12}>
+            <X size={18} strokeWidth={1.8} color={colors.muted} />
+          </RNPressable>
+        ) : null}
       </View>
-      <Field value={search} onChangeText={setSearch} placeholder="Search cards" accessibilityLabel="Search cards" autoCapitalize="none" />
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-        {(['all', 'incomplete', 'nopicture'] as Filter[]).map((f) => (
-          <Chip key={f} label={f === 'all' ? 'All' : f === 'incomplete' ? 'Incomplete' : 'No picture'} selected={filter === f} onPress={() => setFilter(f)} />
+      <View style={[styles.row, { gap: spacing.sm, flexWrap: 'wrap' }]}>
+        {FILTERS.map(([f, label]) => (
+          <Chip key={f} label={label} selected={filter === f} onPress={() => setFilter(f)} />
         ))}
+        <Chip label={SORTS.find(([s]) => s === sort)?.[1] ?? 'Sort'} icon={<ArrowUpDown size={14} strokeWidth={1.8} color={colors.ink2} />} onPress={() => setSortSheet(true)} />
       </View>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-        {SORTS.map(([s, label]) => (
-          <Chip key={s} label={label} selected={sort === s} onPress={() => setSort(s)} />
-        ))}
+      <View style={[styles.row, { gap: spacing.sm }]}>
+        <Button label="Practise" icon={<Play size={14} color={colors.onPrimary} fill={colors.onPrimary} />} disabled={cards.length === 0} onPress={() => setPractise(true)} style={styles.grow} />
+        <Button label="Add card" variant="soft" icon={<Plus size={17} strokeWidth={2} color={colors.ink} />} onPress={() => router.push({ pathname: '/card/edit', params: { deckId: targetDeck } })} disabled={decks.length === 0} style={styles.grow} />
       </View>
+      {shown.length ? <Text style={[type.small, { color: colors.muted, paddingHorizontal: 4, paddingTop: spacing.xs }]}>{`${shown.length} ${shown.length === 1 ? 'card' : 'cards'}`}</Text> : null}
     </View>
   )
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.main }}>
+    <View style={[styles.grow, { backgroundColor: colors.canvas }]}>
       <FlatList
         data={shown}
         keyExtractor={(c) => c.id}
-        numColumns={2}
-        columnWrapperStyle={{ gap: spacing.md }}
         ListHeaderComponent={header}
         ListEmptyComponent={
-          <Text style={[type.body, { color: colors.muted, paddingVertical: spacing.xl, textAlign: 'center' }]}>
-            {cards.length === 0 ? 'No cards yet. Add one, or import a CSV from the menu.' : 'No cards match.'}
-          </Text>
+          cards.length === 0 ? (
+            <EmptyState
+              icon={Copy}
+              title="No cards yet"
+              body={decks.length ? 'Add one, or import a CSV from the menu.' : 'Make a deck on the web first, then add cards here.'}
+              action={decks.length ? <Button label="Import a CSV" variant="soft" size="sm" icon={<Upload size={15} color={colors.ink} />} onPress={() => router.push({ pathname: '/import-csv', params: { deckId: targetDeck } })} /> : undefined}
+            />
+          ) : (
+            <EmptyState icon={SearchX} title="No cards match" body="Try another word, filter or deck." />
+          )
         }
-        contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: spacing.pageTop, paddingBottom: 96, gap: spacing.md }}
+        contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: spacing.xs, paddingBottom: 104, gap: spacing.sm }}
         keyboardShouldPersistTaps="handled"
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => router.push(`/card/${item.id}`)}
-            accessibilityRole="button"
-            accessibilityLabel={`${germanText(item)}, ${item.english}`}
-            style={{ flex: 1, maxWidth: '50%', borderWidth: 1, borderColor: colors.line, borderRadius: radius.flash, padding: spacing.sm, gap: spacing.sm, backgroundColor: colors.main }}
-          >
-            <CardPicture card={item} height={96} />
-            <View style={{ paddingHorizontal: 4, paddingBottom: 4 }}>
-              <GermanLine card={item} style={[type.bodyMedium, { color: colors.ink }]} />
-              <Text style={[type.small, { color: colors.muted }]} numberOfLines={1}>
-                {item.english}
-              </Text>
-            </View>
-          </Pressable>
-        )}
+        keyboardDismissMode="on-drag"
+        renderItem={({ item, index }) => {
+          const row = <CardRow card={item} onPress={() => router.push(`/card/${item.id}`)} />
+          // The first screenful arrives one after another; rows scrolled to later just show.
+          return index < 10 ? <FadeInUp index={index}>{row}</FadeInUp> : row
+        }}
       />
       <Pressable
         onPress={() => setAdd(true)}
         disabled={decks.length === 0}
+        haptic="tap"
+        scaleTo={0.9}
         accessibilityRole="button"
         accessibilityLabel="Quick add a card"
-        style={{ position: 'absolute', right: spacing.lg, bottom: spacing.lg, width: 56, height: 56, borderRadius: 28, backgroundColor: colors.buttonDark, alignItems: 'center', justifyContent: 'center', opacity: decks.length ? 1 : 0.4 }}
+        style={[styles.fab, { backgroundColor: colors.accent, right: spacing.pageX, bottom: spacing.lg, opacity: decks.length ? 1 : 0.4 }, shadow.float]}
       >
-        <Plus size={24} color={colors.onDark} />
+        <Plus size={26} strokeWidth={2.2} color={colors.onAccent} />
       </Pressable>
 
       <Sheet open={deckSheet} onClose={() => setDeckSheet(false)} title="Deck">
         {[{ id: 'all', name: 'All decks', count: cards.length }, ...decks.map((d) => ({ id: d.id, name: d.name, count: counts.get(d.id) ?? 0 }))].map((d) => (
-          <Pressable
+          <OptionRow
             key={d.id}
+            label={d.name}
+            detail={`${d.count}`}
+            selected={d.id === deckId}
             onPress={() => {
               setDeckId(d.id)
               setDeckSheet(false)
             }}
-            accessibilityRole="button"
-            accessibilityState={{ selected: d.id === deckId }}
-            accessibilityLabel={`${d.name}, ${d.count} cards`}
-            style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, backgroundColor: d.id === deckId ? colors.field : 'transparent', borderRadius: radius.img }}
-          >
-            <Text style={[d.id === deckId ? type.bodyMedium : type.body, { color: colors.ink }]}>{d.name}</Text>
-            <Text style={[type.small, { color: colors.muted }]}>{d.count}</Text>
-          </Pressable>
+          />
         ))}
       </Sheet>
 
-      <Sheet open={menu} onClose={() => setMenu(false)}>
-        <Pressable
+      <Sheet open={sortSheet} onClose={() => setSortSheet(false)} title="Sort">
+        {SORTS.map(([s, label]) => (
+          <OptionRow
+            key={s}
+            label={label}
+            selected={sort === s}
+            onPress={() => {
+              setSort(s)
+              setSortSheet(false)
+            }}
+          />
+        ))}
+      </Sheet>
+
+      <Sheet open={menu} onClose={() => setMenu(false)} title="Cards">
+        <MenuRow
+          icon={<History size={20} strokeWidth={1.8} color={colors.ink} />}
+          label="Practice history"
           onPress={() => {
             setMenu(false)
             router.push('/practice-history')
           }}
-          accessibilityRole="button"
-          accessibilityLabel="Practice history"
-          style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: spacing.md }}
-        >
-          <History size={18} strokeWidth={1.7} color={colors.ink2} />
-          <Text style={[type.body, { color: colors.ink }]}>Practice history</Text>
-        </Pressable>
-        <Pressable
+        />
+        <MenuRow
+          icon={<Upload size={20} strokeWidth={1.8} color={colors.ink} />}
+          label="Import cards from CSV"
+          accessibilityLabel="Import CSV"
           onPress={() => {
             setMenu(false)
-            router.push({ pathname: '/import-csv', params: { deckId: deck?.id ?? decks[0]?.id ?? '' } })
+            router.push({ pathname: '/import-csv', params: { deckId: targetDeck } })
           }}
-          accessibilityRole="button"
-          accessibilityLabel="Import CSV"
-          style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: spacing.md }}
-        >
-          <Upload size={18} strokeWidth={1.7} color={colors.ink2} />
-          <Text style={[type.body, { color: colors.ink }]}>Import cards from CSV</Text>
-        </Pressable>
+        />
       </Sheet>
 
       <QuickAddSheet open={add} onClose={() => setAdd(false)} deckId={deck?.id ?? decks[0]?.id} onAdd={(input) => quickAddCard(library, input)} deckName={(deck ?? decks[0])?.name} />
       <PractiseSheet open={practise} onClose={() => setPractise(false)} deckId={deck?.id} />
     </View>
+  )
+}
+
+/** One card in the list: its picture, the German with a coloured article, the English. */
+function CardRow({ card, onPress }: { card: Card; onPress: () => void }) {
+  const { colors, type, spacing, radius, shadow } = useTheme()
+  const incomplete = card.tags.includes(INCOMPLETE_TAG)
+  return (
+    <Pressable
+      onPress={onPress}
+      scaleTo={0.98}
+      accessibilityRole="button"
+      accessibilityLabel={`${germanText(card)}, ${card.english}`}
+      style={[styles.row, { backgroundColor: colors.card, borderRadius: radius.block, padding: spacing.sm, paddingRight: spacing.md, gap: spacing.md }, shadow.card]}
+    >
+      <CardPicture card={card} height={56} emojiSize={28} style={{ width: 56, borderRadius: 14 }} />
+      <View style={[styles.grow, { gap: 2 }]}>
+        <GermanLine card={card} style={[type.bodyMedium, { color: colors.ink }]} />
+        <Text style={[type.small, { color: colors.muted }]} numberOfLines={1}>
+          {card.english}
+        </Text>
+      </View>
+      {incomplete ? <Badge label="Incomplete" tone="neutral" /> : null}
+      <ChevronRight size={18} strokeWidth={1.8} color={colors.muted} />
+    </Pressable>
+  )
+}
+
+function MenuRow({ icon, label, onPress, accessibilityLabel }: { icon: React.ReactNode; label: string; onPress: () => void; accessibilityLabel?: string }) {
+  const { colors, type, spacing, radius } = useTheme()
+  return (
+    <Pressable onPress={onPress} scaleTo={0.98} accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? label} style={[styles.row, { minHeight: 60, paddingHorizontal: spacing.md, gap: spacing.md, borderRadius: radius.row }]}>
+      <Tile bg={colors.raised}>{icon}</Tile>
+      <Text style={[type.bodyMedium, styles.grow, { color: colors.ink }]}>{label}</Text>
+      <ChevronRight size={18} strokeWidth={1.8} color={colors.muted} />
+    </Pressable>
   )
 }
 
@@ -204,15 +263,21 @@ function QuickAddSheet({ open, onClose, deckId, deckName, onAdd }: { open: boole
     setGerman('')
   }
   return (
-    <Sheet open={open} onClose={onClose} title="Quick add">
-      <View style={{ gap: spacing.md, paddingHorizontal: spacing.md, paddingBottom: spacing.md }}>
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title="Quick add"
+      footer={
+        <View style={[styles.row, { gap: spacing.sm }]}>
+          <Button label="Add" onPress={submit} haptic="tap" disabled={!english.trim() || !german.trim()} style={styles.grow} />
+          <Button label="Done" variant="soft" onPress={onClose} style={styles.grow} />
+        </View>
+      }
+    >
+      <View style={{ gap: spacing.md, paddingHorizontal: spacing.md, paddingBottom: spacing.xs }}>
         <Text style={[type.small, { color: colors.muted }]}>{`Goes into ${deckName ?? 'your deck'}, marked incomplete. Add the rest later.`}</Text>
         <Field label="English" value={english} onChangeText={setEnglish} autoCapitalize="none" autoFocus />
         <Field label="German (with article if a noun)" value={german} onChangeText={setGerman} autoCapitalize="none" onSubmitEditing={submit} />
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          <Button label="Add" onPress={submit} />
-          <Button label="Done" variant="outline" onPress={onClose} />
-        </View>
       </View>
     </Sheet>
   )
@@ -243,16 +308,28 @@ function PractiseSheet({ open, onClose, deckId }: { open: boolean; onClose: () =
     router.push({ pathname: '/practice', params })
   }
   return (
-    <Sheet open={open} onClose={onClose} title={`Practise ${deckId ? (decks.find((d) => d.id === deckId)?.name ?? 'deck') : 'all decks'}`}>
-      <View style={{ gap: spacing.md, paddingHorizontal: spacing.md, paddingBottom: spacing.md }}>
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={`Practise ${deckId ? (decks.find((d) => d.id === deckId)?.name ?? 'deck') : 'all decks'}`}
+      footer={<Button label="Start" size="lg" icon={<Play size={15} color={colors.onPrimary} fill={colors.onPrimary} />} disabled={picked.length === 0} onPress={start} haptic="tap" />}
+    >
+      <View style={{ gap: spacing.md, paddingHorizontal: spacing.md }}>
         <Text style={[type.small, { color: colors.muted }]}>Every card, rated Again, Hard, Good or Easy. Easy finishes a card for the round.</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+        <View style={[styles.row, { flexWrap: 'wrap', gap: spacing.sm }]}>
           {available.map((d) => (
             <Chip key={d} label={DIRECTION_LABEL[d]} selected={!off.includes(d)} onPress={() => setOff(off.includes(d) ? off.filter((x) => x !== d) : [...off, d])} />
           ))}
         </View>
-        <Button label="Start" disabled={picked.length === 0} onPress={start} />
       </View>
     </Sheet>
   )
 }
+
+const styles = StyleSheet.create({
+  grow: { flex: 1 },
+  row: { flexDirection: 'row', alignItems: 'center' },
+  deckPill: { flex: 1, height: 48, flexDirection: 'row', alignItems: 'center' },
+  search: { height: 48, flexDirection: 'row', alignItems: 'center' },
+  fab: { position: 'absolute', width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
+})

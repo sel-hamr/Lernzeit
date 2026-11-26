@@ -17,7 +17,7 @@ export function CardPicture({ card, height = 120, style, emojiSize }: { card: Pi
   const file = useLiveQuery(['imageFiles'], (library) => (card.imageId ? library.imageFile(card.imageId) : undefined), [card.imageId])
   const size = emojiSize ?? Math.round(height * 0.5)
   return (
-    <View style={[{ height, borderRadius: 10, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: pastels[pastelIndex(card.id)] }, style]}>
+    <View style={[{ height, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: pastels[pastelIndex(card.id)] }, style]}>
       {file ? (
         <Image source={{ uri: file.path }} accessibilityLabel={card.english} resizeMode={file.fit === 'cover' ? 'cover' : 'contain'} style={file.fit === 'cover' ? styles.fill : [styles.fill, { padding: 8 }]} />
       ) : card.emoji && !card.imageId ? (

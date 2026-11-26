@@ -109,16 +109,12 @@ export function TimerScreen() {
   const toneBg = isBreak ? colors.buttonSoft : colors.soft
   return (
     <ScrollView
-      style={{ backgroundColor: colors.main }}
-      contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: spacing.pageTop, paddingBottom: spacing.xxxl, gap: spacing.xl }}
+      style={{ backgroundColor: colors.canvas }}
+      contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: 0, paddingBottom: spacing.xxxl, gap: spacing.xl }}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={{ gap: spacing.xs }}>
-        <Text style={[type.title, { color: colors.ink }]} accessibilityRole="header">
-          Focus timer
-        </Text>
-        <Text style={[type.body, { color: colors.muted }]}>{subtitle}</Text>
-      </View>
+      {/* The page name is in the header above; the day line stays here. */}
+      <Text style={[type.body, { color: colors.muted, paddingHorizontal: 4 }]}>{subtitle}</Text>
 
       <View style={{ backgroundColor: toneBg, borderColor: colors.line, borderWidth: 1, borderRadius: radius.section, padding: spacing.xl, gap: spacing.lg, alignItems: 'center' }}>
         <View style={{ backgroundColor: state === 'Running' ? colors.sage : colors.neutralChip, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: 4 }}>

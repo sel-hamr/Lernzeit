@@ -20,3 +20,6 @@ jest.mock('expo-image-picker', () => ({ launchCameraAsync: jest.fn(), launchImag
 jest.mock('expo-image-manipulator', () => ({ manipulateAsync: jest.fn(), SaveFormat: { JPEG: 'jpeg' } }))
 jest.mock('expo-document-picker', () => ({ getDocumentAsync: jest.fn() }))
 jest.mock('expo-sharing', () => ({ shareAsync: jest.fn(), isAvailableAsync: jest.fn(async () => true) }))
+
+// Gesture handler binds its gestures to the worklets UI runtime, which Jest does not have.
+jest.mock('react-native-worklets', () => ({ ...jest.requireActual('react-native-worklets'), getUIRuntimeHolder: () => ({}) }))

@@ -5,7 +5,7 @@ import { useTheme } from '../theme'
 export function Placeholder({ title, message = 'Coming in the next update' }: { title?: string; message?: string }) {
   const { colors, type, spacing } = useTheme()
   return (
-    <View style={[styles.page, { backgroundColor: colors.main, paddingHorizontal: spacing.pageX, paddingTop: spacing.pageTop, gap: spacing.sm }]}>
+    <View style={[styles.page, { backgroundColor: colors.canvas, paddingHorizontal: spacing.pageX, paddingTop: spacing.pageTop, gap: spacing.sm }]}>
       {title ? (
         <Text style={[type.title, { color: colors.ink }]} accessibilityRole="header">
           {title}

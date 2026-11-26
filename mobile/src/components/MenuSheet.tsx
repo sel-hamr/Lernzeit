@@ -1,18 +1,18 @@
 import { usePathname, useRouter, type Href } from 'expo-router'
-import { Cloud, CloudOff, Settings } from 'lucide-react-native'
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Cloud, CloudOff, Settings, type LucideIcon } from 'lucide-react-native'
+import { StyleSheet, View } from 'react-native'
 import { menuFeatures, useHiddenFeatures } from '../features'
 import { useTheme } from '../theme'
+import { Row, Sheet, Tile } from '../ui'
 import { levelColor, useSyncIndicator } from './syncIndicator'
 
 /**
- * The phone's menu, a sheet from the bottom as on the web: the pages that are not on the bottom bar,
- * Settings and the sync status. It closes on the back button, a tap on the backdrop and navigation.
+ * The phone's menu, a bottom sheet of large rows (icon, title, chevron): the pages that are not on
+ * the tab bar, Settings and the sync status. It closes on Android back, a tap on the backdrop, a
+ * drag down and navigation.
  */
 export function MenuSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { colors, type, spacing, radius } = useTheme()
-  const insets = useSafeAreaInsets()
+  const { colors, spacing, radius } = useTheme()
   const router = useRouter()
   const pathname = usePathname()
   const items = menuFeatures(useHiddenFeatures())
@@ -22,70 +22,49 @@ export function MenuSheet({ open, onClose }: { open: boolean; onClose: () => voi
     onClose()
     router.push(href)
   }
-  const row = (active: boolean, pressed: boolean) => [
-    styles.row,
-    { borderRadius: radius.img, paddingHorizontal: spacing.md, gap: spacing.md, backgroundColor: active || pressed ? colors.field : 'transparent', borderColor: active ? colors.line : 'transparent' },
-  ]
+  const link = (key: string, label: string, Icon: LucideIcon, href: Href, path: string) => {
+    const active = pathname === path
+    return (
+      <View key={key} style={[styles.item, { borderRadius: radius.row, backgroundColor: active ? colors.raised : 'transparent', paddingHorizontal: spacing.md }]}>
+        <Row
+          title={label}
+          left={
+            <Tile bg={colors.raised}>
+              <Icon size={20} strokeWidth={1.8} color={colors.ink} />
+            </Tile>
+          }
+          chevron
+          onPress={() => go(href)}
+          accessibilityRole="link"
+          accessibilityLabel={label}
+        />
+      </View>
+    )
+  }
 
   return (
-    <Modal testID="menu-sheet" visible={open} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
-      <View style={styles.fill}>
-        <Pressable style={[styles.fill, { backgroundColor: colors.scrim }]} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close menu" />
-        <View
-          style={[styles.sheet, { backgroundColor: colors.main, borderColor: colors.line, paddingBottom: insets.bottom + spacing.md, paddingHorizontal: spacing.md, paddingTop: spacing.md }]}
-        >
-          <Text style={[type.section, styles.title, { color: colors.ink, paddingHorizontal: spacing.md }]} accessibilityRole="header">
-            Menu
-          </Text>
-          <ScrollView>
-            {items.map(({ id, label, icon: Icon }) => {
-              const active = pathname === `/more/${id}`
-              return (
-                <Pressable key={id} onPress={() => go(`/more/${id}` as Href)} accessibilityRole="link" accessibilityLabel={label} accessibilityState={{ selected: active }} style={({ pressed }) => row(active, pressed)}>
-                  <Icon size={18} strokeWidth={1.7} color={colors.ink2} />
-                  <Text style={[active ? type.bodyMedium : type.body, { color: active ? colors.ink : colors.ink2 }]}>{label}</Text>
-                </Pressable>
-              )
-            })}
-            <Pressable
-              onPress={() => go('/settings')}
-              accessibilityRole="link"
-              accessibilityLabel="Settings"
-              accessibilityState={{ selected: pathname === '/settings' }}
-              style={({ pressed }) => row(pathname === '/settings', pressed)}
-            >
-              <Settings size={18} strokeWidth={1.7} color={colors.ink2} />
-              <Text style={[type.body, { color: colors.ink2 }]}>Settings</Text>
-            </Pressable>
-            <View style={[styles.divider, { borderTopColor: colors.line, marginTop: spacing.sm, paddingTop: spacing.sm }]}>
-              <Pressable
-                onPress={() => go('/settings')}
-                accessibilityRole="link"
-                accessibilityLabel={`Sync: ${sync.label}`}
-                accessibilityHint={sync.hint}
-                style={({ pressed }) => row(false, pressed)}
-              >
-                {sync.level === 'ok' ? <Cloud size={16} strokeWidth={1.7} color={colors.ink2} /> : <CloudOff size={16} strokeWidth={1.7} color={colors.ink2} />}
-                <Text style={[type.small, styles.grow, { color: colors.ink2 }]}>Sync</Text>
-                <View style={[styles.dot, { backgroundColor: levelColor(colors, sync.level) }]} />
-                <Text style={[type.chip, { color: colors.muted }]} numberOfLines={1}>
-                  {sync.label}
-                </Text>
-              </Pressable>
-            </View>
-          </ScrollView>
-        </View>
+    <Sheet testID="menu-sheet" open={open} onClose={onClose} title="Menu" closeLabel="Close menu">
+      {items.map(({ id, label, icon }) => link(id, label, icon, `/more/${id}` as Href, `/more/${id}`))}
+      {link('settings', 'Settings', Settings, '/settings', '/settings')}
+      <View style={[styles.sync, { backgroundColor: colors.raised, borderRadius: radius.block, marginHorizontal: spacing.xs, marginTop: spacing.sm, paddingHorizontal: spacing.md }]}>
+        <Row
+          title="Sync"
+          subtitle={sync.label}
+          left={
+            <Tile bg={colors.card}>{sync.level === 'ok' ? <Cloud size={20} strokeWidth={1.8} color={colors.ink} /> : <CloudOff size={20} strokeWidth={1.8} color={colors.ink} />}</Tile>
+          }
+          right={<View style={[styles.dot, { backgroundColor: levelColor(colors, sync.level) }]} />}
+          onPress={() => go('/settings')}
+          accessibilityRole="link"
+          accessibilityLabel={`Sync: ${sync.label}`}
+        />
       </View>
-    </Modal>
+    </Sheet>
   )
 }
 
 const styles = StyleSheet.create({
-  fill: { flex: 1 },
-  sheet: { borderTopLeftRadius: 16, borderTopRightRadius: 16, borderTopWidth: 1, maxHeight: '80%' },
-  title: { height: 40, textAlignVertical: 'center' },
-  row: { minHeight: 48, flexDirection: 'row', alignItems: 'center', borderWidth: 1 },
-  divider: { borderTopWidth: 1 },
-  grow: { flex: 1 },
-  dot: { width: 6, height: 6, borderRadius: 3 },
+  item: {},
+  sync: {},
+  dot: { width: 10, height: 10, borderRadius: 5, marginRight: 4 },
 })

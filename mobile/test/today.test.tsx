@@ -52,10 +52,9 @@ const session = (id: string, topicId: string, minutes: number, start: number, ex
 })
 
 describe('Today, with nothing yet', () => {
-  it('shows the header, zero stats and the three empty states', async () => {
+  it('shows the hero, zero stats and the empty states', async () => {
     await open(setup())
-    expect(screen.getByRole('header', { name: 'Today' })).toBeTruthy()
-    expect(screen.getByText('Thursday, 19 November · no goals today')).toBeTruthy()
+    expect(screen.getByText('No goals today')).toBeTruthy()
     expect(screen.getByText('0:00 h')).toBeTruthy()
     expect(screen.getByText('studied of 0:00 h today')).toBeTruthy()
     expect(screen.getByText('No topics yet')).toBeTruthy()
@@ -78,7 +77,8 @@ describe('Today, filled', () => {
     const library = setup()
     fill(library)
     await open(library)
-    expect(screen.getByText('Thursday, 19 November · 1:20 h left to reach your goals')).toBeTruthy()
+    expect(screen.getByText('1:20 h left')).toBeTruthy()
+    expect(screen.getByText('1 of 2 done')).toBeTruthy()
     expect(screen.getByText('1:10 of 2:30 h')).toBeTruthy()
     expect(screen.getByText('1:20 left')).toBeTruthy()
     expect(screen.getByText('1:00 of 1:00 h')).toBeTruthy()
@@ -147,7 +147,7 @@ describe('Today, filled', () => {
     await act(() => library.put('sessions', session('s3', 'german', 80, NOON - 30 * MINUTE)))
     expect(screen.getByText('2:30 of 2:30 h')).toBeTruthy()
     expect(screen.getAllByText('Done')).toHaveLength(2)
-    expect(screen.getByText('Thursday, 19 November · every goal reached')).toBeTruthy()
+    expect(screen.getByText('Every goal reached')).toBeTruthy()
   })
 
   it('moves on to the next day at midnight in the synced zone', async () => {
@@ -157,7 +157,7 @@ describe('Today, filled', () => {
     expect(screen.getByText('1:10 of 2:30 h')).toBeTruthy()
     // 12:00 Berlin -> 00:01 Berlin on the 20th.
     await act(() => jest.advanceTimersByTime(12 * 60 * MINUTE + MINUTE))
-    expect(screen.getByText(/^Friday, 20 November/)).toBeTruthy()
+    expect(screen.getByText('5:00 h left')).toBeTruthy()
     expect(screen.getAllByText('0:00 of 2:30 h')).toHaveLength(2)
     expect(screen.getByText('No sessions yet today')).toBeTruthy()
   })

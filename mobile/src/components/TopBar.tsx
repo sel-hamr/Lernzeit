@@ -1,47 +1,75 @@
-import { useRouter } from 'expo-router'
+import { dayKeyAt } from '@lernzeit/core/today'
+import { formatLongDate } from '@lernzeit/core/time'
+import { usePathname, useRouter } from 'expo-router'
 import { Menu, Search } from 'lucide-react-native'
 import { useState } from 'react'
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import mark from '../../assets/splash-icon.png'
+import { useAccount } from '../account'
+import { featureById } from '../features'
+import { FadeInUp, Pressable } from '../motion'
+import { useLiveQuery } from '../store/live'
 import { useTheme } from '../theme'
+import { useNow } from '../timer/hooks'
+import { greeting, hourIn } from '../today/greeting'
+import { IconButton } from '../ui'
 import { MenuSheet } from './MenuSheet'
 import { levelColor, useSyncIndicator } from './syncIndicator'
 
-/** The phone's top bar: the Lernzeit mark and name, Search and the Menu. Nothing else, as on the web. */
+/** The tab whose page is open: the path's first part, Today for the index. */
+const tabOf = (pathname: string) => pathname.split('/').filter(Boolean)[0] ?? 'today'
+
+/**
+ * The tabs' header on the canvas: on Today the greeting by the hour and the date, on the other tabs
+ * the page's name; round Search and Menu buttons on the right. The Menu button carries a dot while
+ * sync needs a look.
+ */
 export function TopBar() {
   const { colors, type, spacing } = useTheme()
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const pathname = usePathname()
+  const account = useAccount()
   const [menuOpen, setMenuOpen] = useState(false)
   const sync = useSyncIndicator()
-  // The dot shows sync only while it needs a look.
   const needsLook = sync.level !== 'ok' && !sync.passing
+  const zone = useLiveQuery(['kv'], (library) => {
+    const value = library.get<{ value?: unknown }>('kv', 'timeZone')?.value
+    return typeof value === 'string' && value ? value : undefined
+  }, [])
+  // The greeting and the date move on by themselves; a minute is close enough.
+  const now = useNow(true, 60_000)
+
+  const tab = tabOf(pathname)
+  const today = tab === 'today'
+  const title = today ? greeting(hourIn(now, zone)) : (featureById(tab)?.label ?? '')
+  const initial = account?.email.trim()[0]?.toUpperCase()
 
   return (
-    <View style={[styles.bar, { paddingTop: insets.top, backgroundColor: colors.sidebar, borderBottomColor: colors.line, paddingHorizontal: spacing.lg }]}>
-      <View style={styles.row}>
-        <View style={[styles.brand, { gap: spacing.sm }]}>
-          <Image source={mark} style={styles.mark} accessibilityIgnoresInvertColors />
-          <Text style={[type.brand, { color: colors.ink }]} accessibilityRole="header">
-            Lernzeit
+    <View style={{ paddingTop: insets.top + spacing.sm, paddingHorizontal: spacing.pageX, paddingBottom: spacing.md, backgroundColor: colors.canvas }}>
+      <View style={[styles.row, { gap: spacing.md }]}>
+        {today && initial ? (
+          <Pressable onPress={() => router.push('/settings')} accessibilityRole="button" accessibilityLabel="Account and settings" scaleTo={0.92} style={[styles.avatar, { backgroundColor: colors.accent }]}>
+            <Text style={[type.section, { color: colors.onAccent }]}>{initial}</Text>
+          </Pressable>
+        ) : null}
+        <FadeInUp key={title} style={styles.grow}>
+          <Text testID="page-title" accessibilityRole="header" numberOfLines={1} style={[today ? type.section : type.title, { color: colors.ink }, today && styles.greeting]}>
+            {title}
           </Text>
-        </View>
-        <View style={styles.actions}>
-          <Pressable onPress={() => router.push('/search')} accessibilityRole="button" accessibilityLabel="Search" style={styles.button}>
-            <Search size={19} strokeWidth={1.7} color={colors.ink2} />
-          </Pressable>
-          <Pressable
-            onPress={() => setMenuOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel={needsLook ? `Menu, Sync: ${sync.label}` : 'Menu'}
-            accessibilityState={{ expanded: menuOpen }}
-            style={styles.button}
-          >
-            <Menu size={20} strokeWidth={1.7} color={colors.ink2} />
-            {needsLook ? <View style={[styles.badge, { backgroundColor: levelColor(colors, sync.level), borderColor: colors.sidebar }]} /> : null}
-          </Pressable>
-        </View>
+          {today ? (
+            <Text style={[type.small, { color: colors.muted }]} numberOfLines={1}>
+              {formatLongDate(dayKeyAt(now, zone))}
+            </Text>
+          ) : null}
+        </FadeInUp>
+        <IconButton icon={Search} label="Search" onPress={() => router.push('/search')} />
+        <IconButton
+          icon={Menu}
+          label={needsLook ? `Menu, Sync: ${sync.label}` : 'Menu'}
+          badge={needsLook ? levelColor(colors, sync.level) : undefined}
+          onPress={() => setMenuOpen(true)}
+        />
       </View>
       <MenuSheet open={menuOpen} onClose={() => setMenuOpen(false)} />
     </View>
@@ -49,11 +77,8 @@ export function TopBar() {
 }
 
 const styles = StyleSheet.create({
-  bar: { borderBottomWidth: 1 },
-  row: { height: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  brand: { flexDirection: 'row', alignItems: 'center' },
-  mark: { width: 24, height: 24 },
-  actions: { flexDirection: 'row', alignItems: 'center' },
-  button: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
-  badge: { position: 'absolute', top: 10, right: 10, width: 10, height: 10, borderRadius: 5, borderWidth: 2 },
+  row: { minHeight: 48, flexDirection: 'row', alignItems: 'center' },
+  grow: { flex: 1 },
+  avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  greeting: { fontSize: 19, lineHeight: 25, letterSpacing: -0.3 },
 })
