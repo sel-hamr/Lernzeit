@@ -16,7 +16,7 @@ import { FadeInUp, Pressable } from '../motion'
 import { confirmDelete, notice } from '../notice'
 import { useLocalLibrary } from '../store/live'
 import { useTheme } from '../theme'
-import { Badge, Button, Chip, EmptyState, Field, GroupedList, IconButton, OptionRow, Row, SectionHeader, Sheet, Tile } from '../ui'
+import { Badge, Button, Chip, ChipRow, EmptyState, Field, GroupedList, IconButton, OptionRow, Row, SectionHeader, Sheet, Tile } from '../ui'
 import { countDocFolder, createDocFolder, deleteDocFolder, moveDocFolder, renameDocFolder, useDocFolders, useDocs } from './data'
 
 const CONTINUE_TILES = 3
@@ -108,14 +108,14 @@ export function DocsScreen({ folderId }: { folderId?: string }) {
             </Pressable>
           ) : null}
         </View>
-        <View style={[styles.row, { gap: spacing.sm, flexWrap: 'wrap' }]}>
+        <ChipRow>
           {(['all', 'toRead', 'read'] as const).map((s) => (
             <Chip key={s} label={s === 'all' ? 'All' : DOC_STATUS_LABEL[s]} selected={status === s} onPress={() => setStatus(s)} />
           ))}
           {tags.slice(0, 8).map((t) => (
             <Chip key={t} label={`#${t}`} selected={activeTag === t} onPress={() => setTag(activeTag === t ? undefined : t)} />
           ))}
-        </View>
+        </ChipRow>
       </FadeInUp>
 
       {filtering ? (

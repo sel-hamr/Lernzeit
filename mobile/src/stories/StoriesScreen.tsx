@@ -5,6 +5,7 @@ import { BookOpen, Ellipsis, Plus, Sparkles, WandSparkles } from 'lucide-react-n
 import { useMemo, useState } from 'react'
 import { FlatList, StyleSheet, Text, View } from 'react-native'
 import { FadeInUp, Pressable } from '../motion'
+import { useTabBarSpace } from '../components/BottomBar'
 import { useStarterPart } from '../starter/useStarterPart'
 import { useTheme } from '../theme'
 import { Badge, Button, EmptyState, IconButton, OptionRow, Sheet, Tile } from '../ui'
@@ -22,6 +23,7 @@ export function StoriesScreen() {
   const [ai, setAi] = useState(false)
   const [menu, setMenu] = useState(false)
   const starter = useStarterPart('stories', ['story', 'stories'])
+  const barSpace = useTabBarSpace()
   const read = stories.filter((s) => s.readCount > 0).length
 
   const header = (
@@ -63,7 +65,7 @@ export function StoriesScreen() {
             />
           </FadeInUp>
         }
-        contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: spacing.xs, paddingBottom: 104, gap: spacing.cardGap }}
+        contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: spacing.xs, paddingBottom: barSpace, gap: spacing.cardGap }}
         renderItem={({ item, index }) => {
           const tile = <StoryTile story={item} vocabulary={vocabulary} onPress={() => router.push(`/story/${item.id}`)} />
           return index < 8 ? <FadeInUp index={index}>{tile}</FadeInUp> : tile

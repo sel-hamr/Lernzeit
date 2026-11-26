@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { useSaveSettings, useSettings } from '../data/settings'
 import { AnimatedRing, FadeInUp, Pressable } from '../motion'
+import { useTabBarSpace } from '../components/BottomBar'
 import { useLocalLibrary } from '../store/live'
 import { useTodayView } from '../today/useTodayView'
 import { numbers, useTheme } from '../theme'
@@ -119,6 +120,7 @@ export function TimerScreen() {
   const afterLeft = !row || row.goal === 0 ? null : Math.max(0, row.left - Math.ceil((isBreak || mode === 'free' ? 0 : (remaining ?? 0) / MINUTE) - 1e-6))
   const goalLine = !topic ? '' : afterLeft === null ? `${topic.name} has no goal today` : afterLeft === 0 ? `${topic.name} goal reached after this session` : `${topic.name}: ${formatHM(afterLeft)} h left today after this session`
 
+  const barSpace = useTabBarSpace()
   const ringSize = Math.max(200, Math.min(280, width - spacing.pageX * 2 - spacing.xxl * 2))
   const progress = ringProgress(elapsed, remaining, !!timer && !awaiting)
   const ringColor = isBreak ? colors.blueBar : paused ? colors.muted : colors.accent
@@ -130,7 +132,7 @@ export function TimerScreen() {
 
   if (topics.length === 0 && !timer) {
     return (
-      <ScrollView style={{ backgroundColor: colors.canvas }} contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: spacing.xs, paddingBottom: spacing.xxl }}>
+      <ScrollView style={{ backgroundColor: colors.canvas }} contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: spacing.xs, paddingBottom: barSpace }}>
         <FadeInUp>
           <EmptyState icon={Target} title="No topics yet" body="The timer logs time against a topic. Add one in Settings, then come back to start." />
         </FadeInUp>
@@ -142,7 +144,7 @@ export function TimerScreen() {
     <KeyboardAvoidingView behavior="padding" style={styles.fill}>
       <ScrollView
         style={{ backgroundColor: colors.canvas }}
-        contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: spacing.xs, paddingBottom: spacing.xxl, gap: spacing.cardGap }}
+        contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: spacing.xs, paddingBottom: barSpace, gap: spacing.cardGap }}
         keyboardShouldPersistTaps="handled"
       >
         <FadeInUp index={0}>

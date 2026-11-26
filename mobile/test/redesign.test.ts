@@ -6,6 +6,11 @@ import { pillStart, tabWeight } from '../src/components/BottomBar'
 import { flyTarget, ratingForSwipe } from '../src/practice/swipe'
 import { deckCarousel } from '../src/today/decks'
 import { greeting, hourIn } from '../src/today/greeting'
+import { heroLine, lastPractisedByDeck, practisedLabel, statTiles, weekStrip } from '../src/today/hero'
+import { flowUnits } from '../src/stories/flow'
+import { tabBarHeight } from '../src/components/BottomBar'
+import type { Piece } from '@lernzeit/core/reader'
+import type { Session, Topic } from '@lernzeit/core/types'
 
 describe('greeting', () => {
   it('says Guten Morgen, Tag or Abend by the hour', () => {
@@ -41,9 +46,9 @@ describe('the deck carousel', () => {
     const cards = [{ deckId: 'b' }, { deckId: 'b' }, { deckId: 'd' }, { deckId: 'gone' }]
     expect(deckCarousel(decks, cards).map((d) => [d.deck.id, d.count, d.tone])).toEqual([
       ['b', 2, 'accent'],
-      ['d', 1, 'inverse'],
+      ['d', 1, 'card'],
       ['a', 0, 'card'],
-      ['c', 0, 'accent'],
+      ['c', 0, 'card'],
     ])
   })
 
@@ -126,5 +131,104 @@ describe('card search', () => {
     expect(cardMatches(card, 'anim')).toBe(true)
     expect(cardMatches(card, 'cat')).toBe(false)
     expect(cardMatches(card, '  ')).toBe(true)
+  })
+})
+
+describe('the week strip', () => {
+  const goals = { mon: 60, tue: 60, wed: 60, thu: 60, fri: 60, sat: 0, sun: 0 }
+  const topic = (id: string, archived = false) => ({ id, name: id, goalMinutes: goals, goalHistory: [], archived, order: 0, createdAt: Date.UTC(2026, 0, 1) }) as unknown as Topic
+  const session = (date: string, minutes: number, topicId = 'de') => ({ id: `${date}${topicId}`, topicId, date, minutes, start: 0, end: 0, source: 'timer' }) as unknown as Session
+
+  it('has Monday to Sunday with minutes against each day’s goal, scaled to the busiest day', () => {
+    // Thursday 19 November 2026.
+    const bars = weekStrip([topic('de'), topic('old', true)], [session('2026-11-16', 90), session('2026-11-17', 30), session('2026-11-17', 500, 'old'), session('2026-11-09', 40)], '2026-11-19', 15)
+    expect(bars.map((b) => b.letter).join('')).toBe('MTWTFSS')
+    expect(bars.map((b) => b.minutes)).toEqual([90, 530, 0, 15, 0, 0, 0])
+    expect(bars.map((b) => b.goal)).toEqual([60, 60, 60, 60, 60, 0, 0])
+    expect(bars[0]).toMatchObject({ hit: true, today: false, future: false, short: 'Mon' })
+    expect(bars[1]!.fill).toBe(1)
+    expect(bars[0]!.fill).toBeCloseTo(90 / 530)
+    expect(bars[3]).toMatchObject({ today: true, hit: false })
+    expect(bars[4]).toMatchObject({ future: true })
+    expect(bars[5]!.goalAt).toBe(0)
+  })
+
+  it('keeps an empty week at zero without dividing by zero', () => {
+    const bars = weekStrip([], [], '2026-11-19')
+    expect(bars.every((b) => b.fill === 0 && b.goalAt === 0)).toBe(true)
+  })
+})
+
+describe('the Today stat tiles', () => {
+  it('shows cards, minutes and streak days with units that agree', () => {
+    expect(statTiles({ ms: 125_000, reviewed: 12 }, { days: 3, topicName: 'German' })).toEqual([
+      { key: 'cards', value: '12', unit: '', label: 'cards practised' },
+      { key: 'time', value: '2', unit: 'min', label: 'practice time' },
+      { key: 'streak', value: '3', unit: 'days', label: 'German streak' },
+    ])
+    const one = statTiles({ ms: 20_000, reviewed: 1 }, { days: 1 })
+    expect(one.map((t) => [t.value, t.unit, t.label])).toEqual([
+      ['1', '', 'card practised'],
+      ['<1', 'min', 'practice time'],
+      ['1', 'day', 'streak'],
+    ])
+    expect(statTiles({ ms: 0, reviewed: 0 }, { days: 0 })[1]!.value).toBe('0')
+  })
+
+  it('says something kind under the hero number', () => {
+    expect(heroLine(0, 0, 0)).toBe('A free day. Enjoy it')
+    expect(heroLine(20, 0, 0)).toBe('No goal today, so every minute is a bonus')
+    expect(heroLine(0, 120, 120)).toBe('A fresh day. Ten minutes is a good start')
+    expect(heroLine(30, 120, 90)).toBe('1:30 h left, keep it going')
+    expect(heroLine(70, 120, 50)).toBe('0:50 h left, more than halfway there')
+    expect(heroLine(120, 120, 0)).toBe('Every goal reached. Great work')
+  })
+})
+
+describe('when a deck was last practised', () => {
+  it('takes the newest day per deck from the practice log', () => {
+    const last = lastPractisedByDeck([
+      { day: '2026-11-10', decks: { a: { ms: 1, reviewed: 1, correct: 1 } } },
+      { day: '2026-11-18', decks: { a: { ms: 1, reviewed: 1, correct: 1 }, b: { ms: 1, reviewed: 1, correct: 0 } } },
+      { day: '2026-11-12', decks: { b: { ms: 1, reviewed: 1, correct: 1 } } },
+    ])
+    expect(Object.fromEntries(last)).toEqual({ a: '2026-11-18', b: '2026-11-18' })
+  })
+
+  it('says it in words', () => {
+    expect(practisedLabel(undefined, '2026-11-19')).toBe('Not practised yet')
+    expect(practisedLabel('2026-11-19', '2026-11-19')).toBe('Practised today')
+    expect(practisedLabel('2026-11-18', '2026-11-19')).toBe('Practised yesterday')
+    expect(practisedLabel('2026-11-15', '2026-11-19')).toBe('Practised 4 days ago')
+    expect(practisedLabel('2026-11-10', '2026-11-19')).toBe('Practised last week')
+    expect(practisedLabel('2026-10-20', '2026-11-19')).toBe('Practised 4 weeks ago')
+  })
+})
+
+describe('the reader word flow', () => {
+  const piece = (text: string, start: number, words = 1): Piece => ({ text, start, words, cardIds: [] })
+  it('keeps punctuation on its word and breaks only at spaces', () => {
+    // "Es regnet. „Ja“, zu Hause!"
+    const units = flowUnits([piece('Es', 0), piece(' ', 2, 0), piece('regnet', 3), piece('. „', 9, 0), piece('Ja', 12), piece('“, ', 14, 0), piece('zu Hause', 17, 2), piece('!', 25, 0)])
+    expect(units.map((u) => [u.pieces.map((p) => p.text).join('|'), u.space])).toEqual([
+      ['Es', true],
+      ['regnet|.', true],
+      ['„|Ja|“,', true],
+      ['zu Hause|!', false],
+    ])
+    expect(units[2]!.pieces[0]).toMatchObject({ text: '„', start: 11, words: 0 })
+    expect(units[1]!.key).toBe(3)
+  })
+
+  it('handles a paragraph that starts with a space or punctuation', () => {
+    expect(flowUnits([piece(' ', 0, 0), piece('Hallo', 1)]).map((u) => u.pieces.length)).toEqual([1])
+    expect(flowUnits([])).toEqual([])
+  })
+})
+
+describe('the floating tab bar', () => {
+  it('reaches over the safe area, with at least 8 px under it', () => {
+    expect(tabBarHeight(0)).toBe(64 + 4 + 8 + 4)
+    expect(tabBarHeight(24)).toBe(64 + 4 + 24 + 4)
   })
 })

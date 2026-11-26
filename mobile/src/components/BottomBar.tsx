@@ -1,9 +1,9 @@
 import { phoneTabIds } from '@lernzeit/core/nav'
 import type { Tabs } from 'expo-router'
-import { useEffect, useState, type ComponentProps } from 'react'
+import { useContext, useEffect, useState, type ComponentProps } from 'react'
 import { StyleSheet, View } from 'react-native'
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, type SharedValue } from 'react-native-reanimated'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { SafeAreaInsetsContext, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { enabledFeatureIds, featureById, type Feature } from '../features'
 import { useHiddenFeatures } from '../features'
 import { haptics, Pressable, springs } from '../motion'
@@ -16,6 +16,21 @@ export const tabRoute = (id: string) => (id === 'today' ? 'index' : id)
 
 /** Bar padding around the pill. */
 const INSET = 6
+const BAR_HEIGHT = 64
+
+/** How far the floating bar reaches up from the bottom edge, safe area included. */
+export function tabBarHeight(bottomInset: number): number {
+  return BAR_HEIGHT + 4 + Math.max(bottomInset, 8) + 4
+}
+
+/**
+ * The bottom padding a tab page's scrolling content needs: the floating bar floats over the
+ * page, so the last card has to clear it, with a little air.
+ */
+export function useTabBarSpace(extra = 24): number {
+  // The context, not useSafeAreaInsets: a page rendered alone (in a test) has no provider.
+  return tabBarHeight(useContext(SafeAreaInsetsContext)?.bottom ?? 0) + extra
+}
 
 /**
  * How wide tab `j` is while the pill sits at `pos` (a tab index, fractional while it slides): the
@@ -36,7 +51,8 @@ export function pillStart(count: number, pos: number): number {
 }
 
 /**
- * The floating tab bar: a white bar inset from the screen edges, above the safe area. The active
+ * The floating tab bar: a white bar inset from the screen edges, above the safe area, with the
+ * pages scrolling under it (they pad their ends with `useTabBarSpace`). The active
  * tab is a lime-soft pill with its icon and word; the pill slides on a spring to the tab you pick.
  * A turned-off page is left out.
  */
@@ -66,7 +82,7 @@ export function BottomBar({ state, emitter, navigateToTab }: TabBarProps) {
   })
 
   return (
-    <View style={{ backgroundColor: colors.canvas, paddingHorizontal: 12, paddingTop: 4, paddingBottom: Math.max(insets.bottom, 8) + 4 }}>
+    <View pointerEvents="box-none" style={[styles.float, { paddingBottom: Math.max(insets.bottom, 8) + 4 }]}>
       <View accessibilityRole="tablist" style={[styles.bar, { backgroundColor: colors.card, borderRadius: radius.card }, shadow.float]} onLayout={(e) => setWidth(e.nativeEvent.layout.width - INSET * 2)}>
         {width > 0 && count > 0 ? <Animated.View pointerEvents="none" style={[styles.pill, { backgroundColor: colors.accentSoft }, pill]} /> : null}
         {tabs.map(({ id, feature, route }, j) => {
@@ -105,7 +121,8 @@ function Tab({ index, pos, feature, focused, onPress }: { index: number; pos: Sh
 }
 
 const styles = StyleSheet.create({
-  bar: { height: 64, flexDirection: 'row', alignItems: 'stretch', paddingHorizontal: INSET },
+  float: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 12, paddingTop: 4 },
+  bar: { height: BAR_HEIGHT, flexDirection: 'row', alignItems: 'stretch', paddingHorizontal: INSET },
   pill: { position: 'absolute', top: INSET, bottom: INSET, borderRadius: 999 },
   slot: { flexBasis: 0 },
   tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 48 },

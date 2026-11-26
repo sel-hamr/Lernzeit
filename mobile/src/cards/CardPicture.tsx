@@ -31,7 +31,7 @@ export function CardPicture({ card, height = 120, style, emojiSize }: { card: Pi
           {card.emoji}
         </Text>
       ) : (
-        <Text importantForAccessibility="no" style={{ fontFamily: fonts.semibold, fontSize: size, lineHeight: size * 1.15, opacity: 0.15, color: colors.onPastel }}>
+        <Text importantForAccessibility="no" style={{ fontFamily: fonts.semibold, fontSize: size, lineHeight: size * 1.15, opacity: 0.42, color: colors.onPastel }}>
           {initial(card.german)}
         </Text>
       )}

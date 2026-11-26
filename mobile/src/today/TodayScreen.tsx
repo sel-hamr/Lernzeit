@@ -1,31 +1,33 @@
 import { germanText } from '@lernzeit/core/german'
-import { formatPracticeTime } from '@lernzeit/core/practice'
 import { count } from '@lernzeit/core/text'
 import { elapsedMs, isPaused, remainingMs } from '@lernzeit/core/timer'
 import { formatHM, formatTimer } from '@lernzeit/core/time'
-import type { TodaySession, TodayView, TopicProgress } from '@lernzeit/core/today'
+import { pastelIndex, type TodaySession, type TodayView, type TopicProgress } from '@lernzeit/core/today'
 import type { Card, TopicColor } from '@lernzeit/core/types'
 import { useRouter } from 'expo-router'
-import { BookOpen, Clock3, Flame, Layers, Play, Target, Zap } from 'lucide-react-native'
+import { BookOpen, Check, Clock3, Flame, Layers, Play, Target, Zap } from 'lucide-react-native'
 import { useEffect, useMemo, useRef } from 'react'
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue, type SharedValue } from 'react-native-reanimated'
 import { CardPicture, germanWrap } from '../cards/CardPicture'
 import { useCards, useDecks } from '../cards/data'
 import { useHiddenFeatures } from '../features'
-import { AnimatedBar, FadeInUp, haptics, Pressable, RollingNumber } from '../motion'
+import { useTabBarSpace } from '../components/BottomBar'
+import { AnimatedBar, AnimatedRing, FadeInUp, haptics, Pressable, RollingNumber } from '../motion'
 import { numbers, useTheme } from '../theme'
 import { useActiveTimer, useNow } from '../timer/hooks'
 import { Badge, Button, EmptyState, GroupedList, Row, SectionHeader, Tile } from '../ui'
 import { deckCarousel, type CarouselDeck } from './decks'
-import { useTodayView } from './useTodayView'
+import { heroLine, practisedLabel, statTiles, type StatTile, type WeekBar } from './hero'
+import { useTodayView, type TodayScreenView } from './useTodayView'
 
 /** Today: the hero with today's time, your decks, the goals, the sessions and the word, live from the local store. */
 export function TodayScreen() {
   const view = useTodayView()
   const { colors, spacing } = useTheme()
+  const barSpace = useTabBarSpace()
   return (
-    <ScrollView style={{ backgroundColor: colors.canvas }} contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: spacing.xs, paddingBottom: spacing.xxl, gap: spacing.cardGap }}>
+    <ScrollView style={{ backgroundColor: colors.canvas }} contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: spacing.xs, paddingBottom: barSpace, gap: spacing.cardGap }}>
       <RunningTimer view={view} />
       <FadeInUp index={0}>
         <Hero view={view} />
@@ -34,7 +36,7 @@ export function TodayScreen() {
         <Stats view={view} />
       </FadeInUp>
       <FadeInUp index={2}>
-        <Decks />
+        <Decks today={view.today} lastPractised={view.lastPractised} />
       </FadeInUp>
       <FadeInUp index={3}>
         <DailyGoals rows={view.progress.topics} />
@@ -47,14 +49,6 @@ export function TodayScreen() {
       </FadeInUp>
     </ScrollView>
   )
-}
-
-/** "No goals today", "Every goal reached" or "1:20 h left". */
-function goalStatus(view: TodayView): string {
-  const { goalCount, totalLeft } = view.progress
-  if (goalCount === 0) return 'No goals today'
-  if (totalLeft === 0) return 'Every goal reached'
-  return `${formatHM(totalLeft)} h left`
 }
 
 /** The running timer, a tap away from the Timer tab. */
@@ -87,64 +81,122 @@ function RunningTimer({ view }: { view: TodayView }) {
   )
 }
 
-/** Time studied today against the goals, a big number, a bar and the way to the timer. */
-function Hero({ view }: { view: TodayView }) {
-  const { colors, type, spacing, radius, shadow } = useTheme()
+/** Time studied today: the big number, a ring for the goals, a line of encouragement, this week and the way to the timer. */
+function Hero({ view }: { view: TodayScreenView }) {
+  const { colors, type, spacing, radius, shadow, fonts } = useTheme()
   const router = useRouter()
   const timer = useActiveTimer()
   const timerOn = !useHiddenFeatures().includes('timer')
-  const { totalDone, totalGoal } = view.progress
+  const { totalDone, totalGoal, totalLeft } = view.progress
+  const ratio = totalGoal ? Math.min(1, totalDone / totalGoal) : 0
   return (
-    <View style={[{ backgroundColor: colors.card, borderRadius: radius.card, padding: spacing.xl, gap: spacing.md }, shadow.card]}>
+    <View style={[{ backgroundColor: colors.card, borderRadius: radius.card, padding: spacing.xl, gap: spacing.lg }, shadow.card]}>
       <View style={styles.between}>
         <Text style={[type.small, { color: colors.muted }]}>Studied today</Text>
-        <Badge label={goalStatus(view)} tone={view.progress.goalCount > 0 && view.progress.totalLeft === 0 ? 'lime' : 'neutral'} />
+        <StreakChip days={view.streak.days} />
       </View>
-      <View style={{ gap: 2 }}>
-        <RollingNumber value={`${formatHM(totalDone)} h`} style={[type.hero, { color: colors.ink }]} />
-        {totalGoal ? <Text style={[type.small, numbers, { color: colors.muted }]}>{`of ${formatHM(totalGoal)} h goal`}</Text> : null}
+      <View style={styles.between}>
+        <View style={{ gap: 2, flex: 1 }}>
+          <View style={[styles.rowEnd, { gap: 4 }]}>
+            <RollingNumber value={formatHM(totalDone)} style={[type.hero, styles.big, { color: colors.ink }]} />
+            <Text style={[type.section, { color: colors.muted, marginBottom: 9 }]}>h</Text>
+          </View>
+          <Text style={[type.small, numbers, { color: colors.muted }]}>{totalGoal ? `of ${formatHM(totalGoal)} h goal` : 'No goals today'}</Text>
+        </View>
+        {totalGoal ? (
+          <AnimatedRing value={ratio} size={68} stroke={7} label="Today's goals progress">
+            {totalLeft === 0 ? <Check size={22} strokeWidth={2.4} color={colors.accentInk} /> : <Text style={[type.small, numbers, { color: colors.ink, fontFamily: fonts.semibold }]}>{`${Math.floor(ratio * 100)}%`}</Text>}
+          </AnimatedRing>
+        ) : null}
       </View>
-      <AnimatedBar value={totalGoal ? totalDone / totalGoal : 0} height={10} label="Today's goals progress" />
-      {timerOn ? (
-        <Button
-          label={timer ? 'Open the timer' : 'Start studying'}
-          icon={<Play size={15} color={colors.onPrimary} fill={colors.onPrimary} />}
-          onPress={() => router.navigate('/timer')}
-          style={{ marginTop: spacing.xs }}
-        />
-      ) : null}
+      <Text style={[type.body, { color: colors.ink2 }]}>{heroLine(totalDone, totalGoal, totalLeft)}</Text>
+      <WeekStrip bars={view.week} />
+      {timerOn ? <Button label={timer ? 'Open the timer' : 'Start studying'} icon={<Play size={15} color={colors.onPrimary} fill={colors.onPrimary} />} onPress={() => router.navigate('/timer')} /> : null}
     </View>
   )
 }
 
-/** Flashcards practised and the streak, as two tiles. */
+/** "3-day streak" on a warm chip; nothing before the first day. */
+function StreakChip({ days }: { days: number }) {
+  const { topics, type, radius, fonts } = useTheme()
+  if (days <= 0) return null
+  return (
+    <View style={[styles.chip, { backgroundColor: topics.clay.soft, borderRadius: radius.pill }]} accessibilityLabel={`${count(days, 'day')} streak`}>
+      <Flame size={13} strokeWidth={2} color={topics.clay.ink} />
+      <Text style={[type.chip, numbers, { color: topics.clay.ink, fontFamily: fonts.semibold }]}>{`${days}-day streak`}</Text>
+    </View>
+  )
+}
+
+const STRIP_HEIGHT = 52
+
+/** Monday to Sunday: a bar per day against its goal tick, today in lime. */
+function WeekStrip({ bars }: { bars: WeekBar[] }) {
+  const { colors, type, spacing, fonts } = useTheme()
+  const total = bars.reduce((sum, b) => sum + b.minutes, 0)
+  return (
+    <View testID="week-strip" style={{ gap: spacing.sm }}>
+      <View style={styles.between}>
+        <Text style={[type.chip, { color: colors.muted }]}>This week</Text>
+        <Text style={[type.chip, numbers, { color: colors.ink2, fontFamily: fonts.semibold }]}>{`${formatHM(total)} h`}</Text>
+      </View>
+      <View style={[styles.row, { gap: spacing.sm }]}>
+        {bars.map((b) => {
+          const fill = b.minutes >= 1 ? Math.max(6, b.fill * STRIP_HEIGHT) : 0
+          const color = b.today ? colors.accent : b.hit ? colors.heat[3] : colors.meter
+          return (
+            <View key={b.day} style={styles.day} accessible accessibilityLabel={`${b.short}: ${formatHM(b.minutes)} h${b.goal ? ` of ${formatHM(b.goal)} h` : ''}`}>
+              <View style={[styles.dayTrack, { backgroundColor: b.today ? colors.accentSoft : colors.raised }]}>
+                {b.goal > 0 && b.goalAt < 1 ? <View style={[styles.goalTick, { bottom: b.goalAt * STRIP_HEIGHT, backgroundColor: colors.lineStrong }]} /> : null}
+                {fill ? <View style={{ height: fill, borderRadius: 8, backgroundColor: color, opacity: b.today || b.hit ? 1 : 0.78 }} /> : null}
+              </View>
+              <Text style={[type.chip, { color: b.today ? colors.ink : colors.muted, fontFamily: b.today ? fonts.semibold : fonts.medium }]}>{b.letter}</Text>
+            </View>
+          )
+        })}
+      </View>
+    </View>
+  )
+}
+
+/** Cards practised today, practice minutes and the streak, as three tiles with tinted icon chips. */
 function Stats({ view }: { view: TodayView }) {
-  const { practised, streak } = view
+  const { colors, topics } = useTheme()
+  const tiles = statTiles(view.practised, view.streak)
+  const look = {
+    cards: { icon: Layers, bg: colors.accentSoft, fg: colors.accentInk },
+    time: { icon: Clock3, bg: topics.blue.soft, fg: topics.blue.ink },
+    streak: { icon: Flame, bg: topics.clay.soft, fg: topics.clay.ink },
+  }
   return (
     <View style={styles.tiles}>
-      <StatTile icon={Zap} value={formatPracticeTime(practised.ms)} label={`${count(practised.reviewed, 'card')} practised`} />
-      <StatTile icon={Flame} value={count(streak.days, 'day')} label={streak.topicName ? `${streak.topicName} streak` : 'Streak'} />
+      {tiles.map((tile) => (
+        <StatTileView key={tile.key} tile={tile} {...look[tile.key]} />
+      ))}
     </View>
   )
 }
 
-function StatTile({ icon: Icon, value, label }: { icon: typeof Zap; value: string; label: string }) {
+function StatTileView({ tile, icon: Icon, bg, fg }: { tile: StatTile; icon: typeof Zap; bg: string; fg: string }) {
   const { colors, type, spacing, radius, shadow } = useTheme()
   return (
-    <View style={[styles.tile, { backgroundColor: colors.card, borderRadius: radius.card, padding: spacing.lg, gap: spacing.sm }, shadow.card]}>
-      <Tile bg={colors.raised} size={36}>
-        <Icon size={18} strokeWidth={1.8} color={colors.ink2} />
+    <View testID={`stat-${tile.key}`} style={[styles.tile, { backgroundColor: colors.card, borderRadius: radius.block + 4, padding: spacing.md + 2, gap: spacing.sm }, shadow.card]}>
+      <Tile bg={bg} size={32}>
+        <Icon size={16} strokeWidth={2} color={fg} />
       </Tile>
-      <RollingNumber value={value} fit style={[type.figure, { color: colors.ink }]} />
+      <View style={[styles.rowEnd, { gap: 3 }]}>
+        <RollingNumber value={tile.value} fit style={[type.figure, styles.figure, { color: colors.ink }]} />
+        {tile.unit ? <Text style={[type.small, { color: colors.muted, marginBottom: 4 }]}>{tile.unit}</Text> : null}
+      </View>
       <Text style={[type.chip, { color: colors.muted }]} numberOfLines={2}>
-        {label}
+        {tile.label}
       </Text>
     </View>
   )
 }
 
-/** "Your decks": a snapping carousel, the next card peeking in; the one in front is full size, the rest at 0.94. */
-function Decks() {
+/** "Your decks": a snapping carousel of compact deck cards, the next one peeking in; the one in front is full size. */
+function Decks({ today, lastPractised }: { today: string; lastPractised: Map<string, string> }) {
   const decks = useDecks()
   const cards = useCards()
   const router = useRouter()
@@ -155,7 +207,7 @@ function Decks() {
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollX.value = e.contentOffset.x
   })
-  const cardWidth = Math.min(300, Math.round(width - spacing.pageX * 2 - 64))
+  const cardWidth = Math.round(Math.min(240, (width - spacing.pageX * 2) * 0.66))
   const step = cardWidth + spacing.md
   return (
     <View style={{ gap: spacing.md }}>
@@ -182,6 +234,7 @@ function Decks() {
               step={step}
               width={cardWidth}
               scrollX={scrollX}
+              practised={practisedLabel(lastPractised.get(item.deck.id), today)}
               onPress={() => router.push({ pathname: '/practice', params: { cards: 'all', decks: item.deck.id } })}
             />
           ))}
@@ -191,16 +244,17 @@ function Decks() {
   )
 }
 
-function DeckCard({ item, index, step, width, scrollX, onPress }: { item: CarouselDeck; index: number; step: number; width: number; scrollX: SharedValue<number>; onPress: () => void }) {
-  const { colors, type, spacing, radius, shadow, fonts } = useTheme()
+/** A compact deck card: its initial on a soft tile, a round play button, the name and when you last practised it. */
+function DeckCard({ item, index, step, width, scrollX, practised, onPress }: { item: CarouselDeck; index: number; step: number; width: number; scrollX: SharedValue<number>; practised: string; onPress: () => void }) {
+  const { colors, type, spacing, radius, shadow, fonts, pastels } = useTheme()
   const reduced = useReducedMotion()
-  const tone = { accent: { bg: colors.accent, fg: colors.onAccent }, inverse: { bg: colors.inverse, fg: colors.onInverse }, card: { bg: colors.card, fg: colors.ink } }[item.tone]
+  const lime = item.tone === 'accent'
   const scale = useAnimatedStyle(() => {
     if (reduced) return {}
     const distance = Math.abs(scrollX.value - index * step) / step
-    return { transform: [{ scale: interpolate(Math.min(distance, 1), [0, 1], [1, 0.94]) }] }
+    return { transform: [{ scale: interpolate(Math.min(distance, 1), [0, 1], [1, 0.95]) }] }
   })
-  const pattern = item.deck.name.replace(/[^A-Za-zÄÖÜäöüß]/g, '').slice(0, 6).toUpperCase()
+  const initial = (item.deck.name.match(/[A-Za-zÄÖÜäöüß0-9]/)?.[0] ?? '·').toLocaleUpperCase('de-DE')
   const empty = item.count === 0
   return (
     <Animated.View style={[{ width }, scale]}>
@@ -208,24 +262,29 @@ function DeckCard({ item, index, step, width, scrollX, onPress }: { item: Carous
         onPress={onPress}
         disabled={empty}
         accessibilityRole="button"
-        accessibilityLabel={empty ? `${item.deck.name}, no cards yet` : `Practise ${item.deck.name}, ${count(item.count, 'card')}`}
-        style={[styles.deck, { backgroundColor: tone.bg, borderRadius: radius.card, padding: spacing.xl }, item.tone === 'card' && shadow.card]}
+        accessibilityLabel={empty ? `${item.deck.name}, no cards yet` : `Practise ${item.deck.name}, ${count(item.count, 'card')}, ${practised.toLowerCase()}`}
+        style={[styles.deck, { backgroundColor: lime ? colors.accent : colors.card, borderRadius: radius.block + 4, padding: spacing.lg }, !lime && shadow.card]}
       >
-        <Text importantForAccessibility="no" numberOfLines={1} style={[styles.pattern, { color: tone.fg, fontFamily: fonts.semibold }]}>
-          {pattern}
-        </Text>
+        <View style={[styles.between, { alignItems: 'flex-start' }]}>
+          <View style={[styles.initial, { backgroundColor: lime ? 'rgba(22, 24, 26, 0.08)' : pastels[pastelIndex(item.deck.id)] }]}>
+            <Text importantForAccessibility="no" style={{ fontFamily: fonts.semibold, fontSize: 20, lineHeight: 24, color: lime ? colors.onAccent : colors.onPastel }}>
+              {initial}
+            </Text>
+          </View>
+          {empty ? null : (
+            <View style={[styles.play, { backgroundColor: lime ? '#16181A' : colors.accent }]}>
+              <Play size={14} color={lime ? colors.accent : colors.onAccent} fill={lime ? colors.accent : colors.onAccent} style={{ marginLeft: 2 }} />
+            </View>
+          )}
+        </View>
         <View style={{ gap: 2 }}>
-          <Text style={[type.section, { color: tone.fg }]} numberOfLines={2}>
+          <Text style={[type.section, { color: lime ? colors.onAccent : colors.ink }]} numberOfLines={2}>
             {item.deck.name}
           </Text>
-          <Text style={[type.small, numbers, { color: tone.fg, opacity: 0.7 }]}>{empty ? 'No cards yet' : count(item.count, 'card')}</Text>
+          <Text style={[type.chip, numbers, lime ? { color: colors.onAccent, opacity: 0.7 } : { color: colors.muted }]} numberOfLines={1}>
+            {empty ? 'No cards yet' : `${count(item.count, 'card')} · ${practised}`}
+          </Text>
         </View>
-        {empty ? null : (
-          <View style={[styles.practise, { backgroundColor: item.tone === 'card' ? colors.accent : 'rgba(255, 255, 255, 0.9)', borderRadius: radius.pill }]}>
-            <Play size={11} color={colors.onAccent} fill={colors.onAccent} />
-            <Text style={[type.chip, { color: colors.onAccent, fontFamily: fonts.semibold }]}>Practise</Text>
-          </View>
-        )}
       </Pressable>
     </Animated.View>
   )
@@ -389,10 +448,18 @@ function WordOfTheDay({ card }: { card: Card | undefined }) {
 
 const styles = StyleSheet.create({
   between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  tiles: { flexDirection: 'row', gap: 12 },
+  row: { flexDirection: 'row', alignItems: 'center' },
+  rowEnd: { flexDirection: 'row', alignItems: 'flex-end' },
+  big: { fontSize: 52, lineHeight: 58, letterSpacing: -2.2 },
+  figure: { fontSize: 26, lineHeight: 30 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5 },
+  tiles: { flexDirection: 'row', gap: 10 },
   tile: { flex: 1 },
-  deck: { height: 156, justifyContent: 'space-between', overflow: 'hidden' },
-  pattern: { position: 'absolute', right: -6, bottom: -14, fontSize: 56, lineHeight: 64, letterSpacing: -3, opacity: 0.1 },
-  practise: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6 },
+  day: { flex: 1, alignItems: 'center', gap: 6 },
+  dayTrack: { width: '100%', maxWidth: 28, height: 52, borderRadius: 8, overflow: 'hidden', justifyContent: 'flex-end' },
+  goalTick: { position: 'absolute', left: 4, right: 4, height: 2, borderRadius: 1 },
+  deck: { height: 150, justifyContent: 'space-between' },
+  initial: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  play: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   mini: { width: 84, gap: 6 },
 })

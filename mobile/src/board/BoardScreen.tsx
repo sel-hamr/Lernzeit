@@ -14,7 +14,7 @@ import { FadeInUp, haptics, Pressable } from '../motion'
 import { useLocalLibrary } from '../store/live'
 import { useTopics } from '../timer/hooks'
 import { numbers, useTheme, type TopicColorKey } from '../theme'
-import { Badge, Chip, EmptyState, IconButton, OptionRow, Sheet } from '../ui'
+import { Badge, Chip, ChipRow, EmptyState, IconButton, OptionRow, Sheet } from '../ui'
 import { updateTask, useTasks } from './data'
 import { ALL_TASKS, boardColumns, dueLabel, isOverdue, PRIORITY_LABEL, STATUSES, STATUS_LABEL, type BoardFilter } from './model'
 import { TaskSheet } from './TaskSheet'
@@ -48,14 +48,16 @@ export function BoardScreen() {
 
   return (
     <Screen title="Board" scroll={false} right={<IconButton icon={Plus} label="New task" onPress={() => setEditing({ status: STATUSES[page] ?? 'todo' })} />}>
-      <View style={[styles.row, { paddingHorizontal: spacing.pageX, gap: spacing.sm, paddingBottom: spacing.md, flexWrap: 'wrap' }]}>
-        <Chip label="All tasks" selected={filter.scope === 'all'} onPress={() => setFilter({ ...filter, scope: 'all' })} />
-        <Chip label="Due today" selected={filter.scope === 'today'} onPress={() => setFilter({ ...filter, scope: 'today' })} />
-        <Chip
-          label={filter.priority === 'all' ? 'Any priority' : PRIORITY_LABEL[filter.priority]}
-          selected={filter.priority !== 'all'}
-          onPress={() => setFilter({ ...filter, priority: filter.priority === 'all' ? 'high' : filter.priority === 'high' ? 'medium' : filter.priority === 'medium' ? 'low' : 'all' })}
-        />
+      <View style={{ paddingHorizontal: spacing.pageX, paddingBottom: spacing.md }}>
+        <ChipRow>
+          <Chip label="All tasks" selected={filter.scope === 'all'} onPress={() => setFilter({ ...filter, scope: 'all' })} />
+          <Chip label="Due today" selected={filter.scope === 'today'} onPress={() => setFilter({ ...filter, scope: 'today' })} />
+          <Chip
+            label={filter.priority === 'all' ? 'Any priority' : PRIORITY_LABEL[filter.priority]}
+            selected={filter.priority !== 'all'}
+            onPress={() => setFilter({ ...filter, priority: filter.priority === 'all' ? 'high' : filter.priority === 'high' ? 'medium' : filter.priority === 'medium' ? 'low' : 'all' })}
+          />
+        </ChipRow>
       </View>
       {tasks.length === 0 ? (
         <View style={{ paddingHorizontal: spacing.pageX }}>

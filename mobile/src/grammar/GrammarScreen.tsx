@@ -15,7 +15,7 @@ import { AnimatedBar, AnimatedRing, FadeInUp, RollingNumber } from '../motion'
 import { useStarterPart } from '../starter/useStarterPart'
 import { useNow } from '../timer/hooks'
 import { numbers, useTheme } from '../theme'
-import { Badge, Button, Card, Chip, EmptyState, GroupedList, IconButton, OptionRow, Row, SectionHeader, Sheet, Tile } from '../ui'
+import { Badge, Button, Card, EmptyState, GroupedList, IconButton, OptionRow, Row, SectionHeader, Segmented, Sheet, Tile } from '../ui'
 import { useExerciseStats, useGrammarTopics } from './data'
 
 export function GrammarScreen() {
@@ -58,9 +58,15 @@ export function GrammarScreen() {
       ) : (
         <>
           <Course topics={topics} progressOf={progressOf} statsById={statsById} mastered={mastered} />
-          <FadeInUp index={2} style={[styles.row, { gap: spacing.sm }]}>
-            <Chip label="Your path" selected={!bySection} onPress={() => setBySection(false)} />
-            <Chip label="By section" selected={bySection} onPress={() => setBySection(true)} />
+          <FadeInUp index={2}>
+            <Segmented
+              options={[
+                ['path', 'Your path'],
+                ['section', 'By section'],
+              ]}
+              value={bySection ? 'section' : 'path'}
+              onChange={(v) => setBySection(v === 'section')}
+            />
           </FadeInUp>
           {groups.map(({ group, topics: items }, i) => (
             <FadeInUp key={group} index={3 + i} style={{ gap: spacing.sm }}>

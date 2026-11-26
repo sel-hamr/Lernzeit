@@ -156,3 +156,29 @@ Phone alternatives and deferred:
 - Theme ideas: the featured ones only; the web's "More themes" dialog is not on the phone.
 - The reader's Highlights/Translation toggles are not remembered between visits (the web keeps them in browser storage).
 - Not checked on a device yet (R4).
+
+## Stage R5: Today, Cards and Story reader redesign (after the phone test)
+
+The owner's phone screenshots showed a patchy reader, a thin Today and a crowded Cards header. What changed:
+
+- **Floating tab bar:** the bar now floats over the pages (absolute, transparent around the white pill). `useTabBarSpace()` in `BottomBar.tsx` gives every tab page its bottom padding (bar + safe area + air); Today, Cards, Stories and Timer use it, and the Cards add button sits above the bar.
+- **Story reader:**
+  - Words are laid out one by one (`src/stories/flow.ts`, `flowUnits`: a word keeps its punctuation, lines break only at spaces), so each word can carry a clean 2 px underline (`WordMark`): lime while learning, sand when new, dotted grey when not in a deck, nothing when known. No word backgrounds. Article colours stay on nouns. Type 19/28 with 3 px between lines, 24 px between paragraphs, the page white and full width (24 px gutter).
+  - The per-paragraph speakers and the header speaker are gone. A dark mini player sticks above the safe area: play/pause, paragraph before/next, speed (1×, 1.25×, 0.75× of the Settings speed), "Paragraph 2 of 6". The paragraph being read sits on a lime wash and scrolls into view; holding a paragraph reads from there. Tapping a word's sound in its sheet pauses the player.
+  - The coverage card: "Your words", a big "45%" with "known or learning · 94% in your decks", a segmented rounded bar, a 2 x 2 legend with tabular numbers and the advice ("Study its words first") as a full-width soft pill. Once it scrolls away the header shows the title and a compact bar with "45% known".
+  - Highlights and the key ("What the lines mean") stay in the ⋯ sheet.
+- **Today:**
+  - Hero: a 52 px time with a smaller "h", "of 7:00 h goal", a ring with today's percent (a check when done), a friendly line (`heroLine`), a Monday–Sunday strip from the history (`weekStrip`: bars against each day's goal tick, today lime, hit days olive) with the week's total, a streak chip, and Start studying. The "x h left" badge is gone (the line says it).
+  - Three stat tiles (`statTiles`): cards practised, practice minutes ("<1" under a minute), streak days, with plural-correct units and tinted icon chips (lime, blue, clay).
+  - Deck carousel: compact 150 px cards, the initial on a soft tile instead of the clipped watermark, a round play button, the name on two lines and "16 cards · Practised yesterday" (`lastPractisedByDeck`, `practisedLabel`). Only the first card is lime.
+- **Cards:**
+  - A deck card (name, chevron, "16 cards" under it) with the Practise pill inside it; the badge that floated on the pill's edge is gone.
+  - Search is a pill with the sort as an icon button on its right (a lime dot when not Newest); the sort shows in the count line ("3 of 16 cards · newest first").
+  - All / Incomplete / No picture is a `Segmented` control (new in `ui.tsx`: a sliding white pill), never wrapping.
+  - The Add card button is gone; the lime + is the one add. The full editor is in the ⋯ menu ("New card with every field") and linked from Quick add.
+  - Rows form one white grouped list with hairlines (52 px thumbnails, ripple instead of a shrink), "Incomplete" inline in sand, and the letter placeholders are darker (0.42).
+- **Elsewhere:** `ChipRow` (new in `ui.tsx`: one sideways-scrolling line with edge fades) for the Board filters and the Docs status/tag chips; Grammar's Your path / By section is a `Segmented`.
+
+Tests: new pure helpers in `test/redesign.test.ts` (week strip, stat tiles, hero line, last practised, practised label, word flow, bar height); the Today tests follow the new hero and tiles; a reader test drives the mini player. Mobile: 22 suites, 227 tests. Root: vitest 651, worker 195.
+
+Left: not seen on a device after this pass (the owner tests live over Expo). Dotted underlines use a 2 px dotted box, as Android draws dotted borders only on whole boxes.

@@ -23,6 +23,7 @@ import {
 import { GestureDetector, GestureHandlerRootView, usePanGesture } from 'react-native-gesture-handler'
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
 import { scheduleOnRN } from 'react-native-worklets'
 import { haptics, Pressable, springs, timings, type HapticKind } from './motion'
 import { useTheme } from './theme'
@@ -161,6 +162,66 @@ export function Chip({ label, selected, onPress, color, icon, testID }: { label:
         {label}
       </Text>
     </Pressable>
+  )
+}
+
+/**
+ * One row of equal options on a soft track, the picked one on a white pill that slides on a spring.
+ * Each option is a button with a selected state, as a chip is, so it never wraps to a second line.
+ */
+export function Segmented<T extends string>({ options, value, onChange, testID }: { options: readonly (readonly [T, string])[]; value: T; onChange: (value: T) => void; testID?: string }) {
+  const { colors, type, radius, fonts, shadow } = useTheme()
+  const reduced = useReducedMotion()
+  const [width, setWidth] = useState(0)
+  const index = Math.max(0, options.findIndex(([v]) => v === value))
+  const pos = useSharedValue(index)
+  useEffect(() => {
+    pos.value = reduced ? index : withSpring(index, springs.snappy)
+  }, [index, reduced, pos])
+  const unit = width / Math.max(1, options.length)
+  const pill = useAnimatedStyle(() => ({ width: unit, transform: [{ translateX: pos.value * unit }] }))
+  return (
+    <View testID={testID} onLayout={(e) => setWidth(e.nativeEvent.layout.width - 8)} style={[styles.segmented, { backgroundColor: colors.chip, borderRadius: radius.pill }]}>
+      {width > 0 ? <Animated.View pointerEvents="none" style={[styles.segmentPill, { backgroundColor: colors.card, borderRadius: radius.pill }, shadow.card, pill]} /> : null}
+      {options.map(([v, label]) => {
+        const on = v === value
+        return (
+          <Pressable key={v} onPress={() => onChange(v)} haptic="select" scaleTo={0.96} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: on }} style={styles.segment}>
+            <Text style={[type.small, { color: on ? colors.ink : colors.ink2, fontFamily: on ? fonts.semibold : fonts.medium }]} numberOfLines={1}>
+              {label}
+            </Text>
+          </Pressable>
+        )
+      })}
+    </View>
+  )
+}
+
+/**
+ * Chips in one line that scrolls sideways instead of wrapping, running to the screen edges (it
+ * undoes the page gutter) with a soft fade where more chips wait.
+ */
+export function ChipRow({ children, testID }: { children: ReactNode; testID?: string }) {
+  const { colors, spacing } = useTheme()
+  const fade = (side: 'left' | 'right') => (
+    <Svg pointerEvents="none" width={spacing.xl} height="100%" style={[styles.fade, side === 'left' ? { left: -spacing.pageX } : { right: -spacing.pageX }]}>
+      <Defs>
+        <LinearGradient id={`chip-fade-${side}`} x1="0" y1="0" x2="1" y2="0">
+          <Stop offset="0" stopColor={colors.canvas} stopOpacity={side === 'left' ? 1 : 0} />
+          <Stop offset="1" stopColor={colors.canvas} stopOpacity={side === 'left' ? 0 : 1} />
+        </LinearGradient>
+      </Defs>
+      <Rect x="0" y="0" width="100%" height="100%" fill={`url(#chip-fade-${side})`} />
+    </Svg>
+  )
+  return (
+    <View testID={testID}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginHorizontal: -spacing.pageX }} contentContainerStyle={{ paddingHorizontal: spacing.pageX, gap: spacing.sm }}>
+        {children}
+      </ScrollView>
+      {fade('left')}
+      {fade('right')}
+    </View>
   )
 }
 
@@ -577,6 +638,10 @@ const styles = StyleSheet.create({
   chip: { height: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   badge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 4, alignSelf: 'flex-start' },
+  fade: { position: 'absolute', top: 0, bottom: 0 },
+  segmented: { height: 42, flexDirection: 'row', alignItems: 'stretch', padding: 4 },
+  segmentPill: { position: 'absolute', top: 4, bottom: 4, left: 4 },
+  segment: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   badgeDot: { position: 'absolute', top: 9, right: 9, width: 10, height: 10, borderRadius: 5, borderWidth: 2 },
   input: { minHeight: 52, borderWidth: 1.5 },
   multiline: { minHeight: 96, textAlignVertical: 'top', paddingTop: 14, paddingBottom: 14 },

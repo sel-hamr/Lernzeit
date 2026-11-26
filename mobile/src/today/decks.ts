@@ -3,11 +3,9 @@ import type { Card, Deck } from '@lernzeit/core/types'
 export interface CarouselDeck {
   deck: Deck
   count: number
-  /** The first card is lime, then dark, then white, and round again. */
-  tone: 'accent' | 'inverse' | 'card'
+  /** Only the first card is lime; the rest are white. */
+  tone: 'accent' | 'card'
 }
-
-const TONES = ['accent', 'inverse', 'card'] as const
 
 /**
  * The "Your decks" carousel on Today: decks in their own order, those with cards before the empty
@@ -19,5 +17,5 @@ export function deckCarousel(decks: readonly Deck[], cards: readonly Pick<Card, 
   const ordered = [...decks].sort((a, b) => a.order - b.order)
   const withCards = ordered.filter((d) => (counts.get(d.id) ?? 0) > 0)
   const empty = ordered.filter((d) => !counts.get(d.id))
-  return [...withCards, ...empty].slice(0, limit).map((deck, i) => ({ deck, count: counts.get(deck.id) ?? 0, tone: TONES[i % TONES.length]! }))
+  return [...withCards, ...empty].slice(0, limit).map((deck, i) => ({ deck, count: counts.get(deck.id) ?? 0, tone: i === 0 ? 'accent' : 'card' }))
 }

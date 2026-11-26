@@ -5,13 +5,17 @@ import { AppState } from 'react-native'
 import { useLiveQuery } from '../store/live'
 import { useActiveTimer, useNow } from '../timer/hooks'
 import { isPaused } from '@lernzeit/core/timer'
+import { lastPractisedByDeck, weekStrip, type WeekBar } from './hero'
+
+/** Today's view plus this week's bars and the day each deck was last practised. */
+export type TodayScreenView = TodayView & { week: WeekBar[]; lastPractised: Map<string, string> }
 
 /**
  * Today's numbers over the local store, read again after each write to the tables they come from.
  * The date is the synced `kv/timeZone` zone's (the device's zone before one is recorded). At
  * midnight, and when the app comes back to the front, the day is worked out again.
  */
-export function useTodayView(): TodayView {
+export function useTodayView(): TodayScreenView {
   const [now, setNow] = useState(() => Date.now())
   const timeZone = useLiveQuery(
     ['kv'],
@@ -36,6 +40,9 @@ export function useTodayView(): TodayView {
     [topics, sessions, cards, reviews, practiceRuns, at, timeZone, timer],
   )
 
+  const week = useMemo(() => weekStrip(topics, sessions, view.today, view.progress.totalDone), [topics, sessions, view.today, view.progress.totalDone])
+  const lastPractised = useMemo(() => lastPractisedByDeck(practiceRuns), [practiceRuns])
+
   const dayEndsAt = view.dayEndsAt
   useEffect(() => {
     // A little after midnight, so the new day has really begun.
@@ -49,5 +56,5 @@ export function useTodayView(): TodayView {
     }
   }, [dayEndsAt])
 
-  return view
+  return useMemo(() => ({ ...view, week, lastPractised }), [view, week, lastPractised])
 }

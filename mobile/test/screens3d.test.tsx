@@ -5,6 +5,7 @@ import { quickAddCard, createDeck } from '../src/cards/data'
 import type { Services } from '../src/services'
 import { createLocalLibrary } from '../src/store/library'
 import { setSyncStatus } from '../src/sync/status'
+import * as Speech from 'expo-speech'
 import { routes } from './routes'
 import { nodeSqliteAdapter } from './store/nodeSqlite'
 
@@ -50,6 +51,24 @@ describe('stories', () => {
     await fireEvent.changeText(screen.getByLabelText('English'), 'plays')
     await fireEvent.press(screen.getByRole('button', { name: 'Add card' }))
     await waitFor(() => expect(library.list('cards')).toHaveLength(2))
+  })
+
+  it('reads the story aloud from the mini player, a paragraph at a time', async () => {
+    const library = useServices()
+    library.put('stories', { ...story, text: ['Der Hund spielt.', 'Die Katze schläft.'].join('\n\n') })
+    await renderRouter(routes, { initialUrl: '/story/s1' })
+    const speak = Speech.speak as jest.Mock
+    speak.mockClear()
+    await fireEvent.press(await screen.findByRole('button', { name: 'Listen to the story' }))
+    expect(speak).toHaveBeenLastCalledWith('Der Hund spielt.', expect.objectContaining({ language: 'de-DE' }))
+    expect(screen.getByText('Paragraph 1 of 2')).toBeTruthy()
+    await fireEvent.press(screen.getByRole('button', { name: 'Next paragraph' }))
+    expect(speak).toHaveBeenLastCalledWith('Die Katze schläft.', expect.anything())
+    expect(screen.getByText('Paragraph 2 of 2')).toBeTruthy()
+    await fireEvent.press(screen.getByRole('button', { name: 'Speed 1 times' }))
+    expect(speak.mock.calls.at(-1)?.[1].rate).toBeCloseTo(speak.mock.calls.at(-2)?.[1].rate * 1.25)
+    await fireEvent.press(screen.getByRole('button', { name: 'Pause' }))
+    expect(screen.getByText('Paused')).toBeTruthy()
   })
 
   it('counts a read', async () => {
