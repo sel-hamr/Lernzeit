@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { newId } from '@/db/db'
-import { hideActivity, noteInput, showActivity, startActivity, tickActivity } from '@/lib/activity'
+import { hideActivity, noteInput, showActivity, startActivity, tickActivity } from '@lernzeit/core/activity'
 import { MINUTE } from '@lernzeit/core/time'
 import { useActiveTimer } from './hooks'
 

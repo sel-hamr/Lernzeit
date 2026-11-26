@@ -117,7 +117,7 @@ describe('the menu', () => {
     await open()
     await screen.findByTestId('page-title')
     await fireEvent.press(within(await openMenu()).getByRole('link', { name: 'Grammar' }))
-    expect(await screen.findByText('Coming in the next update')).toBeTruthy()
+    expect(await screen.findByText('No grammar topics yet')).toBeTruthy()
     expect(screen.getAllByRole('header').map((h) => h.props.children)).toContain('Grammar')
     expect(screen.queryByTestId('menu-sheet')).toBeNull()
     await fireEvent.press(screen.getByRole('button', { name: 'Back' }))

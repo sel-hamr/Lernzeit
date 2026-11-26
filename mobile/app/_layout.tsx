@@ -90,6 +90,15 @@ function Screens() {
           <Stack.Screen name="practice-history" />
           <Stack.Screen name="import-csv" />
           <Stack.Screen name="settings" />
+          <Stack.Screen name="story/[id]" />
+          <Stack.Screen name="story/edit" />
+          <Stack.Screen name="grammar/[id]" />
+          <Stack.Screen name="grammar/edit" />
+          <Stack.Screen name="grammar/practice" />
+          <Stack.Screen name="questions/practice" />
+          <Stack.Screen name="doc/[id]" />
+          <Stack.Screen name="doc/edit" />
+          <Stack.Screen name="docs/[folder]" />
         </Stack.Protected>
         <Stack.Protected guard={!signedIn}>
           <Stack.Screen name="sign-in" />

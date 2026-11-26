@@ -182,3 +182,42 @@ export function startEmpty(library: LocalLibrary): void {
     library.put('kv', { key: 'tour', value: 'pending' })
   })
 }
+
+export type StarterPart = 'stories' | 'questions' | 'grammarTopics'
+
+/**
+ * Adds the starter stories, questions or grammar topics that are missing, at the levels this
+ * library has installed (all of them when none are recorded), as the web's Starter buttons do.
+ * Returns how many were added.
+ */
+export function addStarterPart(library: LocalLibrary, german: StarterFile, part: StarterPart): number {
+  const levels = readSettings(library).levels
+  const wanted = (level?: StoryLevel) => !levels.length || !level || levels.includes(level)
+  return library.write(() => {
+    const now = Date.now()
+    let added = 0
+    if (part === 'stories') {
+      const topicByName = new Map(library.list<Topic>('topics').filter((t) => !t.archived).map((t) => [t.name.toLowerCase(), t]))
+      german.stories.forEach(({ topic, words, ...story }, i) => {
+        if (!wanted(story.level) || library.get('stories', story.id)) return
+        // The list shows the newest first, so later entries get earlier times to keep the file's order.
+        library.put('stories', { ...story, words, topicId: topicByName.get(topic.toLowerCase())?.id, createdAt: now - i, updatedAt: now - i, readCount: 0 })
+        added++
+      })
+    } else {
+      const rows: { id: string; level?: unknown }[] = part === 'questions' ? german.questions : german.grammarTopics
+      rows.forEach((row, i) => {
+        if (!wanted(row.level as StoryLevel | undefined) || library.get(part, row.id)) return
+        library.put(part, { ...row, createdAt: now + i, updatedAt: now + i })
+        added++
+      })
+    }
+    return added
+  })
+}
+
+/** Downloads the starter and adds one part of it; the message to show. */
+export async function installStarterPart(library: LocalLibrary, apiUrl: string, part: StarterPart, noun: [string, string]): Promise<string> {
+  const added = addStarterPart(library, await loadStarterFile(apiUrl), part)
+  return added ? `Added ${added} starter ${added === 1 ? noun[0] : noun[1]}` : `All starter ${noun[1]} are already here`
+}

@@ -126,3 +126,33 @@ Deferred and known:
 - Not checked on a device yet (R4).
 - The Welcome is an overlay, not a modal, so Android back there still leaves the app as before. Every sheet and the walkthrough close on back.
 - The menu pages and Stories are still placeholders (R3).
+
+## Stage R3: Stories, Grammar, Questions, Docs and Board (done)
+
+What was built (each matches its web feature in `src/features/<name>`, logic from core):
+
+- **Shared:**
+  - `src/speech.ts` (`useSay`: expo-speech in German at the Settings speed and voice, stopped when the screen closes).
+  - `src/study/studyTime.ts`: active reading/practice time saved as sessions, as the web does. The activity rules moved from `src/lib/activity.ts` to core (`@lernzeit/core/activity`); the web imports them from there.
+  - `src/components/RoundParts.tsx`: `Segments` (moved out of PracticeScreen), `RoundTop`, `DiffText`, `RoundEmpty`, `RoundDone` (ring and check).
+  - `src/components/RuleText.tsx` (core's parseRule/parseInline in native text, tables scroll sideways), `FeatureGate.tsx` (a page turned off in Settings says so, with Open Settings), `src/notice.ts` (Android toast, an alert as fallback; `confirmDelete`).
+  - `Screen` gained `scroll={false}` and `onTouchStart`.
+  - Starter buttons: `addStarterPart` / `useStarterPart` download the German starter and add the missing stories, questions or topics at the installed levels.
+- **Stories** (tab): tiles with a pastel cover (first letter, level), preview, difficulty badge, coverage bar and "x% in your decks". Reader: tap a word for a sheet with the AI note (meaning, why this form, example, tip) and the card (picture, forms, knowledge, Open card), or an add-to-deck form (incomplete + story tags, sentence as example, LEO link). Highlights by knowledge and article colours, per-paragraph and whole-story listening, translation toggle, colour key, Mark as read, reading time. Story editor route with delete. Write with AI: deck/level/length/theme like the web, then the prompt goes out through the share sheet (the web copies it) and the arriving story shows "Read it".
+- **Grammar**: course hero (next topic, progress), review card (due count, next due), path/section toggle, rows with a filling ring or a lime check. Topic page: rule, examples to hear, From your cards, exercises with answers, Practise. Round (topic or review): choices (articles in their colours), typed with äöüß, tap the mistake, build from words, card drills (gender, plural, verbs), feedback with letter diff, why and Ask Claude (opens claude.ai), wrong answers requeued, done screen with progress before → after and what to work on. Topic editor with the drill select and exercise syntax check.
+- **Questions**: hero with Practise all, set cards (Practise, add, show rows), question sheet editor with delete. Practice: English and hint-word chips, typed answer (kept), Show answer, Skip, comparison with your answer, suggested, earlier answers, tally at the end.
+- **Docs**: search, status and tag chips, continue-reading, folders, docs; folder new/rename/move/delete (with counts). Reader with an in-repo Markdown renderer (`src/docs/markdown.ts`: headings, lists with nesting and task boxes, quotes, fences, rules, tables, pictures, bold/italic/strike/code/links; only http(s)/mailto links open; raw HTML stays text), saved reading position, contents sheet, pin, move, share, delete, Mark as read. Editor with write/preview.
+- **Board**: four columns in a horizontal snap list with a peek and page dots, filters (all/due today/priority), task cards (topic dot, due line in red when due or overdue, priority badge). Task sheet creates and edits (column, topic, priority, due date chips with ± a day), moves up/down, deletes; holding a card opens a Move sheet.
+- Routes: `story/[id]`, `story/edit`, `grammar/[id]`, `grammar/edit`, `grammar/practice`, `questions/practice`, `doc/[id]`, `doc/edit`, `docs/[folder]`; `more/[id]` dispatches Grammar, Questions, Docs and Board. `Placeholder` and every "Coming…" text are gone.
+- All writes go through the local library (`library.put/remove/write`), so they reach the outbox and sync.
+
+Tests: `test/features3d.test.ts` (view models, Markdown, data rules, starter parts, study time) and `test/screens3d.test.tsx` (reader word sheet and add, read count, grammar round, question practice, doc reader, board add/move, turned-off page). Mobile: 22 suites, 217 tests. Root: vitest 651, worker 195.
+
+Phone alternatives and deferred:
+
+- No clipboard package: the AI story prompt and a doc's Markdown go through the share sheet instead of Copy.
+- Board tasks move with the Move sheet and Move up/down, not by dragging as on the web.
+- Docs: pasting or dropping pictures into a doc is web-only; pictures already in a doc show. Code blocks have no syntax colours and no Copy button (they are selectable). Heading links (#anchors) stay text.
+- Theme ideas: the featured ones only; the web's "More themes" dialog is not on the phone.
+- The reader's Highlights/Translation toggles are not remembered between visits (the web keeps them in browser storage).
+- Not checked on a device yet (R4).

@@ -21,7 +21,8 @@ import { newId } from '../data/ids'
 import { useLocalLibrary } from '../store/live'
 import { useActiveTimer } from '../timer/hooks'
 import { zoneOf } from '../timer/timerStore'
-import { AnimatedBar, AnimatedCheck, AnimatedRing, FadeInUp, haptics, Pressable } from '../motion'
+import { AnimatedCheck, AnimatedRing, FadeInUp, haptics, Pressable } from '../motion'
+import { Segments } from '../components/RoundParts'
 import { numbers, useTheme } from '../theme'
 import { Badge, Button, Chip, EmptyState, IconButton, Sheet, ToggleRow } from '../ui'
 import { checkTyped, expectedAnswer, practisesDeck, roundFor, startRound, type Progress } from './round'
@@ -403,19 +404,6 @@ export function PracticeScreen() {
           ) : null}
         </View>
       </Sheet>
-    </View>
-  )
-}
-
-/** The round's progress: one segment per card for short rounds, a bar for long ones. */
-function Segments({ done, total, pct }: { done: number; total: number; pct: number }) {
-  const { colors } = useTheme()
-  if (total > 24 || total === 0) return <AnimatedBar value={pct} height={6} color={colors.ink} track={colors.lineStrong} style={styles.grow} label="Round progress" />
-  return (
-    <View accessible accessibilityRole="progressbar" accessibilityLabel="Round progress" accessibilityValue={{ min: 0, max: 100, now: Math.round(pct * 100) }} style={[styles.grow, styles.row, { gap: 3, height: 6 }]}>
-      {Array.from({ length: total }, (_, i) => (
-        <View key={i} style={[styles.grow, { height: 6, borderRadius: 3, backgroundColor: i < done ? colors.ink : colors.lineStrong }]} />
-      ))}
     </View>
   )
 }

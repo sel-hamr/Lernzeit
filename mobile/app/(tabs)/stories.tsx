@@ -1,5 +1,10 @@
-import { Placeholder } from '../../src/components/Placeholder'
+import { FeatureGate } from '../../src/components/FeatureGate'
+import { StoriesScreen } from '../../src/stories/StoriesScreen'
 
 export default function Stories() {
-  return <Placeholder gutter />
+  return (
+    <FeatureGate id="stories" tab>
+      <StoriesScreen />
+    </FeatureGate>
+  )
 }

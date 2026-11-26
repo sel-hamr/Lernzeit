@@ -1,4 +1,4 @@
-import { MINUTE } from '@lernzeit/core/time'
+import { MINUTE } from './time'
 
 /**
  * Active time on a page where people mostly read: time counts while the page
