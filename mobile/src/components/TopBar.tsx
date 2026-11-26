@@ -1,8 +1,7 @@
 import { dayKeyAt } from '@lernzeit/core/today'
 import { formatLongDate } from '@lernzeit/core/time'
 import { usePathname, useRouter } from 'expo-router'
-import { Menu, Search } from 'lucide-react-native'
-import { useState } from 'react'
+import { Search } from 'lucide-react-native'
 import { StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAccount } from '../account'
@@ -13,16 +12,13 @@ import { useTheme } from '../theme'
 import { useNow } from '../timer/hooks'
 import { greeting, hourIn } from '../today/greeting'
 import { IconButton } from '../ui'
-import { MenuSheet } from './MenuSheet'
-import { levelColor, useSyncIndicator } from './syncIndicator'
 
 /** The tab whose page is open: the path's first part, Today for the index. */
 const tabOf = (pathname: string) => pathname.split('/').filter(Boolean)[0] ?? 'today'
 
 /**
  * The tabs' header on the canvas: on Today the greeting by the hour and the date, on the other tabs
- * the page's name; round Search and Menu buttons on the right. The Menu button carries a dot while
- * sync needs a look.
+ * the page's name; a round Search button on the right. The menu lives in the bottom bar.
  */
 export function TopBar() {
   const { colors, type, spacing } = useTheme()
@@ -30,9 +26,6 @@ export function TopBar() {
   const router = useRouter()
   const pathname = usePathname()
   const account = useAccount()
-  const [menuOpen, setMenuOpen] = useState(false)
-  const sync = useSyncIndicator()
-  const needsLook = sync.level !== 'ok' && !sync.passing
   const zone = useLiveQuery(['kv'], (library) => {
     const value = library.get<{ value?: unknown }>('kv', 'timeZone')?.value
     return typeof value === 'string' && value ? value : undefined
@@ -64,14 +57,7 @@ export function TopBar() {
           ) : null}
         </FadeInUp>
         <IconButton icon={Search} label="Search" onPress={() => router.push('/search')} />
-        <IconButton
-          icon={Menu}
-          label={needsLook ? `Menu, Sync: ${sync.label}` : 'Menu'}
-          badge={needsLook ? levelColor(colors, sync.level) : undefined}
-          onPress={() => setMenuOpen(true)}
-        />
       </View>
-      <MenuSheet open={menuOpen} onClose={() => setMenuOpen(false)} />
     </View>
   )
 }

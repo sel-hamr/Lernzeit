@@ -1,5 +1,6 @@
 import { phoneTabIds } from '@lernzeit/core/nav'
 import type { Tabs } from 'expo-router'
+import { Menu } from 'lucide-react-native'
 import { useContext, useEffect, useState, type ComponentProps } from 'react'
 import { StyleSheet, View } from 'react-native'
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, type SharedValue } from 'react-native-reanimated'
@@ -8,6 +9,8 @@ import { enabledFeatureIds, featureById, type Feature } from '../features'
 import { useHiddenFeatures } from '../features'
 import { haptics, Pressable, springs } from '../motion'
 import { useTheme } from '../theme'
+import { MenuSheet } from './MenuSheet'
+import { levelColor, useSyncIndicator } from './syncIndicator'
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0]
 
@@ -54,7 +57,8 @@ export function pillStart(count: number, pos: number): number {
  * The floating tab bar: a white bar inset from the screen edges, above the safe area, with the
  * pages scrolling under it (they pad their ends with `useTabBarSpace`). The active
  * tab is a lime-soft pill with its icon and word; the pill slides on a spring to the tab you pick.
- * A turned-off page is left out.
+ * A turned-off page is left out. The last slot is the Menu button (a button, not a tab: the pill
+ * never lands on it); it opens the menu sheet and carries a dot while sync needs a look.
  */
 export function BottomBar({ state, emitter, navigateToTab }: TabBarProps) {
   const { colors, radius, shadow } = useTheme()
@@ -71,13 +75,16 @@ export function BottomBar({ state, emitter, navigateToTab }: TabBarProps) {
   const count = tabs.length
   const pos = useSharedValue(active)
   const [width, setWidth] = useState(0)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const sync = useSyncIndicator()
+  const needsLook = sync.level !== 'ok' && !sync.passing
 
   useEffect(() => {
     pos.value = reduced ? active : withSpring(active, springs.snappy)
   }, [active, reduced, pos])
 
   const pill = useAnimatedStyle(() => {
-    const unit = width / (count + 1)
+    const unit = width / (count + 2)
     return { left: INSET + pillStart(count, pos.value) * unit, width: unit * 2 }
   })
 
@@ -96,7 +103,25 @@ export function BottomBar({ state, emitter, navigateToTab }: TabBarProps) {
           }
           return <Tab key={id} index={j} pos={pos} feature={feature} focused={focused} onPress={onPress} />
         })}
+        <View style={[styles.slot, styles.menuSlot]}>
+          <Pressable
+            onPress={() => {
+              haptics.select()
+              setMenuOpen(true)
+            }}
+            scaleTo={0.94}
+            accessibilityRole="button"
+            accessibilityLabel={needsLook ? `Menu, Sync: ${sync.label}` : 'Menu'}
+            style={styles.tab}
+          >
+            <View>
+              <Menu size={20} strokeWidth={1.8} color={colors.muted} />
+              {needsLook ? <View style={[styles.dot, { backgroundColor: levelColor(colors, sync.level), borderColor: colors.card }]} /> : null}
+            </View>
+          </Pressable>
+        </View>
       </View>
+      <MenuSheet open={menuOpen} onClose={() => setMenuOpen(false)} />
     </View>
   )
 }
@@ -125,6 +150,8 @@ const styles = StyleSheet.create({
   bar: { height: BAR_HEIGHT, flexDirection: 'row', alignItems: 'stretch', paddingHorizontal: INSET },
   pill: { position: 'absolute', top: INSET, bottom: INSET, borderRadius: 999 },
   slot: { flexBasis: 0 },
+  menuSlot: { flexGrow: 1 },
+  dot: { position: 'absolute', top: -3, right: -4, width: 10, height: 10, borderRadius: 5, borderWidth: 2 },
   tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 48 },
   label: { fontSize: 13, lineHeight: 17, flexShrink: 1 },
 })
