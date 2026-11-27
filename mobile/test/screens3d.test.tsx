@@ -1,5 +1,5 @@
 import { fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library'
-import type { Story, Task } from '@lernzeit/core/types'
+import type { Story } from '@lernzeit/core/types'
 import { createAccountService } from '../src/account'
 import { quickAddCard, createDeck } from '../src/cards/data'
 import type { Services } from '../src/services'
@@ -123,23 +123,3 @@ describe('docs', () => {
   })
 })
 
-describe('board', () => {
-  it('adds a task from the sheet and moves it by holding it', async () => {
-    const library = useServices()
-    await renderRouter(routes, { initialUrl: '/more/board' })
-    await fireEvent.press((await screen.findAllByRole('button', { name: 'Add task to Doing' }))[0])
-    await fireEvent.changeText(await screen.findByLabelText('Title'), 'Read chapter 3')
-    await fireEvent.press(screen.getByRole('button', { name: 'Add task' }))
-    await waitFor(() => expect(library.list<Task>('tasks')).toEqual([expect.objectContaining({ title: 'Read chapter 3', status: 'doing' })]))
-    await fireEvent(await screen.findByRole('button', { name: 'Read chapter 3. Hold to move.' }), 'longPress')
-    expect(await screen.findByText('Move “Read chapter 3”')).toBeTruthy()
-    await fireEvent.press(screen.getByRole('button', { name: 'Done, 0' }))
-    await waitFor(() => expect(library.list<Task>('tasks')[0].status).toBe('done'))
-  })
-
-  it('says a turned-off page is off', async () => {
-    useServices(['board'])
-    await renderRouter(routes, { initialUrl: '/more/board' })
-    expect(await screen.findByText('Board is turned off')).toBeTruthy()
-  })
-})

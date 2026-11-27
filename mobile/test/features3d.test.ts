@@ -1,10 +1,8 @@
-import type { Card, CardReview, Doc, DocFolder, ExerciseStat, GrammarTopic, Question, QuestionResponse, Session, Story, Task } from '@lernzeit/core/types'
+import type { Card, CardReview, Doc, DocFolder, ExerciseStat, GrammarTopic, Question, QuestionResponse, Session, Story } from '@lernzeit/core/types'
 import { exerciseQuestion, topicProgress, type RoundQuestion } from '@lernzeit/core/grammar'
 import { compareWithAnswer } from '@lernzeit/core/questions'
 import { DOC_ROOT } from '@lernzeit/core/docs'
 import { createDeck, quickAddCard } from '../src/cards/data'
-import { createTask, shiftTask, updateTask } from '../src/board/data'
-import { boardColumns, dueLabel, dueChoices, ALL_TASKS } from '../src/board/model'
 import { createDocFolder, deleteDocFolder, moveDocFolder, saveDoc, setDocPosition } from '../src/docs/data'
 import { docHeadings, parseMarkdown, parseSpans } from '../src/docs/markdown'
 import { saveExerciseAnswer, saveTopic, deleteTopic } from '../src/grammar/data'
@@ -225,45 +223,6 @@ describe('docs', () => {
     deleteDocFolder(library, a.id)
     expect(library.list<DocFolder>('docFolders')).toEqual([])
     expect(library.list<Doc>('docs').map((d) => d.id)).toEqual([keep.id])
-  })
-})
-
-describe('board', () => {
-  it('puts new and moved tasks on top of their column, and stamps Done', () => {
-    const library = setup()
-    const first = createTask(library, { title: 'One', priority: 'medium', status: 'todo' })
-    const second = createTask(library, { title: 'Two', priority: 'high', status: 'todo' })
-    expect(second.order).toBeLessThan(first.order)
-    updateTask(library, first.id, { status: 'done' })
-    expect(library.get<Task>('tasks', first.id)).toMatchObject({ status: 'done' })
-    expect(library.get<Task>('tasks', first.id)?.doneAt).toBeGreaterThan(0)
-    updateTask(library, first.id, { status: 'todo', title: '  ' })
-    expect(library.get<Task>('tasks', first.id)?.title).toBe('One')
-    expect(library.get<Task>('tasks', first.id)?.doneAt).toBeUndefined()
-  })
-
-  it('shifts a task within its column', () => {
-    const library = setup()
-    const a = createTask(library, { title: 'A', priority: 'low', status: 'todo' })
-    const b = createTask(library, { title: 'B', priority: 'low', status: 'todo' })
-    const column = () => boardColumns(library.list<Task>('tasks'), ALL_TASKS, '2026-11-26').todo.map((t) => t.title)
-    expect(column()).toEqual(['B', 'A'])
-    shiftTask(library, b.id, 1)
-    expect(column()).toEqual(['A', 'B'])
-    shiftTask(library, a.id, -1)
-    expect(column()).toEqual(['A', 'B'])
-  })
-
-  it('filters the columns and labels due dates', () => {
-    const today = '2026-11-26'
-    const task = (id: string, status: Task['status'], dueDate?: string, priority: Task['priority'] = 'medium') => ({ id, title: id, status, dueDate, priority, order: 0, createdAt: 0 }) as Task
-    const tasks = [task('late', 'todo', '2026-11-20'), task('soon', 'doing', '2026-11-27', 'high'), task('done', 'done', '2026-11-01')]
-    expect(boardColumns(tasks, { ...ALL_TASKS, scope: 'today' }, today).todo.map((t) => t.id)).toEqual(['late'])
-    expect(boardColumns(tasks, { ...ALL_TASKS, priority: 'high' }, today).doing.map((t) => t.id)).toEqual(['soon'])
-    expect(dueLabel(tasks[0], today)).toMatch(/^Overdue · /)
-    expect(dueLabel(tasks[1], today)).toBe('Tomorrow')
-    expect(dueLabel(task('x', 'todo', today), today)).toBe('Due today')
-    expect(dueChoices(today).map((c) => c.value)).toEqual(['', today, '2026-11-27', '2026-12-03'])
   })
 })
 

@@ -1,10 +1,10 @@
 /*
- * The pages the phone knows, in the web's menu order (src/app/plugins.ts), with the words and icons
+ * The pages the phone knows (the web also has History and Board, which the phone leaves out), in the web's menu order (src/app/plugins.ts), with the words and icons
  * the bars use. Which of them are on comes from the synced settings; which go on the bottom bar and
  * which in the menu is core's rule (@lernzeit/core/nav), the same as the web's phone layout.
  */
 import { menuIds, phoneTabIds } from '@lernzeit/core/nav'
-import { BookA, BookOpen, CalendarDays, Copy, FileText, House, Kanban, MessageCircleQuestionMark, Timer, type LucideIcon } from 'lucide-react-native'
+import { BookA, BookOpen, Copy, FileText, House, MessageCircleQuestionMark, Timer, type LucideIcon } from 'lucide-react-native'
 import { useMemo } from 'react'
 import { useLiveQuery } from './store/live'
 
@@ -26,8 +26,6 @@ export const FEATURES: readonly Feature[] = [
   { id: 'stories', label: 'Stories', short: 'Stories', icon: BookOpen },
   { id: 'questions', label: 'Questions', short: 'Q&A', icon: MessageCircleQuestionMark },
   { id: 'docs', label: 'Docs', short: 'Docs', icon: FileText },
-  { id: 'history', label: 'History', short: 'History', icon: CalendarDays },
-  { id: 'board', label: 'Board', short: 'Board', icon: Kanban },
 ]
 
 const byId = new Map(FEATURES.map((feature) => [feature.id, feature]))

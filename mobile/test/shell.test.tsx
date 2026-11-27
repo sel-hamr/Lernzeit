@@ -89,14 +89,14 @@ describe('the menu', () => {
     useServices()
     await open()
     await screen.findByTestId('page-title')
-    expect(menuLinks(await openMenu())).toEqual(['Grammar', 'Questions', 'Docs', 'History', 'Board', 'Settings', 'Sync: Synced'])
+    expect(menuLinks(await openMenu())).toEqual(['Grammar', 'Questions', 'Docs', 'Settings', 'Sync: Synced'])
   })
 
   it('leaves out a turned-off page and never lists a tab', async () => {
-    useServices({ hidden: ['stories', 'grammar', 'board'] })
+    useServices({ hidden: ['stories', 'grammar'] })
     await open()
     await screen.findByTestId('page-title')
-    expect(menuLinks(await openMenu())).toEqual(['Questions', 'Docs', 'History', 'Settings', 'Sync: Synced'])
+    expect(menuLinks(await openMenu())).toEqual(['Questions', 'Docs', 'Settings', 'Sync: Synced'])
   })
 
   it('closes on the back button and on the backdrop', async () => {

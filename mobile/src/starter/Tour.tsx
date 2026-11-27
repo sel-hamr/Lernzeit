@@ -11,7 +11,7 @@ export const TOUR_STEPS = [
   { title: 'Today', text: 'Your daily goals and the time you studied. Each topic has a goal per weekday, and a bar fills as you study.' },
   { title: 'Cards', text: 'Your flashcards by deck. Tap Practise to go through a deck: show the answer, then rate it Again, Hard, Good or Easy. Add words with the plus.' },
   { title: 'Timer', text: 'Pick a topic and start a countdown, pomodoro or free timer. It keeps running when the app is closed and rings when the time is up.' },
-  { title: 'Menu', text: 'The Menu button at the right end of the bottom bar holds History, Settings and the other pages. Settings has topics, goals, reminders, backup and this walkthrough.' },
+  { title: 'Menu', text: 'The Menu button at the right end of the bottom bar holds Grammar, Questions, Docs and Settings. Settings has topics, goals, reminders, backup and this walkthrough.' },
 ]
 
 /** Whether the walkthrough should show: it is pending, or this phone has data from before it existed and has not seen it. */

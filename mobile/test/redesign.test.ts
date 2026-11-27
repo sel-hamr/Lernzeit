@@ -1,6 +1,5 @@
 import type { Card, Deck } from '@lernzeit/core/types'
 import { cardMatches } from '../src/cards/search'
-import { sessionsByDay } from '../src/history/sessionsByDay'
 import { ringProgress } from '../src/timer/ring'
 import { pillStart, tabWeight } from '../src/components/BottomBar'
 import { flyTarget, ratingForSwipe } from '../src/practice/swipe'
@@ -106,19 +105,6 @@ describe('the timer ring', () => {
     expect(ringProgress(25 * 60_000, 0, true)).toBe(1)
     expect(ringProgress(90 * 60_000, undefined, true)).toBeCloseTo(0.5)
     expect(ringProgress(0, 0, true)).toBe(0)
-  })
-})
-
-describe('sessions by day', () => {
-  const session = (id: string, date: string, start: number, minutes = 30) => ({ id, topicId: 't', date, start, end: start + minutes * 60_000, minutes, source: 'timer' as const })
-  it('groups the week’s sessions by day, newest day and latest session first, with the day’s minutes', () => {
-    const days = ['2026-11-23', '2026-11-24', '2026-11-25']
-    const grouped = sessionsByDay([session('a', '2026-11-23', 1), session('b', '2026-11-25', 5, 20), session('c', '2026-11-25', 9, 15), session('x', '2026-11-30', 3)], days)
-    expect(grouped.map((g) => [g.day, g.minutes, g.sessions.map((s) => s.id)])).toEqual([
-      ['2026-11-25', 35, ['c', 'b']],
-      ['2026-11-23', 30, ['a']],
-    ])
-    expect(sessionsByDay([], days)).toEqual([])
   })
 })
 

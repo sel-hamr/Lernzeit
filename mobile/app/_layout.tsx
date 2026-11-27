@@ -82,7 +82,6 @@ function Screens() {
         <Stack.Protected guard={signedIn}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="more/[id]" />
-          <Stack.Screen name="more/history" />
           <Stack.Screen name="search" />
           <Stack.Screen name="card/[id]" />
           <Stack.Screen name="card/edit" />

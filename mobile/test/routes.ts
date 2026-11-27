@@ -10,7 +10,6 @@ import DocsFolderPage from '../app/docs/[folder]'
 import CardPage from '../app/card/[id]'
 import CardEditPage from '../app/card/edit'
 import ImportCsvPage from '../app/import-csv'
-import HistoryPage from '../app/more/history'
 import MenuPage from '../app/more/[id]'
 import PracticePage from '../app/practice'
 import PracticeHistoryPage from '../app/practice-history'
@@ -42,7 +41,6 @@ export const routes = {
   'doc/[id]': DocPage,
   'doc/edit': DocEditPage,
   'docs/[folder]': DocsFolderPage,
-  'more/history': HistoryPage,
   'card/[id]': CardPage,
   'card/edit': CardEditPage,
   practice: PracticePage,
