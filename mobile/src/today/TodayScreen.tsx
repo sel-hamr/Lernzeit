@@ -168,7 +168,8 @@ function Decks({ today, lastPractised }: { today: string; lastPractised: Map<str
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollX.value = e.contentOffset.x
   })
-  const cardWidth = Math.round(Math.min(240, (width - spacing.pageX * 2) * 0.66))
+  // Each deck card takes 85 % of the screen width, so the next one peeks in at the edge.
+  const cardWidth = Math.round(width * 0.85)
   const step = cardWidth + spacing.md
   return (
     <View style={{ gap: spacing.md }}>
