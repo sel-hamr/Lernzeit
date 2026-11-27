@@ -1,0 +1,228 @@
+import type { WeekdayKey } from './types'
+
+export const MINUTE = 60_000
+export const HOUR = 60 * MINUTE
+export const DAY = 24 * HOUR
+
+export const WEEKDAYS: WeekdayKey[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+export const WEEKDAY_SHORT: Record<WeekdayKey, string> = {
+  mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun',
+}
+export const WEEKDAY_LONG: Record<WeekdayKey, string> = {
+  mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday',
+}
+
+const pad = (n: number) => String(n).padStart(2, '0')
+
+/** Local calendar date as YYYY-MM-DD. */
+export function dateKey(input: Date | number = Date.now()): string {
+  const d = typeof input === 'number' ? new Date(input) : input
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+/** Local midnight of a YYYY-MM-DD key. */
+export function parseDateKey(key: string): Date {
+  const [y, m, d] = key.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+export function addDays(key: string, days: number): string {
+  const d = parseDateKey(key)
+  d.setDate(d.getDate() + days)
+  return dateKey(d)
+}
+
+/** Whole days from a to b (b - a). DST safe because it rounds. */
+export function daysBetween(a: string, b: string): number {
+  return Math.round((parseDateKey(b).getTime() - parseDateKey(a).getTime()) / DAY)
+}
+
+export function weekdayOf(key: string): WeekdayKey {
+  const js = parseDateKey(key).getDay() // 0 = Sunday
+  return WEEKDAYS[(js + 6) % 7]
+}
+
+/** Monday of the week that contains `key`. */
+export function startOfWeek(key: string): string {
+  const offset = WEEKDAYS.indexOf(weekdayOf(key))
+  return addDays(key, -offset)
+}
+
+export function weekDays(monday: string): string[] {
+  return WEEKDAYS.map((_, i) => addDays(monday, i))
+}
+
+export function startOfDayMs(ts: number): number {
+  const d = new Date(ts)
+  d.setHours(0, 0, 0, 0)
+  return d.getTime()
+}
+
+export function nextMidnightMs(ts: number): number {
+  const d = new Date(ts)
+  d.setHours(24, 0, 0, 0)
+  return d.getTime()
+}
+
+/** 70 -> "1:10", 5 -> "0:05". Fractions are dropped. */
+export function formatHM(minutes: number): string {
+  const total = Math.max(0, Math.floor(minutes + 1e-6))
+  return `${Math.floor(total / 60)}:${pad(total % 60)}`
+}
+
+/** Hours with at most one decimal: 270 -> "4.5", 180 -> "3". */
+export function formatHours(minutes: number): string {
+  const h = Math.round((minutes / 60) * 10) / 10
+  return Number.isInteger(h) ? String(h) : h.toFixed(1)
+}
+
+/** 45 -> "45 min", 90 -> "1:30 h" */
+export function formatMinutesShort(minutes: number): string {
+  const m = Math.floor(minutes + 1e-6)
+  return m < 60 ? `${m} min` : `${formatHM(m)} h`
+}
+
+/** "14:02" */
+export function formatClock(ts: number): string {
+  const d = new Date(ts)
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+/** Timer readout: "24:13", or "1:02:03" past an hour. */
+export function formatTimer(ms: number): string {
+  const total = Math.max(0, Math.round(ms / 1000))
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`
+}
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const MONTHS_SHORT = MONTHS.map((m) => m.slice(0, 3))
+
+/** "Wednesday, 14 October" */
+export function formatLongDate(key: string): string {
+  const d = parseDateKey(key)
+  return `${WEEKDAY_LONG[weekdayOf(key)]}, ${d.getDate()} ${MONTHS[d.getMonth()]}`
+}
+
+/** "5 October" */
+export function formatDayMonth(key: string): string {
+  const d = parseDateKey(key)
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}`
+}
+
+/** "5 Oct" */
+export function formatDayMonthShort(key: string): string {
+  const d = parseDateKey(key)
+  return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`
+}
+
+/** "Oct 2026" */
+export function formatMonthYear(key: string): string {
+  const d = parseDateKey(key)
+  return `${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`
+}
+
+/** "Today", "Tomorrow", "in 4 days", or "12 Oct" */
+export function formatNextReview(due: number, now: number = Date.now()): string {
+  const days = daysBetween(dateKey(now), dateKey(due))
+  if (due <= now || days <= 0) return 'Today'
+  if (days === 1) return 'Tomorrow'
+  if (days < 14) return `in ${days} days`
+  return formatDayMonthShort(dateKey(due))
+}
+
+/** "1m", "10m", "3h", "4d", "2mo", "1.3y" — for the rating buttons. */
+export function formatInterval(ms: number): string {
+  const min = ms / MINUTE
+  if (min < 60) return `${Math.max(1, Math.round(min))}m`
+  const h = min / 60
+  if (h < 24) return `${Math.round(h)}h`
+  const d = h / 24
+  if (d < 31) return `${Math.round(d)}d`
+  const mo = d / 30
+  if (mo < 12) return `${Math.round(mo)}mo`
+  return `${Math.round((d / 365) * 10) / 10}y`
+}
+
+/** "HH:MM" -> minutes since midnight */
+export function parseTimeOfDay(value: string): number {
+  const [h, m] = value.split(':').map(Number)
+  return (h || 0) * 60 + (m || 0)
+}
+
+// ---- Dates in a named time zone (for code that does not run in the owner's zone, such as the Worker) ----
+
+const zoneFormats = new Map<string, Intl.DateTimeFormat>()
+
+/** The wall clock of `ms` in `timeZone`, as Y/M/D h:m:s. */
+function zoneParts(ms: number, timeZone: string) {
+  let format = zoneFormats.get(timeZone)
+  if (!format) {
+    format = new Intl.DateTimeFormat('en-US', {
+      timeZone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+    })
+    zoneFormats.set(timeZone, format)
+  }
+  const out: Record<string, number> = {}
+  for (const part of format.formatToParts(ms)) if (part.type !== 'literal') out[part.type] = Number(part.value)
+  return out as { year: number; month: number; day: number; hour: number; minute: number; second: number }
+}
+
+/** The calendar date of `ms` in `timeZone` as YYYY-MM-DD. */
+export function dateKeyIn(ms: number, timeZone: string): string {
+  const p = zoneParts(ms, timeZone)
+  return `${p.year}-${pad(p.month)}-${pad(p.day)}`
+}
+
+/** How far the wall clock of `timeZone` is ahead of UTC at `ms`, in ms (whole seconds). */
+function zoneOffset(ms: number, timeZone: string): number {
+  const p = zoneParts(ms, timeZone)
+  return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - Math.floor(ms / 1000) * 1000
+}
+
+/**
+ * The instant whose wall clock in `timeZone` is `wall` (a wall clock read as UTC). Settles daylight
+ * saving changes. A wall clock the zone skips (its clocks went on over it, as Santiago's do over
+ * 00:00 one night a year) moves on by the gap, as JavaScript dates do: 00:30 reads as 01:30, and
+ * the skipped midnight as the moment the clocks went on, when that day starts.
+ */
+function fromWallClock(wall: number, timeZone: string): number {
+  let guess = wall
+  // The zone's offset at the guess is only known from the guess itself, so settle it.
+  for (let i = 0; i < 4; i++) {
+    const next = wall - zoneOffset(guess, timeZone)
+    if (next === guess) return guess
+    guess = next
+  }
+  // No instant has that wall clock: the guesses take turns either side of the gap. The later one is
+  // past it, the earlier one before it (for a skipped midnight, still the day before).
+  return Math.max(guess, wall - zoneOffset(guess, timeZone))
+}
+
+/** The instant of the next 00:00 in `timeZone` after `ms`. Right across daylight saving changes. */
+export function nextMidnightIn(ms: number, timeZone: string): number {
+  const p = zoneParts(ms, timeZone)
+  return fromWallClock(Date.UTC(p.year, p.month - 1, p.day + 1), timeZone)
+}
+
+/** "2026-10-15T08:30": the wall clock of `ms` in `timeZone`, the way people say it. */
+export function localDateTimeIn(ms: number, timeZone: string): string {
+  const p = zoneParts(ms, timeZone)
+  return `${p.year}-${pad(p.month)}-${pad(p.day)}T${pad(p.hour)}:${pad(p.minute)}`
+}
+
+const WALL_CLOCK_RE = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?)$/
+
+/**
+ * Reads a date and time like "2026-10-15T08:30" as the wall clock in
+ * `timeZone`. Text with its own offset ("…Z", "…+02:00"), and any other text,
+ * is read as `Date.parse` reads it. NaN when it is not a time.
+ */
+export function parseLocalDateTimeIn(text: string, timeZone: string): number {
+  const match = WALL_CLOCK_RE.exec(text.trim())
+  if (!match) return Date.parse(text)
+  const wall = Date.parse(`${match[1]}T${match[2]}Z`)
+  return Number.isNaN(wall) ? NaN : fromWallClock(wall, timeZone)
+}

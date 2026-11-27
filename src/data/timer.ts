@@ -1,7 +1,8 @@
+import { getDeviceId } from '@/sync/device'
 import { db, getActiveTimer, getSettings, KV_KEYS, newId, type LernzeitDB } from '@/db/db'
-import type { ActiveTimer, Session, SessionSource, TimerMode } from '@/db/types'
-import { splitAtMidnight } from '@/lib/sessions'
-import { isPhaseComplete, pause, phaseEndAt, resume, studiedMinutes } from '@/lib/timer'
+import type { ActiveTimer, Session, SessionSource, TimerMode } from '@lernzeit/core/types'
+import { splitAtMidnight } from '@lernzeit/core/sessions'
+import { isPhaseComplete, pause, phaseEndAt, resume, studiedMinutes } from '@lernzeit/core/timer'
 
 /** Runs shorter than this are not worth a history entry. */
 export const MIN_SESSION_MINUTES = 0.5
@@ -60,6 +61,7 @@ export async function startTimer(
   database: LernzeitDB = db,
 ): Promise<void> {
   const settings = await getSettings(database)
+  const deviceId = await getDeviceId(database)
   await database.transaction('rw', timerTables(database), async () => {
     const existing = await getActiveTimer(database)
     if (existing) await finishRun(database, existing, Date.now())
@@ -76,6 +78,7 @@ export async function startTimer(
       cycle: 1,
       firstStartedAt: now,
       note: '',
+      deviceId,
     }
     await writeTimer(database, timer)
   })

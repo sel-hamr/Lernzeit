@@ -1,0 +1,144 @@
+/*
+ * The cloud account on this phone. Like the web's `meta.account`, the store's meta says who signed
+ * in here (`{ email }`), so a phone that signed in before opens on its own data offline too; the
+ * app shows the sign-in screen only while it is missing. The token is only in secure storage.
+ * Signing in never touches local data. A 401 (SignedOutError) deletes the account and the token but
+ * keeps the library and its outbox, so signing in again picks up where the phone left off.
+ */
+import { isSynced, SYNC_TABLES } from '@lernzeit/core/sync'
+import * as Device from 'expo-device'
+import { createContext, createElement, useContext, type ReactNode } from 'react'
+import { OfflineError, SignedOutError, type Api } from './api'
+import { ACCOUNT_KEY, type ImageFile, type LocalLibrary } from './store/library'
+import { useLiveQuery } from './store/live'
+import { withSyncLock } from './sync/lock'
+import type { TokenStore } from './token'
+
+export { ACCOUNT_KEY }
+
+export interface Account {
+  email: string
+}
+
+/** "Android · Pixel 8", or "Android phone" when the model is unknown. The cloud lists devices by it. */
+export function deviceName(): string {
+  const model = Device.modelName?.trim()
+  return model ? `Android · ${model}` : 'Android phone'
+}
+
+/** Words for a sign-in failure: the server's own message, or that the cloud cannot be reached. */
+export function failureMessage(error: unknown): string {
+  if (error instanceof OfflineError) return 'Can’t reach your Lernzeit cloud. Check the connection and try again.'
+  if (error instanceof SignedOutError) return 'You were signed out. Sign in again.'
+  return error instanceof Error ? error.message : 'Something went wrong. Try again.'
+}
+
+/**
+ * `meta` key of the email that last signed in here. Unlike `account` it survives a 401 sign-out,
+ * which keeps the data; a sign-out that clears the data clears it too (meta goes with it).
+ */
+export const LAST_ACCOUNT_KEY = 'lastAccount'
+
+/** Signing in as someone else while this phone still holds another account's data. */
+export class OtherAccountError extends Error {
+  constructor(readonly lastAccount: string) {
+    super(`This phone has data from ${lastAccount}. Use “Remove this phone’s data” below to sign in with another account.`)
+    this.name = 'OtherAccountError'
+  }
+}
+
+/** Phones that signed in before `lastAccount` existed: remembers who they belong to, so the guard covers them too. Call once at start. */
+export function backfillLastAccount(library: LocalLibrary): void {
+  const email = library.getMeta<{ email?: unknown }>(ACCOUNT_KEY)?.email
+  if (typeof email === 'string' && library.getMeta(LAST_ACCOUNT_KEY) === undefined) library.setMeta(LAST_ACCOUNT_KEY, email)
+}
+
+const sameEmail = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
+
+/** Whether the phone holds anything of an account: a change waiting or a synced record. */
+function hasSyncedData(library: LocalLibrary): boolean {
+  return library.outboxSize() > 0 || SYNC_TABLES.some((tbl) => (tbl === 'kv' ? library.listIds(tbl).some((key) => isSynced(tbl, key)) : library.count(tbl) > 0))
+}
+
+export interface AccountService {
+  /** Signs in and keeps the token in secure storage and the email in the store. Throws the API's errors; the password goes nowhere else. */
+  signIn(email: string, password: string): Promise<void>
+  /**
+   * Signs out of this phone. Without `force`, answers 'unsynced' and does nothing while changes wait
+   * in the outbox. Forced (or with an empty outbox) it asks the cloud to end the session (best effort),
+   * deletes the token, and clears the synced data, outbox, image files and meta except the device id.
+   */
+  signOut(options?: { force?: boolean }): Promise<'done' | 'unsynced'>
+  /**
+   * The 401 rule: the account and token go, the data and outbox stay. With `sentToken` (the token the
+   * refused call carried), a stale 401 is ignored: when the current token differs, a newer sign-in is intact.
+   */
+  signedOut(sentToken?: string | null): Promise<void>
+}
+
+export interface AccountServiceOptions {
+  library: LocalLibrary
+  api: Pick<Api, 'login' | 'logout'>
+  tokens: TokenStore
+  /** Deletes the files of the image rows a forced sign-out removed. */
+  deleteImageFiles?: (files: ImageFile[]) => Promise<void> | void
+}
+
+export function createAccountService({ library, api, tokens, deleteImageFiles }: AccountServiceOptions): AccountService {
+  return {
+    async signIn(email, password) {
+      // Before asking the cloud, so no session is opened for the refused account.
+      const previous = library.getMeta<string>(LAST_ACCOUNT_KEY)
+      if (typeof previous === 'string' && !sameEmail(previous, email) && hasSyncedData(library)) throw new OtherAccountError(previous)
+      const result = await api.login(email.trim(), password, deviceName())
+      await tokens.set(result.token)
+      try {
+        library.write(() => {
+          library.setMeta(ACCOUNT_KEY, { email: result.email })
+          library.setMeta(LAST_ACCOUNT_KEY, result.email)
+        })
+      } catch (error) {
+        // No account without a token and no token without an account.
+        await tokens.clear().catch(() => {})
+        throw error
+      }
+    },
+    async signOut({ force = false } = {}) {
+      if (!force && library.outboxSize() > 0) return 'unsynced'
+      // The account goes first: a sync in flight stops before its next write (sync/shared.ts).
+      library.removeMeta(ACCOUNT_KEY)
+      // Offline, the session stays valid on the server until it is removed from another device.
+      await api.logout().catch(() => {})
+      await tokens.clear()
+      // Under the sync lock, so no sync still running writes its pull back into the cleared library.
+      const files = await withSyncLock(() => library.clearAccountData())
+      await Promise.resolve(deleteImageFiles?.(files)).catch(() => {})
+      return 'done'
+    },
+    async signedOut(sentToken) {
+      if (sentToken !== undefined && (await tokens.get()) !== sentToken) return
+      library.removeMeta(ACCOUNT_KEY)
+      await tokens.clear()
+    },
+  }
+}
+
+const AccountServiceContext = createContext<AccountService | null>(null)
+
+export function AccountProvider({ service, children }: { service: AccountService; children?: ReactNode }) {
+  return createElement(AccountServiceContext.Provider, { value: service }, children)
+}
+
+export function useAccountService(): AccountService {
+  const service = useContext(AccountServiceContext)
+  if (!service) throw new Error('useAccountService needs an AccountProvider above it.')
+  return service
+}
+
+/** The account signed in here, null when none. Reads the local store only, so it answers offline; live. */
+export function useAccount(): Account | null {
+  return useLiveQuery(['meta'], (library) => {
+    const email = library.getMeta<{ email?: unknown }>(ACCOUNT_KEY)?.email
+    return typeof email === 'string' ? { email } : null
+  }, [])
+}

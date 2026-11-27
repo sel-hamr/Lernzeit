@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
-import type { Priority, TopicColor } from '@/db/types'
+import type { Priority, TopicColor } from '@lernzeit/core/types'
+import { pastelIndex } from '@lernzeit/core/today'
 
 /** Fixed order for new topics; adjacent pairs were checked for colour-blind separation. */
 export const TOPIC_COLORS: TopicColor[] = ['sage', 'blue', 'clay', 'teal', 'sand', 'lilac', 'rose', 'stone']
@@ -32,18 +33,9 @@ export function nextTopicColor(used: TopicColor[]): TopicColor {
   return TOPIC_COLORS.find((c) => !used.includes(c)) ?? TOPIC_COLORS[used.length % TOPIC_COLORS.length]
 }
 
-function hash(text: string): number {
-  let h = 2166136261
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i)
-    h = Math.imul(h, 16777619)
-  }
-  return h >>> 0
-}
-
 /** Stable pastel background for a card image. */
 export function pastelFor(id: string): string {
-  return `var(--pastel-${hash(id) % 7})`
+  return `var(--pastel-${pastelIndex(id)})`
 }
 
 export const PRIORITY_LABEL: Record<Priority, string> = { high: 'High', medium: 'Medium', low: 'Low' }

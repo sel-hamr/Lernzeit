@@ -1,7 +1,9 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
-import { fitTabs } from '@/lib/tabs'
+import { ChevronDown } from 'lucide-react'
+import { fitTabs } from '@lernzeit/core/tabs'
 import { DeckMenu, type DeckTab } from './DeckMenu'
+import { deckButtonLabel } from './labels'
 
 export type { DeckTab }
 
@@ -28,14 +30,17 @@ function TabContent({ tab }: { tab: DeckTab }) {
  * tabs and the rest go in a "3 more" button at its end, which opens them in a
  * centred search menu, so any number of decks
  * keeps to one line. The open deck always shows as a tab.
+ * Phones get one button with the open deck instead, which opens every deck in that menu as a sheet.
  */
 export function DeckTabs({ tabs, value, onChange }: { tabs: DeckTab[]; value: string; onChange: (value: string) => void }) {
   const barRef = useRef<HTMLDivElement>(null)
   const measureRef = useRef<HTMLDivElement>(null)
   const moreRef = useRef<HTMLButtonElement>(null)
+  const phoneRef = useRef<HTMLButtonElement>(null)
   // Each tab's width (measured as if open), the More button's, and the room in the bar.
   const [size, setSize] = useState<{ widths: number[]; more: number; available: number } | null>(null)
   const [open, setOpen] = useState(false)
+  const [phoneOpen, setPhoneOpen] = useState(false)
 
   useLayoutEffect(() => {
     const bar = barRef.current
@@ -66,12 +71,30 @@ export function DeckTabs({ tabs, value, onChange }: { tabs: DeckTab[]; value: st
 
   const pick = (v: string) => {
     setOpen(false)
+    setPhoneOpen(false)
     onChange(v)
   }
+  const current = deckButtonLabel(tabs, value)
+  // The sheet lists every deck; All reads as on the button.
+  const sheetDecks = tabs.map((t) => (t.value === 'all' ? { ...t, label: 'All decks' } : t))
 
   return (
     <div className="relative min-w-0 flex-1">
-      <div ref={barRef} role="tablist" aria-label="Decks" className="flex w-full min-w-0 gap-0.5 overflow-hidden rounded-row bg-field p-1">
+      <button
+        ref={phoneRef}
+        type="button"
+        aria-haspopup="dialog"
+        aria-expanded={phoneOpen}
+        aria-label={`Deck: ${current.text}`}
+        onClick={() => setPhoneOpen(true)}
+        className="flex h-10.5 w-full min-w-0 items-center gap-2 rounded-row bg-field px-3.5 text-small text-ink transition-colors hover:bg-track md:hidden"
+      >
+        <span className="min-w-0 truncate font-medium">{current.name}</span>
+        <span className="shrink-0 text-chip text-muted tabular-nums">· {current.count}</span>
+        <ChevronDown size={15} strokeWidth={1.8} aria-hidden className="ml-auto shrink-0 text-muted" />
+      </button>
+
+      <div ref={barRef} role="tablist" aria-label="Decks" className="hidden w-full min-w-0 gap-0.5 overflow-hidden rounded-row bg-field p-1 md:flex">
         {shown.map((i) => {
           const tab = tabs[i]
           return (
@@ -106,6 +129,7 @@ export function DeckTabs({ tabs, value, onChange }: { tabs: DeckTab[]; value: st
       </div>
 
       {open && hidden.length > 0 && <DeckMenu decks={hidden} anchor={moreRef} onPick={pick} onClose={() => setOpen(false)} />}
+      {phoneOpen && <DeckMenu decks={sheetDecks} heading="Decks" current={value} anchor={phoneRef} onPick={pick} onClose={() => setPhoneOpen(false)} />}
     </div>
   )
 }

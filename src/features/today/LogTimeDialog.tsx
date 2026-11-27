@@ -5,7 +5,7 @@ import { DurationInput, Field, Input, Select } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
 import { useTopics } from '@/data/hooks'
 import { logManualSession } from '@/data/topics'
-import { dateKey, formatClock, formatMinutesShort, MINUTE, parseDateKey, parseTimeOfDay } from '@/lib/time'
+import { dateKey, formatClock, formatMinutesShort, MINUTE, parseDateKey, parseTimeOfDay } from '@lernzeit/core/time'
 
 /** Add study time that happened away from the timer (a class, a book, a podcast). */
 export function LogTimeDialog({ request, onClose }: { request: { topicId?: string } | null; onClose: () => void }) {

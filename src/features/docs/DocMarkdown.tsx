@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm'
 import { Check, Copy } from 'lucide-react'
 import { useFeedback } from '@/components/ui/feedback'
 import { useImage } from '@/data/hooks'
-import { docImageId } from '@/lib/docs'
+import { docImageId } from '@lernzeit/core/docs'
 import { remarkHeadingIds, scrollToHeading } from './headings'
 
 const REMARK_PLUGINS = [remarkGfm, remarkHeadingIds]

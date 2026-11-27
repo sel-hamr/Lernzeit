@@ -2,7 +2,7 @@ import { useState } from 'react'
 import clsx from 'clsx'
 import { Check, Search } from 'lucide-react'
 import { Dialog } from '@/components/ui/Dialog'
-import { findThemes, THEME_GROUPS, type ThemeGroup } from '@/lib/storyThemes'
+import { findThemes, THEME_GROUPS, type ThemeGroup } from '@lernzeit/core/storyThemes'
 
 /**
  * Every theme idea, by group, with a search. Picking one puts its scene in

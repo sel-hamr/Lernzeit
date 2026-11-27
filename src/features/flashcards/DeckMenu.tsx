@@ -1,8 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import clsx from 'clsx'
-import { ArrowRight, Search } from 'lucide-react'
+import { ArrowRight, Check, Search } from 'lucide-react'
 import { Kbd } from '@/components/ui/primitives'
-import { filterByLabel } from '@/lib/tabs'
+import { filterByLabel } from '@lernzeit/core/tabs'
 
 export interface DeckTab {
   value: string
@@ -14,18 +14,24 @@ export interface DeckTab {
  * A command menu of decks in the middle of the screen: a search field, the
  * list, and a footer with the keys. Arrow keys, Home and End move, Enter
  * opens, Escape or a click outside closes. Used for the decks that do not fit
- * the Flashcards tabs and the sidebar. Closing gives the focus back to `anchor`.
+ * the Flashcards tabs and the sidebar, and on phones for every deck. Below `md`
+ * it is a sheet from the bottom. Closing gives the focus back to `anchor`.
+ * `current` marks the open deck.
  */
 export function DeckMenu({
   decks,
   anchor,
   onPick,
   onClose,
+  heading = 'More decks',
+  current,
 }: {
   decks: DeckTab[]
   anchor: React.RefObject<HTMLElement | null>
   onPick: (value: string) => void
   onClose: () => void
+  heading?: string
+  current?: string
 }) {
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
@@ -38,7 +44,10 @@ export function DeckMenu({
   // A modal <dialog> sits in the top layer, keeps the focus inside and dims the page.
   useEffect(() => {
     const dialog = ref.current
-    if (dialog && !dialog.open) dialog.showModal()
+    if (!dialog || dialog.open) return
+    dialog.showModal()
+    // On a phone the list comes first: focusing the search field would raise the keyboard over it.
+    if (typeof matchMedia === 'function' && matchMedia('(pointer: coarse) and (max-width: 767.98px)').matches) dialog.focus()
   }, [])
 
   // Leave the top layer first: the page outside a modal dialog cannot take the focus.
@@ -87,9 +96,10 @@ export function DeckMenu({
         // Only a press that starts and ends on the backdrop closes the menu.
         if (e.target === ref.current && pointerDownOnBackdrop.current) close()
       }}
-      className="m-auto w-[calc(100%-32px)] max-w-lg overflow-visible bg-transparent p-0 text-ink backdrop:bg-scrim open:animate-rise"
+      tabIndex={-1}
+      className="m-0 mt-auto w-full max-w-none overflow-visible bg-transparent p-0 text-ink outline-none backdrop:bg-scrim open:animate-rise md:m-auto md:w-[calc(100%-32px)] md:max-w-lg"
     >
-      <div className="flex flex-col overflow-hidden rounded-section border border-line bg-main shadow-popup">
+      <div className="flex flex-col overflow-hidden rounded-t-[20px] border border-line bg-main pb-safe shadow-popup md:rounded-section md:pb-0">
         <div className="p-1.5 pb-0">
           <label className="flex h-9 items-center gap-2 rounded-img border border-line bg-field px-2.5 text-muted transition-colors focus-within:border-line-strong">
             <Search size={15} strokeWidth={1.8} aria-hidden />
@@ -116,13 +126,13 @@ export function DeckMenu({
           </label>
         </div>
 
-        <div id={listId} role="listbox" aria-label="More decks" className="max-h-[min(20rem,50dvh)] scrollbar-none overflow-y-auto p-1.5">
+        <div id={listId} role="listbox" aria-label={heading} className="max-h-[min(20rem,50dvh)] scrollbar-none overflow-y-auto p-1.5">
           {matches.length === 0 ? (
             <div className="py-6 text-center text-small text-muted">No deck found.</div>
           ) : (
             <>
               <div aria-hidden className="px-2.5 pt-1 pb-1.5 text-chip text-muted">
-                More decks
+                {heading}
               </div>
               {matches.map((tab, i) => (
                 <div
@@ -139,8 +149,15 @@ export function DeckMenu({
                     i === activeIndex ? 'border-line bg-field text-ink' : 'border-transparent text-ink-2',
                   )}
                 >
-                  <ArrowRight size={14} strokeWidth={1.8} aria-hidden className="shrink-0 text-muted" />
-                  <span className="min-w-0 flex-1 truncate">{tab.label}</span>
+                  {tab.value === current ? (
+                    <Check size={14} strokeWidth={2.2} aria-hidden className="shrink-0 text-sage-ink" />
+                  ) : (
+                    <ArrowRight size={14} strokeWidth={1.8} aria-hidden className="shrink-0 text-muted" />
+                  )}
+                  <span className={clsx('min-w-0 flex-1 truncate', tab.value === current && 'font-medium text-ink')}>
+                    {tab.label}
+                    {tab.value === current && <span className="sr-only">, open</span>}
+                  </span>
                   <span className="text-chip text-muted tabular-nums">{tab.count}</span>
                 </div>
               ))}

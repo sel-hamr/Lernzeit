@@ -1,7 +1,7 @@
 import { newId, type LernzeitDB } from '@/db/db'
 import { installLevels } from '@/data/languages'
 import { createTopic } from '@/data/topics'
-import { uniformGoals } from '@/lib/goals'
+import { uniformGoals } from '@lernzeit/core/goals'
 import { PACK } from '@/languages'
 
 /**

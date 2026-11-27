@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import type { DiffPart } from '@/lib/answer'
+import type { DiffPart } from '@lernzeit/core/answer'
 
 /** A space on its own is too thin to see, so extra and missing ones show as ␣. */
 const visible = (part: DiffPart) => (part.kind === 'extra' || part.kind === 'missing' ? part.text.replace(/ /g, '␣') : part.text)

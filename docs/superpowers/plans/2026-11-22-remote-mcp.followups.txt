@@ -1,0 +1,7 @@
+40:Task 3: minor (deferred): DST-gap local times untested in parseLocalDateTimeIn.
+44:Task 3: minor (deferred): docImageIds matches only ](image:<id>) form (consistent with renderer)
+55:Task 4: minor (deferred): checkFilter accepts NaN/Infinity; EXPLAIN test hard-codes <expr> wording; 500-card deck tombstone payload unmeasured
+60:Task 5: minor (deferred): every ChangeError mapped to too_large (check status 413); ChangeError sync wording before the split hint; copied formatting nits; guide section heading slightly off.
+67:Task 6: minor (deferred): allowlist host-only (any claude.ai path) — pinning to /api/mcp/auth_callback risks breaking if Claude changes it; IPv6 /64 per-IP weakness (consider a Cloudflare rate-limiting rule); no roo
+71:Task 6: minor (deferred): clientIp falls back to 'unknown' bucket off Cloudflare; IPv6 rotation bypasses per-IP limits (inherent); TTL renewal path untested.
+76:Task 7: minor (deferred): doc's "10 wrong tries" relies on shared limiter (confirm); grants list 100/1000 caps; quieter message when signed out; BridgeError name leftover.

@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import type { Plugin } from 'vite'
+import { loadEnv, type Plugin } from 'vite'
 
 /**
  * `lz` serves the build on the dev server's port, so the build's service worker stays registered
@@ -33,12 +33,33 @@ const removeBuildServiceWorker: Plugin = {
   },
 }
 
-export default defineConfig(({ command }) => ({
-  define: {
-    // Settings → AI connection shows the MCP server's path in its setup snippets.
-    // Only the dev server knows it; a build should not carry a local path.
-    __MCP_SERVER_PATH__: JSON.stringify(command === 'serve' ? fileURLToPath(new URL('./mcp/src/index.ts', import.meta.url)).replaceAll('\\', '/') : ''),
-  },
+/**
+ * The app calls its cloud on its own origin, under /api, as it does when the Worker serves it. While
+ * you work, /api goes on to LERNZEIT_CLOUD_URL (from .env), or to `npm run worker:dev` on port 8787.
+ */
+function cloudProxy(mode: string) {
+  const target = loadEnv(mode, fileURLToPath(new URL('.', import.meta.url)), 'LERNZEIT_').LERNZEIT_CLOUD_URL || 'http://127.0.0.1:8787'
+  return { '/api': { target, changeOrigin: true } }
+}
+
+/**
+ * Navigations the service worker leaves to the network instead of answering them with the cached
+ * index.html: every path wrangler.jsonc sends to the Worker first (`run_worker_first`). Without
+ * them, a browser with the app installed would show the app where Claude opens the password page.
+ * Workbox tests each pattern against the path and query.
+ */
+export const NAVIGATE_FALLBACK_DENYLIST = [
+  /^\/api\//,
+  /^\/mcp(?:[/?]|$)/,
+  /^\/authorize(?:[/?]|$)/,
+  /^\/token(?:[/?]|$)/,
+  /^\/register(?:[/?]|$)/,
+  /^\/\.well-known\//,
+]
+
+export default defineConfig(({ mode }) => ({
+  server: { proxy: cloudProxy(mode) },
+  preview: { proxy: cloudProxy(mode) },
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
@@ -48,6 +69,8 @@ export default defineConfig(({ command }) => ({
     removeBuildServiceWorker,
     VitePWA({
       registerType: 'autoUpdate',
+      // Registered from src/lib/updates.ts, which also checks for updates and reloads safely.
+      injectRegister: false,
       includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
         name: 'Lernzeit',
@@ -68,6 +91,7 @@ export default defineConfig(({ command }) => ({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallback: '/index.html',
+        navigateFallbackDenylist: NAVIGATE_FALLBACK_DENYLIST,
         // The Thorsten voice runtime (about 33 MB) is cached on first use, not at install,
         // so only people who turn the voice on download it. File names are hashed.
         runtimeCaching: [
@@ -102,6 +126,6 @@ export default defineConfig(({ command }) => ({
   },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts', 'bin/**/*.test.ts', 'scripts/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'packages/core/src/**/*.test.ts', 'bin/**/*.test.ts', 'scripts/**/*.test.ts', 'vite.config.test.ts'],
   },
 }))

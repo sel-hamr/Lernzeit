@@ -1,10 +1,12 @@
 import { db, newId, type LernzeitDB } from '@/db/db'
-import type { Card, CardReview, Deck, DeckDirections, Grade, ReviewLog } from '@/db/types'
-import { cleanConjugation } from '@/lib/conjugation'
-import { splitArticle } from '@/lib/german'
+import type { Card, CardReview, Deck, DeckDirections, Grade, ReviewLog } from '@lernzeit/core/types'
+import { cleanConjugation } from '@lernzeit/core/conjugation'
+import { splitArticle } from '@lernzeit/core/german'
 import { prepareImage } from '@/lib/image'
-import { applyGrade, directionsFor, newReview } from '@/lib/srs'
-import { dateKey } from '@/lib/time'
+import { applyGrade } from '@lernzeit/core/srs'
+import { CARD_PROGRESS_TABLES, reviewChanges } from '@lernzeit/core/cardPack'
+import { unusedImages } from '@lernzeit/core/docs'
+import { dateKey } from '@lernzeit/core/time'
 
 export const INCOMPLETE_TAG = 'incomplete'
 
@@ -15,23 +17,21 @@ export type ImageChange = { kind: 'keep' } | { kind: 'remove' } | { kind: 'set';
 
 /** Creates review rows for every enabled direction that does not have one yet. */
 async function syncReviews(database: LernzeitDB, card: Card, deck: Deck) {
-  const wanted = directionsFor(card, deck)
   const existing = await database.reviews.where('cardId').equals(card.id).toArray()
-  const have = new Set(existing.map((r) => r.direction))
-  const now = Date.now()
-  const missing = wanted.filter((d) => !have.has(d)).map((d) => newReview(card, d, now))
-  if (missing.length) await database.reviews.bulkAdd(missing)
+  const { add, remove, put } = reviewChanges(card, deck, existing, Date.now())
+  if (add.length) await database.reviews.bulkAdd(add)
   // A cloze card that changed type keeps no stale directions.
-  const stale = existing.filter((r) => (card.type === 'cloze') !== (r.direction === 'cloze'))
-  if (stale.length) await database.reviews.bulkDelete(stale.map((r) => r.id))
-  const moved = existing.filter((r) => r.deckId !== card.deckId)
-  if (moved.length) await database.reviews.bulkPut(moved.map((r) => ({ ...r, deckId: card.deckId })))
+  if (remove.length) await database.reviews.bulkDelete(remove)
+  if (put.length) await database.reviews.bulkPut(put)
 }
 
+/** Deletes an image once nothing uses it: no other card, and no doc (see `unusedImages`). */
 async function deleteImageIfUnused(database: LernzeitDB, imageId: string | undefined, exceptCardId?: string) {
   if (!imageId) return
-  const users = await database.cards.filter((c) => c.imageId === imageId && c.id !== exceptCardId).count()
-  if (!users) await database.images.delete(imageId)
+  const cards = await database.cards.filter((c) => c.imageId === imageId && c.id !== exceptCardId).toArray()
+  // Docs are only read when no card uses the image any more.
+  const docs = cards.length ? [] : await database.docs.toArray()
+  if (unusedImages([imageId], cards, docs).length) await database.images.delete(imageId)
 }
 
 function normalizeInput(input: CardInput): CardInput {
@@ -66,7 +66,7 @@ export async function saveCard(
 ): Promise<Card> {
   // Resize before the transaction: IndexedDB transactions cannot await other work.
   const prepared = image.kind === 'set' ? await prepareImage(image.file) : null
-  return database.transaction('rw', [database.cards, database.reviews, database.images, database.decks], async () => {
+  return database.transaction('rw', [database.cards, database.reviews, database.images, database.decks, database.docs], async () => {
     const now = Date.now()
     const deck = await database.decks.get(input.deckId)
     if (!deck) throw new Error('Deck not found')
@@ -107,14 +107,15 @@ export async function quickAddCard(input: { english: string; german: string; dec
   )
 }
 
+/** The tables a card delete touches: see CARD_PROGRESS_TABLES and `unusedImages` in core. */
+const deleteTables = (database: LernzeitDB) => [database.cards, ...CARD_PROGRESS_TABLES.map((t) => database.table(t)), database.images, database.docs]
+
 export async function deleteCard(id: string, database: LernzeitDB = db) {
-  await database.transaction('rw', [database.cards, database.reviews, database.reviewLogs, database.drillStats, database.images], async () => {
+  await database.transaction('rw', deleteTables(database), async () => {
     const card = await database.cards.get(id)
     if (!card) return
     await database.cards.delete(id)
-    await database.reviews.where('cardId').equals(id).delete()
-    await database.reviewLogs.where('cardId').equals(id).delete()
-    await database.drillStats.where('cardId').equals(id).delete()
+    for (const tbl of CARD_PROGRESS_TABLES) await database.table(tbl).where('cardId').equals(id).delete()
     await deleteImageIfUnused(database, card.imageId)
   })
 }
@@ -169,12 +170,10 @@ export async function updateDeck(
 
 /** Deletes a deck with all of its cards and their progress. */
 export async function deleteDeck(id: string, database: LernzeitDB = db) {
-  await database.transaction('rw', [database.decks, database.cards, database.reviews, database.reviewLogs, database.drillStats, database.images], async () => {
+  await database.transaction('rw', [database.decks, ...deleteTables(database)], async () => {
     const cards = await database.cards.where('deckId').equals(id).toArray()
     const cardIds = cards.map((c) => c.id)
-    await database.reviews.where('cardId').anyOf(cardIds).delete()
-    await database.reviewLogs.where('cardId').anyOf(cardIds).delete()
-    await database.drillStats.where('cardId').anyOf(cardIds).delete()
+    for (const tbl of CARD_PROGRESS_TABLES) await database.table(tbl).where('cardId').anyOf(cardIds).delete()
     await database.cards.bulkDelete(cardIds)
     await database.decks.delete(id)
     const imageIds = [...new Set(cards.map((c) => c.imageId).filter((x): x is string => !!x))]

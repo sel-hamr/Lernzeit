@@ -1,0 +1,12 @@
+{
+  // Test-only config (nodejs_compat is for the test runner itself): the same Worker, D1 and KV bindings as the root wrangler.jsonc, without static
+  // assets, so the tests do not need a built dist/. The ids are dummies; tests use a local in-memory database and namespace.
+  "name": "lernzeit-test",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    { "binding": "DB", "database_name": "lernzeit", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
+  ],
+  "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "oauth-kv-test" }]
+}

@@ -1,32 +1,11 @@
 import { db, newId, type LernzeitDB } from '@/db/db'
-import type { ExerciseStat, GrammarTopic } from '@/db/types'
-import { nextExerciseStat } from '@/lib/grammar'
-import { parseLevel } from './stories'
+import type { ExerciseStat, GrammarTopic } from '@lernzeit/core/types'
+import { nextExerciseStat, normalizeTopic, type TopicInput } from '@lernzeit/core/grammar'
 
-/** Topics added without a section go here. */
-export const DEFAULT_GROUP = 'My topics'
+export { DEFAULT_GROUP, type TopicInput } from '@lernzeit/core/grammar'
 
 /** A grammar topic from the German pack, as it is installed. */
 export type StarterTopic = Omit<GrammarTopic, 'createdAt' | 'updatedAt'>
-
-export type TopicInput = Pick<GrammarTopic, 'title' | 'english' | 'group' | 'level' | 'summary' | 'rule' | 'examples' | 'exercises' | 'drill'>
-
-function normalizeTopic(input: TopicInput): TopicInput {
-  const clean = (s?: string) => s?.trim() || undefined
-  return {
-    title: input.title.trim().replace(/\s+/g, ' '),
-    english: clean(input.english),
-    group: input.group.trim().replace(/\s+/g, ' ') || DEFAULT_GROUP,
-    level: parseLevel(input.level),
-    summary: clean(input.summary),
-    rule: input.rule.trim(),
-    examples: input.examples.flatMap(({ de, en }) => (de.trim() ? [en?.trim() ? { de: de.trim(), en: en.trim() } : { de: de.trim() }] : [])),
-    exercises: input.exercises.flatMap(({ id, text, en, why }) =>
-      text.trim() ? [{ id, text: text.trim(), ...(en?.trim() ? { en: en.trim() } : {}), ...(why?.trim() ? { why: why.trim() } : {}) }] : [],
-    ),
-    drill: input.drill,
-  }
-}
 
 /** Saves a topic. Exercises that were removed take their scores with them. */
 export async function saveTopic(input: TopicInput, existingId?: string, database: LernzeitDB = db): Promise<GrammarTopic> {

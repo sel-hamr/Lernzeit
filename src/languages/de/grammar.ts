@@ -1,6 +1,6 @@
 import type { StarterTopic } from '@/data/grammar'
-import type { StoryLevel, TopicDrill } from '@/db/types'
-import { parseLine } from '@/lib/grammar'
+import type { StoryLevel, TopicDrill } from '@lernzeit/core/types'
+import { parseLine } from '@lernzeit/core/grammar'
 
 interface Meta {
   title: string

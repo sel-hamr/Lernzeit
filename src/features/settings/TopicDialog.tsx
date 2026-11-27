@@ -5,12 +5,12 @@ import { Dialog } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { DurationInput, Field, Input, Switch } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
-import type { Topic, TopicColor, WeekGoals } from '@/db/types'
+import type { Topic, TopicColor, WeekGoals } from '@lernzeit/core/types'
 import { createTopic, deleteTopic, updateTopic } from '@/data/topics'
 import { useLanguage, useTopics } from '@/data/hooks'
 import { nextTopicColor, TOPIC_COLOR_NAME, TOPIC_COLORS, topicVars } from '@/lib/colors'
-import { uniformGoals } from '@/lib/goals'
-import { WEEKDAY_LONG, WEEKDAYS } from '@/lib/time'
+import { uniformGoals } from '@lernzeit/core/goals'
+import { WEEKDAY_LONG, WEEKDAYS } from '@lernzeit/core/time'
 
 export function TopicDialog({ topicId, open, onClose }: { topicId: string | null; open: boolean; onClose: () => void }) {
   const topics = useTopics(true)

@@ -1,0 +1,77 @@
+/*
+ * The phone's local database: one generic table that mirrors the cloud's `records`, so a pulled
+ * change is stored as the JSON it came in, plus this device's bookkeeping.
+ *
+ *  - records: every synced record (and kv rows that stay on this device), `data` the row's JSON as
+ *    /api/sync/pull hands it out, `updated_at` the cloud's time for a pulled change and the outbox
+ *    stamp for a local write. A deleted record is simply gone: the outbox entry tells the push.
+ *  - outbox: one entry per locally changed record, `at` its latest write (see library.ts).
+ *    `stuck` is why the cloud refused it, while it is parked.
+ *  - meta: this device's own values as JSON, such as the pull cursor.
+ *  - images: where each image's file is on this phone, with what the app needs to show it.
+ *
+ * `records` is an ordinary rowid table: its rows hold whole JSON records (a doc can be most of a
+ * megabyte), which a WITHOUT ROWID table stores badly. The small bookkeeping tables are WITHOUT ROWID.
+ */
+import type { SqlAdapter } from './adapter'
+
+/**
+ * Bumped with each change to the schema below; `PRAGMA user_version` holds the one a database has.
+ *  1. The first schema, `records` WITHOUT ROWID.
+ *  2. `records` an ordinary rowid table: version 1 databases have it rebuilt, rows kept.
+ */
+export const SCHEMA_VERSION = 2
+/** The current schema, for a new database. */
+const SCHEMA = `
+CREATE TABLE IF NOT EXISTS records (
+  tbl TEXT NOT NULL,
+  id TEXT NOT NULL,
+  data TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (tbl, id)
+);
+CREATE TABLE IF NOT EXISTS outbox (
+  tbl TEXT NOT NULL,
+  id TEXT NOT NULL,
+  at INTEGER NOT NULL,
+  stuck TEXT,
+  PRIMARY KEY (tbl, id)
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS meta (
+  key TEXT PRIMARY KEY NOT NULL,
+  value TEXT NOT NULL
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS images (
+  id TEXT PRIMARY KEY NOT NULL,
+  path TEXT NOT NULL,
+  type TEXT NOT NULL,
+  width INTEGER NOT NULL,
+  height INTEGER NOT NULL,
+  fit TEXT NOT NULL
+) WITHOUT ROWID;
+`
+
+/** Version 1 to 2: `records` copied into a rowid table of the same columns, which takes its name. */
+const RECORDS_AS_ROWID_TABLE = `
+CREATE TABLE records_v2 (
+  tbl TEXT NOT NULL,
+  id TEXT NOT NULL,
+  data TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (tbl, id)
+);
+INSERT INTO records_v2 (tbl, id, data, updated_at) SELECT tbl, id, data, updated_at FROM records;
+DROP TABLE records;
+ALTER TABLE records_v2 RENAME TO records;
+`
+
+/** Creates the tables of a new database, or brings an older one up to SCHEMA_VERSION, in one transaction. */
+export function migrate(sql: SqlAdapter): void {
+  const version = sql.get<{ user_version: number }>('PRAGMA user_version')?.user_version ?? 0
+  if (version >= SCHEMA_VERSION) return
+  sql.transaction(() => {
+    if (version === 0) sql.exec(SCHEMA)
+    if (version === 1) sql.exec(RECORDS_AS_ROWID_TABLE)
+    sql.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
+  })
+}

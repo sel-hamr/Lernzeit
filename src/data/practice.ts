@@ -1,5 +1,5 @@
 import { db, type LernzeitDB } from '@/db/db'
-import type { PracticeRun } from '@/db/types'
+import type { PracticeRun } from '@lernzeit/core/types'
 
 /**
  * Saves a review session as it stands. The review page calls this after every

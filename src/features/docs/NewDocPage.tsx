@@ -1,6 +1,6 @@
 import { useNavigate, useSearchParams } from 'react-router'
 import { useDocFolders } from '@/data/hooks'
-import { DOC_ROOT } from '@/lib/docs'
+import { DOC_ROOT } from '@lernzeit/core/docs'
 import { DocEditor } from './DocEditor'
 
 export function NewDocPage() {

@@ -18,7 +18,7 @@ export interface FeaturePlugin {
   id: string
   /** In the sidebar and in Settings. */
   label: string
-  /** Under the icon on the phone's bottom bar. */
+  /** Under the icon on the phone's bottom bar (layout/nav.ts says which pages get one). */
   short: string
   icon: LucideIcon
   /** Where the menu link goes. */
@@ -28,8 +28,6 @@ export interface FeaturePlugin {
   description?: string
   /** Shown at the end of its sidebar link, e.g. the running timer. */
   badge?: ComponentType
-  /** Left off the phone's bottom bar, which fits eight. The phone header links to it instead. */
-  header?: boolean
   /** Cannot be turned off. */
   required?: boolean
 }

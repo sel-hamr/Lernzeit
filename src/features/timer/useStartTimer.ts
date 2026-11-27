@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router'
 import { useFeedback } from '@/components/ui/feedback'
 import { updateSettings } from '@/db/db'
-import type { TimerMode } from '@/db/types'
+import type { TimerMode } from '@lernzeit/core/types'
 import { useActiveTimer, useSettings, useTopics } from '@/data/hooks'
 import { startTimer } from '@/data/timer'
 import { unlockAudio } from '@/lib/sound'

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { ActiveTimer, Session, Topic, WeekGoals } from '@/db/types'
-import { MINUTE, WEEKDAYS } from '@/lib/time'
+import type { ActiveTimer, Session, Topic, WeekGoals } from '@lernzeit/core/types'
+import { MINUTE, WEEKDAYS } from '@lernzeit/core/time'
 import { buildTodayProgress } from './progress'
 
 const TODAY = '2026-11-19'

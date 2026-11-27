@@ -14,5 +14,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["vite.config.ts", "bin", "scripts"]
+  "include": ["vite.config.ts", "vite.config.test.ts", "bin", "scripts"]
 }

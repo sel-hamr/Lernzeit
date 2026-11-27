@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useCards, useExerciseStats, useGrammarTopics } from '@/data/hooks'
-import { buildReviewRound } from '@/lib/grammar'
+import { buildReviewRound } from '@lernzeit/core/grammar'
 import { Round } from './Round'
 
 /** Today's review: the exercises from every topic that are due again. */

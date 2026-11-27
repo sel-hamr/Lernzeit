@@ -2,10 +2,10 @@ import { Check, Trash2, X } from 'lucide-react'
 import { Dialog } from '@/components/ui/Dialog'
 import { Chip, Dot } from '@/components/ui/primitives'
 import { useFeedback } from '@/components/ui/feedback'
-import type { Session, Topic } from '@/db/types'
+import type { Session, Topic } from '@lernzeit/core/types'
 import { deleteSession } from '@/data/timer'
-import { goalFor, isGoalHit } from '@/lib/goals'
-import { formatClock, formatHM, formatLongDate } from '@/lib/time'
+import { goalFor, isGoalHit } from '@lernzeit/core/goals'
+import { formatClock, formatHM, formatLongDate } from '@lernzeit/core/time'
 
 /** Day view: each topic's goal, time done, hit or missed, and that day's sessions and notes. */
 export function DayDialog({ day, sessions, topics, today, onClose }: { day: string | null; sessions: Session[]; topics: Topic[]; today: string; onClose: () => void }) {

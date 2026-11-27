@@ -13,7 +13,7 @@ There is no grading. You see the answers side by side and judge for yourself.
 | Active time | [src/data/studyTime.ts](../src/data/studyTime.ts) | Counts practice time while the page is in use, shared with story reading |
 | Starter questions | [src/languages/de/questions.ts](../src/languages/de/questions.ts) | The German pack's 45 questions in six sets, with useful words. |
 | Pages | [src/features/questions/](../src/features/questions) | Questions list, editor, practice |
-| AI | [src/bridge/actions.ts](../src/bridge/actions.ts), [mcp/src/tools.ts](../mcp/src/tools.ts) | The `create_questions` tool and the `make_questions` prompt |
+| AI | [packages/core/src/actions/](../packages/core/src/actions), [worker/src/mcp/tools.ts](../worker/src/mcp/tools.ts) | The `create_questions` tool and the `make_questions` prompt |
 
 ## A question
 
@@ -105,7 +105,7 @@ Each has its English, a suggested answer and four to six useful words. **Your an
 
 ## AI
 
-The `create_questions` tool on the AI connection ([mcp-bridge.md](mcp-bridge.md)) adds questions with English, a suggested answer and useful words to a set, and the `make_questions` prompt asks for a set on a theme ("make 10 A2 questions about work"). Claude never writes **Your answer**, and it cannot read your answers.
+The `create_questions` tool on the Claude connector ([mcp.md](mcp.md)) adds questions with English, a suggested answer and useful words to a set, and the `make_questions` prompt asks for a set on a theme ("make 10 A2 questions about work"). Claude never writes **Your answer**, and it cannot read your answers.
 
 ## Why this way
 
@@ -120,5 +120,5 @@ Lernzeit follows the self-check model: show the question, answer first, then com
 
 ## Known limits
 
-- The app compares texts; it cannot tell whether a different answer is correct German. For corrections, paste your answers into your AI app; the AI connection cannot read them.
+- The app compares texts; it cannot tell whether a different answer is correct German. For corrections, paste your answers into your AI app; Claude cannot read them.
 - Speech input is not supported yet. Answer out loud before typing if you want to practise speaking.

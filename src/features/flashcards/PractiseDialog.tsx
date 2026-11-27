@@ -5,9 +5,9 @@ import { Check } from 'lucide-react'
 import { Dialog } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { useAllReviews, useLanguage } from '@/data/hooks'
-import type { Deck, Direction } from '@/db/types'
-import { ALL_DIRECTIONS, planHref } from '@/lib/practice'
-import { directionLabel } from '@/lib/srs'
+import type { Deck, Direction } from '@lernzeit/core/types'
+import { ALL_DIRECTIONS, planHref } from '@lernzeit/core/practice'
+import { directionLabel } from '@lernzeit/core/srs'
 
 /** Practises every card of a deck, or of every deck when `deck` is undefined, in the practice directions you tick. */
 export function PractiseDialog({ deck, open, onClose }: { deck?: Deck; open: boolean; onClose: () => void }) {

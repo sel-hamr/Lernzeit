@@ -1,5 +1,5 @@
 import type { CardPack } from '@/data/io'
-import type { StoryLevel } from '@/db/types'
+import type { StoryLevel } from '@lernzeit/core/types'
 import type { PackCard, PackContent } from '../types'
 import { ART, ART_FOR_CARD } from './art'
 import { STARTER_TOPICS } from './grammar'

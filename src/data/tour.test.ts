@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { LernzeitDB, updateSettings } from '@/db/db'
+import { setFetch } from '@/sync/api'
+import { signedIn, useTestCloud } from '@/test/cloud'
 import { resetAllData } from './io'
 import { setUpLernzeit, startEmpty } from './starter'
 import { getTourFacts, getTourState, markTourSeen, queueTour } from './tour'
@@ -8,11 +10,13 @@ import { getTourFacts, getTourState, markTourSeen, queueTour } from './tour'
 let database: LernzeitDB
 let counter = 0
 
-beforeEach(() => {
-  database = new LernzeitDB(`tour-${counter++}`)
+beforeEach(async () => {
+  useTestCloud()
+  database = await signedIn(new LernzeitDB(`tour-${counter++}`))
 })
 
 afterEach(async () => {
+  setFetch()
   await database.delete()
 })
 
@@ -72,9 +76,9 @@ describe('tour state', () => {
     expect((await getTourFacts(database)).recall).toBe(false)
   })
 
-  it('is forgotten with the rest of the data', async () => {
+  it('belongs to this device, so a library reset keeps it', async () => {
     await markTourSeen(database)
     await resetAllData(database)
-    expect(await getTourState(database)).toBe('none')
+    expect(await getTourState(database)).toBe('seen')
   })
 })

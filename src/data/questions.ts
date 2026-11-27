@@ -1,41 +1,15 @@
 import { db, newId, type LernzeitDB } from '@/db/db'
-import type { Question, QuestionResponse } from '@/db/types'
-import { parseLevel } from './stories'
+import type { Question, QuestionResponse } from '@lernzeit/core/types'
+import { normalizeQuestion, type QuestionInput } from '@lernzeit/core/questions'
 
-/** Questions added without a set go here. */
-export const DEFAULT_SET = 'My questions'
+export { DEFAULT_SET, type QuestionInput } from '@lernzeit/core/questions'
 
 /** A question from the German pack, as it is installed. */
 export type StarterQuestion = Pick<Question, 'id' | 'set' | 'question' | 'english' | 'suggested' | 'words' | 'level' | 'tags'>
 
-export type QuestionInput = Pick<Question, 'set' | 'question' | 'english' | 'myAnswer' | 'suggested' | 'words' | 'level' | 'tags'>
-
 /** "Lehrer, Ärztin,, arbeiten als " -> ["Lehrer", "Ärztin", "arbeiten als"] */
 export function parseWords(text: string): string[] {
   return text.split(/[,;\n]/).map((w) => w.trim()).filter(Boolean)
-}
-
-function normalizeQuestion(input: QuestionInput): QuestionInput {
-  const clean = (s?: string) => s?.trim() || undefined
-  const words = unique(input.words ?? [])
-  return {
-    set: input.set.trim().replace(/\s+/g, ' ') || DEFAULT_SET,
-    question: input.question.trim(),
-    english: clean(input.english),
-    myAnswer: clean(input.myAnswer),
-    suggested: clean(input.suggested),
-    words: words.length ? words : undefined,
-    level: parseLevel(input.level),
-    tags: unique(input.tags),
-  }
-}
-
-/** Trimmed, without blanks or repeats (ignoring case). */
-function unique(items: string[]): string[] {
-  const seen = new Set<string>()
-  return items
-    .map((item) => item.trim().replace(/\s+/g, ' '))
-    .filter((item) => item && !seen.has(item.toLowerCase()) && seen.add(item.toLowerCase()))
 }
 
 export async function saveQuestion(input: QuestionInput, existingId?: string, database: LernzeitDB = db): Promise<Question> {

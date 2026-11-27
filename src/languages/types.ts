@@ -1,4 +1,4 @@
-import type { CardType, Conjugation, DeckDirections, Gender, StoryLevel, TopicDrill } from '@/db/types'
+import type { CardType, Conjugation, DeckDirections, Gender, StoryLevel, TopicDrill } from '@lernzeit/core/types'
 
 /** What the app knows about a pack without loading its content. */
 export interface PackInfo {

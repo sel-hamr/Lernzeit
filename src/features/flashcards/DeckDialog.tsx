@@ -6,7 +6,7 @@ import { Field, Input, Select, Switch } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
 import { createDeck, deleteDeck, updateDeck } from '@/data/cards'
 import { useCards, useDecks, useLanguage, useTopics } from '@/data/hooks'
-import type { Deck, DeckDirections } from '@/db/types'
+import type { Deck, DeckDirections } from '@lernzeit/core/types'
 
 /** Create a deck (deckId = null) or edit one: name, topic and practice directions. */
 export function DeckDialog({ deckId, open, onClose, onCreated }: { deckId: string | null; open: boolean; onClose: () => void; onCreated?: (deck: Deck) => void }) {

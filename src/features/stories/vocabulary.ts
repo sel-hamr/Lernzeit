@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Card, Story } from '@/db/types'
+import type { Card, Story } from '@lernzeit/core/types'
 import { useAllReviews, useCards } from '@/data/hooks'
 import { groupByCard } from '@/features/flashcards/summary'
 import {
@@ -15,7 +15,7 @@ import {
   type Lexicon,
   type Piece,
   type WordStatus,
-} from '@/lib/reader'
+} from '@lernzeit/core/reader'
 
 /** Every card as a form to find in a text, with how well each one is known. */
 export interface Vocabulary {

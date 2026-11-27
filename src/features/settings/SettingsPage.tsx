@@ -1,25 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router'
-import { Bell, ChevronRight, Compass, Download, HardDriveDownload, LogOut, Plus, Smartphone, Trash2, Upload, Volume2 } from 'lucide-react'
+import { Bell, ChevronRight, Compass, Download, HardDriveDownload, Plus, Smartphone, Trash2, Upload, Volume2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Chip, Dot, PageHeader } from '@/components/ui/primitives'
 import { Field, Input, Segmented, Select, Switch } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
 import { updateSettings } from '@/db/db'
-import type { EndSound, ThemePref } from '@/db/types'
+import type { EndSound, ThemePref } from '@lernzeit/core/types'
 import { useCards, useDecks, useLanguage, useSettings, useTopics } from '@/data/hooks'
 import { downloadFile, exportBackup, resetAllData, restoreBackup } from '@/data/io'
 import { queueTour } from '@/data/tour'
 import { DeckDialog } from '@/features/flashcards/DeckDialog'
 import { ImportCsvDialog } from '@/features/flashcards/ImportCsvDialog'
-import { signOut } from '@/features/login/login'
-import { describeGoals } from '@/lib/goals'
+import { describeGoals } from '@lernzeit/core/goals'
 import { isStandalone, useInstallPrompt } from '@/lib/install'
 import { notificationPermission, requestNotificationPermission, showNotification } from '@/lib/notify'
 import { END_SOUND_LABEL, playEndSound, unlockAudio } from '@/lib/sound'
-import { dateKey, formatHM } from '@/lib/time'
-import { count } from '@/lib/text'
-import { AiConnectionGroup } from './AiConnectionGroup'
+import { dateKey, formatHM } from '@lernzeit/core/time'
+import { count } from '@lernzeit/core/text'
+import { AccountGroup } from './AccountGroup'
+import { ClaudeGroup } from './ClaudeGroup'
 import { FeaturesGroup } from './FeaturesGroup'
 import { Group } from './Group'
 import { LevelGroup } from './LevelGroup'
@@ -180,9 +180,11 @@ export default function SettingsPage() {
   const { canInstall, install } = useInstallPrompt()
   const [permission, setPermission] = useState(notificationPermission())
   const restoreInput = useRef<HTMLInputElement>(null)
+  /** A restore or reset is running: both buttons wait. */
+  const [busy, setBusy] = useState<'restore' | 'reset' | null>(null)
   const { hash } = useLocation()
 
-  // Links such as /settings#ai-connection open on that card. The cards above it grow as
+  // Links such as /settings#claude open on that card. The cards above it grow as
   // their data loads, so it is kept in view until the layout settles.
   useEffect(() => {
     const target = hash ? document.getElementById(hash.slice(1)) : null
@@ -214,28 +216,39 @@ export default function SettingsPage() {
     }
     const ok = await confirm({
       title: 'Restore this backup?',
-      body: 'Everything currently in Lernzeit is replaced by the backup. Export a backup first if you want to keep it.',
+      body: 'This replaces your library on every device with the backup.',
       confirmLabel: 'Replace my data',
       danger: true,
     })
     if (!ok) return
+    setBusy('restore')
     try {
       const result = await restoreBackup(parsed)
-      toast(`Restored ${count(result.cards, 'card')}, ${count(result.sessions, 'session')} and ${count(result.tasks, 'task')}`)
+      toast(`Restored ${count(result.cards, 'card')}, ${count(result.sessions, 'session')} and ${count(result.tasks, 'task')}. Uploading to your other devices…`)
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Restore failed', { tone: 'error' })
+    } finally {
+      setBusy(null)
     }
   }
 
   const reset = async () => {
     const ok = await confirm({
       title: 'Delete all data?',
-      body: 'Cards, images, history and tasks are removed from this device. This cannot be undone.',
+      body: 'This deletes your whole library on every device: cards, progress, sessions, stories, tasks and docs. Cloudflare can restore the last 7 days (see docs/cloud.md).',
       confirmLabel: 'Delete everything',
       danger: true,
+      requireText: 'reset',
     })
     if (!ok) return
-    await resetAllData()
+    setBusy('reset')
+    try {
+      await resetAllData()
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Reset failed', { tone: 'error' })
+      setBusy(null)
+      return
+    }
     window.location.assign('/')
   }
 
@@ -253,10 +266,10 @@ export default function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Settings" subtitle="Goals, decks, timer, audio and your data. Everything stays on this device." />
+      <PageHeader title="Settings" subtitle="Goals, decks, timer, audio, your data and your account." />
 
-      <div className="grid items-start gap-5 xl:grid-cols-2">
-        <div className="flex flex-col gap-5">
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-5">
           <LevelGroup />
           <TopicsGroup />
           <DecksGroup />
@@ -319,10 +332,10 @@ export default function SettingsPage() {
             />
           </Group>
 
-          <AiConnectionGroup />
+          <ClaudeGroup />
         </div>
 
-        <div className="flex flex-col gap-5">
+        <div className="flex min-w-0 flex-col gap-5">
           <Group id="flashcards-audio" title="Flashcards and audio">
             <VoiceField />
             <Field label={`Speaking speed · ${settings.speechRate.toFixed(2)}×`} htmlFor="rate">
@@ -393,13 +406,13 @@ export default function SettingsPage() {
             }
           />
 
-          <Group title="Your data" description="Lernzeit works offline and keeps everything in this browser. Back it up now and then.">
+          <Group title="Your data" description="Lernzeit works offline and keeps a copy of your library in this browser. Back it up now and then.">
             <div className="flex flex-wrap gap-2">
               <Button variant="primary" icon={<Download size={15} strokeWidth={1.8} />} onClick={() => void exportData()}>
                 Export backup
               </Button>
-              <Button variant="outline" icon={<HardDriveDownload size={15} strokeWidth={1.8} />} onClick={() => restoreInput.current?.click()}>
-                Restore backup
+              <Button variant="outline" icon={<HardDriveDownload size={15} strokeWidth={1.8} />} disabled={busy !== null} onClick={() => restoreInput.current?.click()}>
+                {busy === 'restore' ? 'Restoring…' : 'Restore backup'}
               </Button>
               <input
                 ref={restoreInput}
@@ -421,19 +434,13 @@ export default function SettingsPage() {
             <StorageInfo />
             <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
               <span className="text-small text-muted">Remove everything and start fresh.</span>
-              <Button variant="danger" size="sm" icon={<Trash2 size={15} strokeWidth={1.8} />} onClick={() => void reset()}>
-                Delete all data
+              <Button variant="danger" size="sm" icon={<Trash2 size={15} strokeWidth={1.8} />} disabled={busy !== null} onClick={() => void reset()}>
+                {busy === 'reset' ? 'Resetting…' : 'Delete all data'}
               </Button>
             </div>
           </Group>
 
-          <Group title="Account" description="Your data stays in this browser when you sign out.">
-            <div>
-              <Button variant="outline" icon={<LogOut size={15} strokeWidth={1.8} />} onClick={signOut}>
-                Sign out
-              </Button>
-            </div>
-          </Group>
+          <AccountGroup />
         </div>
       </div>
     </>

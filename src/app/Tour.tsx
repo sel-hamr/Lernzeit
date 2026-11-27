@@ -6,7 +6,7 @@ import 'driver.js/dist/driver.css'
 import './tour.css'
 import { useFeedback } from '@/components/ui/feedback'
 import { getTourFacts, getTourState, markTourSeen } from '@/data/tour'
-import { tourRoute, tourStops, tourTarget, type TourAction, type TourStop } from '@/lib/tour'
+import { tourRoute, tourStops, tourTarget, type TourAction, type TourStop } from '@lernzeit/core/tour'
 import { useFeatures } from './plugins'
 
 /** Lets the welcome dialog close and its toast appear before the tour dims the page. */

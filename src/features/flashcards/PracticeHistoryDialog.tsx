@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/Button'
 import { TextSelect } from '@/components/ui/form'
 import { Dot, EmptyState, StatStrip } from '@/components/ui/primitives'
 import { useDecks, useLanguage, usePracticeRuns, useTopics } from '@/data/hooks'
-import type { PracticeKind, PracticeRun } from '@/db/types'
-import { formatPracticeTime, percentCorrect, practiceTotals, runPart, totalsByDeck } from '@/lib/practice'
-import { directionLabel } from '@/lib/srs'
-import { formatClock, formatLongDate } from '@/lib/time'
+import type { PracticeKind, PracticeRun } from '@lernzeit/core/types'
+import { formatPracticeTime, percentCorrect, practiceTotals, runPart, totalsByDeck } from '@lernzeit/core/practice'
+import { directionLabel } from '@lernzeit/core/srs'
+import { formatClock, formatLongDate } from '@lernzeit/core/time'
 
 const PAGE = 40
 

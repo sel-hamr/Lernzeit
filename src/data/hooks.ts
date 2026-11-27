@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, DEFAULT_SETTINGS, KV_KEYS } from '@/db/db'
-import type { ActiveTimer, Card, CardReview, Deck, Doc, DocFolder, DrillStat, ExerciseStat, GrammarTopic, ImageFit, PracticeRun, Question, QuestionResponse, ReviewLog, Session, Settings, Story, Task, Topic } from '@/db/types'
-import { buildQueue, usageToday } from '@/lib/queue'
+import { db, KV_KEYS, mergeSettings } from '@/db/db'
+import type { ActiveTimer, Card, CardReview, Deck, Doc, DocFolder, DrillStat, ExerciseStat, GrammarTopic, ImageFit, PracticeRun, Question, QuestionResponse, ReviewLog, Session, Settings, Story, Task, Topic } from '@lernzeit/core/types'
+import { buildQueue, usageToday } from '@lernzeit/core/queue'
 import { onVoicesChanged, voicesFor } from '@/lib/speech'
-import { dateKey, nextMidnightMs } from '@/lib/time'
+import { dateKey, nextMidnightMs } from '@lernzeit/core/time'
 import { hasLearningData, LANGUAGE, type Language } from './languages'
 import type { PendingNote } from './timer'
 
 export function useSettings(): Settings {
-  const row = useLiveQuery(() => db.kv.get(KV_KEYS.settings), [])
-  return useMemo(() => ({ ...DEFAULT_SETTINGS, ...((row?.value as Partial<Settings>) ?? {}) }), [row])
+  const rows = useLiveQuery(() => db.kv.bulkGet([KV_KEYS.settings, KV_KEYS.deviceSettings]), [])
+  return useMemo(() => mergeSettings(rows?.[0]?.value, rows?.[1]?.value), [rows])
 }
 
 /** German, explained in English. */

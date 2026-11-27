@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { useLearningText } from '@/data/hooks'
-import type { Card, Gender } from '@/db/types'
-import { germanText } from '@/lib/german'
+import type { Card, Gender } from '@lernzeit/core/types'
+import { germanText } from '@lernzeit/core/german'
 
 const genderClass: Record<Gender, string> = {
   der: 'text-der',

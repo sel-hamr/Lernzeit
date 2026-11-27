@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { exerciseProblem, parseExercise, parseInline, parseRule, wordsOf } from '@/lib/grammar'
-import { parseCloze } from '@/lib/german'
-import { alignTranslation } from '@/lib/reader'
+import { exerciseProblem, parseExercise, parseInline, parseRule, wordsOf } from '@lernzeit/core/grammar'
+import { parseCloze } from '@lernzeit/core/german'
+import { alignTranslation } from '@lernzeit/core/reader'
 import { LEVELS, levelSummary, loadPack, PACK as info } from '.'
 
 /* The German pack, checked the way the app will read it. */

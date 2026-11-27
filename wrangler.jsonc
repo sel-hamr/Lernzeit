@@ -1,8 +1,23 @@
 {
-  // Cloudflare serves the Vite build as static files; the app has no server code.
+  // The Lernzeit Worker: the Vite build as static files, plus the /api routes in worker/src.
   "name": "lernzeit",
   "compatibility_date": "2026-11-01",
+  "main": "worker/src/index.ts",
+  "d1_databases": [
+    { "binding": "DB", "database_name": "lernzeit", "database_id": "1f2d491c-82c4-49f9-9ffc-202b794776db", "migrations_dir": "worker/migrations" }
+  ],
+  // The OAuth grants, tokens and registered clients that let Claude use /mcp. The id is set at deploy.
+  "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "d742b601a38542698ebaa77ba52291f4" }],
+  "vars": {
+    // Where an OAuth client may send access back to, comma-separated: exact hostnames over https,
+    // plus localhost, 127.0.0.1 and [::1] over http or https on any port (worker/src/redirects.ts).
+    "OAUTH_REDIRECT_HOSTS": "claude.ai,claude.com,localhost,127.0.0.1,[::1]"
+  },
   "assets": {
+    "binding": "ASSETS",
+    // The API, the MCP endpoint and the OAuth routes run the Worker first; every other request is
+    // answered from dist/ directly.
+    "run_worker_first": ["/api/*", "/mcp", "/mcp/*", "/authorize", "/token", "/register", "/.well-known/*"],
     "directory": "./dist",
     // Client-side routes such as /flashcards get index.html instead of a 404.
     "not_found_handling": "single-page-application"

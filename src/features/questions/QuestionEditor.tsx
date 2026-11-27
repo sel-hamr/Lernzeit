@@ -7,8 +7,8 @@ import { useFeedback } from '@/components/ui/feedback'
 import { useLanguage, useLearningText, useQuestions } from '@/data/hooks'
 import { DEFAULT_SET, deleteQuestion, parseWords, saveQuestion } from '@/data/questions'
 import { parseLevel, STORY_LEVELS } from '@/data/stories'
-import type { Question } from '@/db/types'
-import { groupBySet } from '@/lib/questions'
+import type { Question } from '@lernzeit/core/types'
+import { groupBySet } from '@lernzeit/core/questions'
 
 interface EditorProps {
   open: boolean

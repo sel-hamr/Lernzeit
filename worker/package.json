@@ -1,0 +1,24 @@
+{
+  "name": "lernzeit-worker",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^1.2.4",
+    "@lernzeit/core": "*",
+    "@modelcontextprotocol/server": "^2.3.1",
+    "hono": "^4.13.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.9.0",
+    "@cloudflare/workers-types": "^5.20261121.1",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.4",
+    "wrangler": "^4.166.0"
+  }
+}

@@ -2,7 +2,7 @@ import type { CSSProperties, HTMLAttributes, ReactNode } from 'react'
 import clsx from 'clsx'
 import { Link } from 'react-router'
 import { ChevronRight } from 'lucide-react'
-import type { Priority, TopicColor } from '@/db/types'
+import type { Priority, TopicColor } from '@lernzeit/core/types'
 import { PRIORITY_LABEL, topicVars } from '@/lib/colors'
 
 /* Section: the white rounded card used everywhere (16px radius, 1px line). */

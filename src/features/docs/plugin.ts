@@ -9,6 +9,5 @@ export const docsPlugin = definePlugin({
   icon: FileText,
   path: '/docs',
   description: 'Markdown you saved to read.',
-  header: true,
   routes: [{ path: '/docs/*', page: lazy(() => import('./DocsRoutes')) }],
 })

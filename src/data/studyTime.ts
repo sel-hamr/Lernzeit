@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { newId } from '@/db/db'
-import { hideActivity, noteInput, showActivity, startActivity, tickActivity } from '@/lib/activity'
-import { MINUTE } from '@/lib/time'
+import { hideActivity, noteInput, showActivity, startActivity, tickActivity } from '@lernzeit/core/activity'
+import { MINUTE } from '@lernzeit/core/time'
 import { useActiveTimer } from './hooks'
 
 const INPUT_EVENTS = ['pointerdown', 'keydown', 'scroll', 'wheel', 'touchmove'] as const

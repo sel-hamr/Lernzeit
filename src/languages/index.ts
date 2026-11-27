@@ -9,7 +9,7 @@ import type { CardPack, CardPackCard } from '@/data/io'
 import type { StarterTopic } from '@/data/grammar'
 import type { StarterQuestion } from '@/data/questions'
 import type { StarterStory } from '@/data/stories'
-import type { StoryLevel } from '@/db/types'
+import type { StoryLevel } from '@lernzeit/core/types'
 import { info } from './de/info'
 import type { PackContent } from './types'
 

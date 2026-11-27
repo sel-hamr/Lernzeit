@@ -17,8 +17,8 @@ import {
   type CardPack,
   type CsvPreview,
 } from '@/data/io'
-import { count } from '@/lib/text'
-import type { CardType, Gender } from '@/db/types'
+import { count } from '@lernzeit/core/text'
+import type { CardType, Gender } from '@lernzeit/core/types'
 
 type Loaded = { kind: 'csv'; preview: CsvPreview } | { kind: 'pack'; pack: CardPack }
 

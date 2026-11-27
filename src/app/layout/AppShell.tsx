@@ -1,23 +1,25 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router'
 import clsx from 'clsx'
-import { Bot, ChevronRight, Plus, Search, Settings } from 'lucide-react'
+import { ChevronRight, Menu, Plus, Search, Settings } from 'lucide-react'
 import { Logo, LogoMark } from '@/components/Logo'
 import { Dot, GroupLabel } from '@/components/ui/primitives'
 import { Dialog } from '@/components/ui/Dialog'
-import { useBridgeIndicator, type StatusLevel } from '@/bridge/status'
 import { useCards, useDecks, usePracticeRuns, useTopics } from '@/data/hooks'
 import { useTodayProgress } from '@/data/progress'
-import { goalFor } from '@/lib/goals'
-import { formatPracticeTime, practiceTotals } from '@/lib/practice'
-import { capList } from '@/lib/tabs'
-import { formatHM } from '@/lib/time'
+import { goalFor } from '@lernzeit/core/goals'
+import { formatPracticeTime, practiceTotals } from '@lernzeit/core/practice'
+import { capList } from '@lernzeit/core/tabs'
+import { formatHM } from '@lernzeit/core/time'
 import { useUI } from '@/app/ui'
 import { useFeatures } from '@/app/plugins'
-import { AI_CONNECTION_ID } from '@/features/settings/AiConnectionGroup'
 import { DeckMenu } from '@/features/flashcards/DeckMenu'
 import { SearchBox } from './Search'
-import { HeaderVoiceSelect, SidebarVoiceSelect } from './VoiceSelect'
+import { SidebarVoiceSelect } from './VoiceSelect'
+import { SyncRow } from './SyncRow'
+import { LEVEL_DOT, useSyncIndicator } from './syncState'
+import { PhoneMenu } from './PhoneMenu'
+import { hidesBottomBar, phoneTabs } from './nav'
 
 function GoalsToday() {
   const progress = useTodayProgress()
@@ -111,26 +113,6 @@ function DecksList() {
   )
 }
 
-const LEVEL_DOT: Record<StatusLevel, string> = { ok: 'bg-sage-dot', idle: 'bg-line-strong', waiting: 'bg-muted', error: 'bg-red-ink' }
-
-const AI_SETTINGS = `/settings#${AI_CONNECTION_ID}`
-
-/** Shown only while AI connection is on, so a glance tells whether the AI can reach this browser. */
-function AiStatus() {
-  const ai = useBridgeIndicator()
-  if (!ai) return null
-  return (
-    <Link to={AI_SETTINGS} title={ai.hint ?? ai.label} className="flex h-9 items-center gap-2.5 rounded-img px-3 text-small text-ink-2 transition-colors hover:bg-main/60 hover:text-ink">
-      <Bot size={16} strokeWidth={1.7} aria-hidden />
-      <span className="flex-1">AI</span>
-      <span className="flex min-w-0 items-center gap-1.5 text-chip text-muted">
-        <span className={clsx('size-1.5 shrink-0 rounded-full', LEVEL_DOT[ai.level])} />
-        <span className="truncate">{ai.label}</span>
-      </span>
-    </Link>
-  )
-}
-
 function DailyPlan() {
   const topics = useTopics()
   const { today } = useTodayProgress()
@@ -201,7 +183,7 @@ function Sidebar() {
       {onFlashcards ? <DecksList /> : <GoalsToday />}
       <div className="mt-auto flex flex-col gap-2">
         <SidebarVoiceSelect />
-        <AiStatus />
+        <SyncRow />
         <DailyPlan />
       </div>
     </aside>
@@ -210,8 +192,10 @@ function Sidebar() {
 
 function MobileHeader() {
   const [searchOpen, setSearchOpen] = useState(false)
-  const ai = useBridgeIndicator()
-  const inHeader = useFeatures().filter((f) => f.header)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const sync = useSyncIndicator()
+  // The dot shows sync while it needs a look.
+  const syncNeedsLook = sync.level !== 'ok' && !sync.passing
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-sidebar/90 px-4 backdrop-blur-md md:hidden">
       <Link to="/" className="flex items-center gap-2" aria-label="Lernzeit home">
@@ -219,7 +203,6 @@ function MobileHeader() {
         <span className="text-[18px] font-semibold tracking-[-0.01em]">Lernzeit</span>
       </Link>
       <div className="flex items-center gap-1">
-        <HeaderVoiceSelect />
         <button
           type="button"
           aria-label="Search cards, tasks and docs"
@@ -228,40 +211,36 @@ function MobileHeader() {
         >
           <Search size={19} strokeWidth={1.7} />
         </button>
-        {inHeader.map(({ id, path, label, icon: Icon }) => (
-          <NavLink
-            key={id}
-            to={path}
-            aria-label={label}
-            className={({ isActive }) => clsx('flex size-10 items-center justify-center rounded-full hover:bg-field', isActive ? 'bg-field text-ink' : 'text-ink-2')}
-          >
-            <Icon size={19} strokeWidth={1.7} />
-          </NavLink>
-        ))}
-        <NavLink
-          to={ai ? AI_SETTINGS : '/settings'}
-          aria-label={ai ? `Settings, AI: ${ai.label}` : 'Settings'}
+        <button
+          type="button"
+          aria-label={syncNeedsLook ? `Menu, Sync: ${sync.label}` : 'Menu'}
+          aria-haspopup="dialog"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen(true)}
           className="relative flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-field"
         >
-          <Settings size={19} strokeWidth={1.7} />
-          {ai && <span className={clsx('absolute top-2 right-2 size-2 rounded-full ring-2 ring-sidebar', LEVEL_DOT[ai.level])} />}
-        </NavLink>
+          <Menu size={20} strokeWidth={1.7} />
+          {syncNeedsLook && <span className={clsx('absolute top-2 right-2 size-2 rounded-full ring-2 ring-sidebar', LEVEL_DOT[sync.level])} />}
+        </button>
       </div>
       <Dialog open={searchOpen} onClose={() => setSearchOpen(false)} title="Search">
         <SearchBox inline autoFocus onDone={() => setSearchOpen(false)} />
       </Dialog>
+      <PhoneMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
     </header>
   )
 }
 
 function BottomNav() {
-  const features = useFeatures()
+  const tabs = phoneTabs(useFeatures())
+  const { pathname } = useLocation()
+  if (hidesBottomBar(pathname)) return null
   return (
     <nav
       aria-label="Main"
       className="fixed inset-x-0 bottom-0 z-30 grid auto-cols-fr grid-flow-col border-t border-line bg-sidebar/95 pb-safe backdrop-blur-md md:hidden"
     >
-      {features.filter((f) => !f.header).map(({ id, path, short, icon: Icon }) => (
+      {tabs.map(({ id, path, short, icon: Icon }) => (
         <NavLink
           key={id}
           to={path}
@@ -305,6 +284,8 @@ function QuickAddButton() {
 export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
   const softPage = pathname.startsWith('/history') || pathname.startsWith('/board')
+  // Without the bottom bar the page keeps only a small gap; it reserves room for its own controls.
+  const noBottomBar = hidesBottomBar(pathname)
   return (
     <div className="flex min-h-dvh bg-sidebar">
       <Sidebar />
@@ -312,7 +293,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <MobileHeader />
         <main
           className={clsx(
-            'min-w-0 flex-1 border-line px-4 pt-5 pb-[calc(96px+env(safe-area-inset-bottom))] md:border-l md:px-9 md:pt-8 md:pb-10',
+            'min-w-0 flex-1 border-line px-4 md:border-l md:px-9 md:pt-8 md:pb-10',
+            noBottomBar ? 'pt-3 pb-3' : 'pt-5 pb-[calc(96px+env(safe-area-inset-bottom))]',
             softPage ? 'bg-soft' : 'bg-main',
           )}
         >

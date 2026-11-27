@@ -1,41 +1,52 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { getActiveTimer, KV_KEYS, LernzeitDB } from '@/db/db'
+import { getActiveTimer, getSettings, KV_KEYS, LernzeitDB, updateSettings } from '@/db/db'
+import { getDeviceId } from '@/sync/device'
+import { setFetch } from '@/sync/api'
+import { signedIn, useTestCloud } from '@/test/cloud'
 import { seedGerman } from '@/test/fixtures'
 import { loadPack, packLevels } from '@/languages'
 import { addStarterContent, addStarterConjugations, installLevels, syncStarterTopics } from './languages'
-import { MINUTE } from '@/lib/time'
+import { MINUTE } from '@lernzeit/core/time'
 import { completePhase, pauseTimer, resumeTimer, startTimer, stopTimer, getPendingNote, resolvePendingNote, recordReviewTime } from './timer'
 import { createDeck, deleteCard, deleteDeck, gradeReview, moveCard, quickAddCard, saveCard, undoGrade } from './cards'
 import { saveDrillAnswer } from './drills'
 import { savePracticeRun } from './practice'
-import type { PracticeRun } from '@/db/types'
+import type { PracticeRun } from '@lernzeit/core/types'
 import { DEFAULT_GROUP, deleteTopic, saveExerciseAnswer, saveTopic, STARTER_GRAMMAR_VERSION } from './grammar'
 import { createTask, setColumnOrder, toggleTaskDone } from './tasks'
+import { recordTimeZone } from './timeZone'
 import { exportBackup, importCsvRows, parseCardPack, parseCardsCsv, prepareCardPack, restoreBackup, writeCardPack } from './io'
 import { deleteStory, markStoryOpened, markStoryRead, parseLevel, saveStory } from './stories'
 import { recordGrammarTime, recordQuestionTime, recordReadingTime } from './timer'
 import { DEFAULT_SET, deleteQuestion, parseWords, saveQuestion, saveResponse } from './questions'
-import { formsOf, TENSES } from '@/lib/conjugation'
-import { drillQuestions, pickRound } from '@/lib/drills'
-import { buildTopicRound, exerciseProblem, parseExercise, parseInline, parseRule, wordsOf } from '@/lib/grammar'
-import { groupBySet } from '@/lib/questions'
-import { alignTranslation, annotate, buildLexicon, coverage, splitParagraphs } from '@/lib/reader'
+import { formsOf, TENSES } from '@lernzeit/core/conjugation'
+import { drillQuestions, pickRound } from '@lernzeit/core/drills'
+import { buildTopicRound, exerciseProblem, parseExercise, parseInline, parseRule, wordsOf } from '@lernzeit/core/grammar'
+import { groupBySet } from '@lernzeit/core/questions'
+import { alignTranslation, annotate, buildLexicon, coverage, splitParagraphs } from '@lernzeit/core/reader'
 import { clearClips, clipKey, readClip, saveClip } from './clips'
 
 let database: LernzeitDB
 let counter = 0
+
+/** A second database signed in to the in-memory cloud, as restoring a backup needs. */
+async function signedInDb(): Promise<LernzeitDB> {
+  return signedIn(new LernzeitDB(`test-${counter++}`))
+}
 
 const at = (y: number, m: number, d: number, h = 0, min = 0) => new Date(y, m - 1, d, h, min)
 
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(at(2026, 10, 14, 14, 2))
+  useTestCloud()
   database = new LernzeitDB(`test-${counter++}`)
   await seedGerman(database)
 })
 
 afterEach(async () => {
+  setFetch()
   vi.useRealTimers()
   await database.delete()
 })
@@ -137,6 +148,43 @@ describe('card packs', () => {
     })
     await writeCardPack(await prepareCardPack(pack), {}, database)
     expect((await database.cards.get('v-1'))?.conjugation).toEqual({ present: 'schwimme, schwimmst, schwimmt, schwimmen, schwimmt, schwimmen' })
+  })
+})
+
+describe('device settings', () => {
+  it('keeps theme and voice in deviceSettings, away from the synced settings', async () => {
+    await updateSettings({ theme: 'dark', pomodoroFocus: 40 }, database)
+    expect((await database.kv.get(KV_KEYS.deviceSettings))?.value).toEqual({ theme: 'dark' })
+    expect((await database.kv.get(KV_KEYS.settings))?.value).toMatchObject({ pomodoroFocus: 40 })
+    expect((await database.kv.get(KV_KEYS.settings))?.value).not.toHaveProperty('theme')
+    expect(await getSettings(database)).toMatchObject({ theme: 'dark', pomodoroFocus: 40 })
+  })
+
+  it('reads device settings from the old settings row until deviceSettings exists', async () => {
+    await database.kv.put({ key: KV_KEYS.settings, value: { theme: 'dark', speechRate: 1.2 } })
+    expect(await getSettings(database)).toMatchObject({ theme: 'dark', speechRate: 1.2 })
+    await updateSettings({ theme: 'light' }, database)
+    expect(await getSettings(database)).toMatchObject({ theme: 'light', speechRate: 1.2 })
+  })
+
+  it('gives every concurrent first call the same device id', async () => {
+    const ids = await Promise.all([getDeviceId(database), getDeviceId(database), getDeviceId(database)])
+    expect(new Set(ids).size).toBe(1)
+    expect(await getDeviceId(database)).toBe(ids[0])
+  })
+
+  it('marks a new timer with the device that started it', async () => {
+    await startTimer({ topicId: await germanId(), mode: 'free' }, database)
+    expect((await getActiveTimer(database))?.deviceId).toBe(await getDeviceId(database))
+  })
+
+  it('saves the same session ids when another device stops the run', async () => {
+    await startTimer({ topicId: await germanId(), mode: 'free' }, database)
+    const timer = (await getActiveTimer(database))!
+    await database.kv.put({ key: KV_KEYS.activeTimer, value: { ...timer, deviceId: 'phone' } })
+    vi.setSystemTime(at(2026, 10, 14, 14, 32))
+    await stopTimer(database)
+    expect((await database.sessions.toArray()).map((s) => s.id)).toEqual([`${timer.runId}:${timer.cycle}:0`])
   })
 })
 
@@ -265,6 +313,28 @@ describe('flashcards', () => {
     expect(reviews.map((r) => r.direction).sort()).toEqual(['deToEn', 'enToDe'])
   })
 
+  it('keeps an image a doc still shows when the card that had it is deleted, alone or with its deck', async () => {
+    const deck = await createDeck({ name: 'Bilder' }, database)
+    const image = (id: string) => ({ id, blob: new Blob(['x'], { type: 'image/png' }), width: 1, height: 1, fit: 'cover' as const })
+    await database.images.bulkAdd([image('shared'), image('alone'), image('deck-shared')])
+    const card = await quickAddCard({ english: 'dog', german: 'Hund', deckId: deck.id }, database)
+    const other = await quickAddCard({ english: 'cat', german: 'Katze', deckId: deck.id }, database)
+    const third = await quickAddCard({ english: 'cow', german: 'Kuh', deckId: deck.id }, database)
+    await database.cards.update(card.id, { imageId: 'shared' })
+    await database.cards.update(other.id, { imageId: 'alone' })
+    await database.cards.update(third.id, { imageId: 'deck-shared' })
+    await database.docs.add({ id: 'doc', folderId: 'root', title: 'Hund', body: '![dog](image:shared) ![cow](image:deck-shared)', tags: [], status: 'toRead', pinned: false, createdAt: 1, updatedAt: 1 })
+
+    await deleteCard(card.id, database)
+    await deleteCard(other.id, database)
+    expect(await database.images.get('shared')).toBeDefined()
+    expect(await database.images.get('alone')).toBeUndefined()
+
+    await deleteDeck(deck.id, database)
+    expect(await database.cards.get(third.id)).toBeUndefined()
+    expect(await database.images.get('deck-shared')).toBeDefined()
+  })
+
   it('creates review rows for enabled directions and a cloze row for cloze cards', async () => {
     const deck = (await database.decks.orderBy('order').first())!
     const cloze = await saveCard({ deckId: deck.id, type: 'cloze', english: 'The dog plays.', german: 'Der Hund {{spielt}}.', tags: [] }, { kind: 'keep' }, undefined, database)
@@ -383,6 +453,14 @@ describe('stories', () => {
     await expect(saveStory({ title: 'x', text: ' ', tags: [] }, undefined, database)).rejects.toThrow('needs some text')
   })
 
+  it('keeps the teaching notes when the story is edited', async () => {
+    const note = { word: 'lerne', sentence: 'Ich lerne Deutsch.', baseForm: 'lernen', partOfSpeech: 'verb', translation: 'learn' }
+    const story = await saveStory({ title: 'Mein Tag', text: 'Ich lerne Deutsch.', tags: [], words: [note] }, undefined, database)
+    // The editor sends only its own fields.
+    await saveStory({ title: 'Neu', text: story.text, level: 'A1', topicId: story.topicId, tags: story.tags }, story.id, database)
+    expect(await database.stories.get(story.id)).toMatchObject({ title: 'Neu', words: [note] })
+  })
+
   it('records reading time as one session that grows', async () => {
     const topicId = await germanId()
     const start = Date.now()
@@ -400,7 +478,7 @@ describe('stories', () => {
     const backup = await exportBackup(database)
     expect(backup.stories).toHaveLength(await database.stories.count())
 
-    const other = new LernzeitDB(`test-${counter++}`)
+    const other = await signedInDb()
     try {
       await restoreBackup(JSON.parse(JSON.stringify(backup)), other)
       expect((await other.stories.get('story-0001'))?.title).toBe('Ein Tag in Berlin')
@@ -491,7 +569,7 @@ describe('questions', () => {
     expect(backup.questions).toHaveLength(45)
     expect(backup.responses).toHaveLength(1)
 
-    const other = new LernzeitDB(`test-${counter++}`)
+    const other = await signedInDb()
     try {
       await restoreBackup(JSON.parse(JSON.stringify(backup)), other)
       expect((await other.responses.toArray()).map((r) => r.text)).toEqual(['Ich heiße Sam.'])
@@ -572,7 +650,7 @@ describe('drills', () => {
     const backup = await exportBackup(database)
     expect(backup.drillStats).toHaveLength(1)
 
-    const other = new LernzeitDB(`test-${counter++}`)
+    const other = await signedInDb()
     try {
       await restoreBackup(JSON.parse(JSON.stringify(backup)), other)
       expect(await other.drillStats.get(`${card.id}:gender`)).toMatchObject({ wrong: 1, score: 2 })
@@ -614,7 +692,7 @@ describe('practice history', () => {
     const backup = await exportBackup(database)
     expect(backup.practiceRuns).toEqual([run()])
 
-    const other = new LernzeitDB(`test-${counter++}`)
+    const other = await signedInDb()
     try {
       await restoreBackup(JSON.parse(JSON.stringify(backup)), other)
       expect(await other.practiceRuns.get('run-1')).toEqual(run())
@@ -762,7 +840,7 @@ describe('grammar', () => {
     await saveExerciseAnswer('grammar-001', 'grammar-001-01', false, database)
     const backup = await exportBackup(database)
     expect(backup.grammarTopics?.length).toBeGreaterThanOrEqual(25)
-    const other = new LernzeitDB(`test-${counter++}`)
+    const other = await signedInDb()
     try {
       await restoreBackup(JSON.parse(JSON.stringify(backup)), other)
       expect(await other.exerciseStats.get('grammar-001-01')).toMatchObject({ wrong: 1 })
@@ -814,5 +892,49 @@ describe('speech clips', () => {
     await database.images.clear() // images go through FileReader, which Node does not have
     await saveClip('v:a', wav(1), database)
     expect(Object.keys(await exportBackup(database))).not.toContain('clips')
+  })
+})
+
+describe('time zone setting', () => {
+  let database: LernzeitDB
+  beforeEach(() => {
+    database = new LernzeitDB(`tz-${Math.random()}`)
+  })
+
+  const zoneRow = () => database.kv.get(KV_KEYS.timeZone)
+  const outboxKeys = async () => (await database.outbox.toArray()).map((entry) => `${entry.tbl}/${entry.id}`)
+
+  it('writes the browser zone into its own record when signed in, and only when it differs', async () => {
+    await signedIn(database)
+    await updateSettings({ pomodoroFocus: 40 }, database)
+    const settings = await database.kv.get(KV_KEYS.settings)
+    await database.outbox.clear()
+
+    await recordTimeZone(database, 'Europe/Berlin')
+    expect(await zoneRow()).toEqual({ key: 'timeZone', value: 'Europe/Berlin' })
+    // The shared settings are not written, so this device cannot undo another one's settings change.
+    expect(await database.kv.get(KV_KEYS.settings)).toEqual(settings)
+    expect(await outboxKeys()).toEqual(['kv/timeZone'])
+
+    await database.outbox.clear()
+    await recordTimeZone(database, 'Europe/Berlin')
+    expect(await outboxKeys()).toEqual([])
+    await recordTimeZone(database, 'Asia/Tokyo')
+    expect(await zoneRow()).toEqual({ key: 'timeZone', value: 'Asia/Tokyo' })
+    expect(await outboxKeys()).toEqual(['kv/timeZone'])
+  })
+
+  it('moves a zone from the old settings field into its own record, leaving the settings alone', async () => {
+    await signedIn(database)
+    await database.kv.put({ key: KV_KEYS.settings, value: { timeZone: 'Europe/Berlin', pomodoroFocus: 40 } })
+    const settings = await database.kv.get(KV_KEYS.settings)
+    await recordTimeZone(database, 'Europe/Berlin')
+    expect(await zoneRow()).toEqual({ key: 'timeZone', value: 'Europe/Berlin' })
+    expect(await database.kv.get(KV_KEYS.settings)).toEqual(settings)
+  })
+
+  it('writes nothing when signed out', async () => {
+    await recordTimeZone(database, 'Europe/Berlin')
+    expect(await zoneRow()).toBeUndefined()
   })
 })

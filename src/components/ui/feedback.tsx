@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, type
 import clsx from 'clsx'
 import { Dialog } from './Dialog'
 import { Button } from './Button'
+import { Field, Input } from './form'
 
 /* ------------------------------------------------------------- Toasts ---- */
 
@@ -21,6 +22,8 @@ interface ConfirmOptions {
   body?: ReactNode
   confirmLabel?: string
   danger?: boolean
+  /** The owner must type this word before the confirm button works. */
+  requireText?: string
 }
 
 type ConfirmFn = (opts: ConfirmOptions) => Promise<boolean>
@@ -31,6 +34,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const nextId = useRef(1)
   const [pending, setPending] = useState<(ConfirmOptions & { resolve: (v: boolean) => void }) | null>(null)
+  const [typed, setTyped] = useState('')
 
   const dismiss = useCallback((id: number) => setToasts((list) => list.filter((t) => t.id !== id)), [])
 
@@ -43,7 +47,11 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     [dismiss],
   )
 
-  const confirm = useCallback<ConfirmFn>((opts) => new Promise((resolve) => setPending({ ...opts, resolve })), [])
+  const confirm = useCallback<ConfirmFn>((opts) =>
+      new Promise((resolve) => {
+        setTyped('')
+        setPending({ ...opts, resolve })
+      }), [])
 
   const close = (value: boolean) => {
     pending?.resolve(value)
@@ -95,13 +103,18 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
             <Button variant="ghost" onClick={() => close(false)}>
               Cancel
             </Button>
-            <Button variant={pending?.danger ? 'danger' : 'primary'} onClick={() => close(true)} autoFocus>
+            <Button variant={pending?.danger ? 'danger' : 'primary'} onClick={() => close(true)} disabled={!!pending?.requireText && typed.trim().toLowerCase() !== pending.requireText} autoFocus={!pending?.requireText}>
               {pending?.confirmLabel ?? 'Confirm'}
             </Button>
           </>
         }
       >
         {pending?.body && <div className="text-body text-ink-2">{pending.body}</div>}
+        {pending?.requireText && (
+          <Field label={`Type ${pending.requireText} to confirm`} htmlFor="confirm-text" className="mt-4">
+            <Input id="confirm-text" value={typed} onChange={(e) => setTyped(e.target.value)} autoFocus autoComplete="off" />
+          </Field>
+        )}
       </Dialog>
     </FeedbackContext.Provider>
   )

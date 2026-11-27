@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import clsx from 'clsx'
-import { parseInline, parseRule } from '@/lib/grammar'
+import { parseInline, parseRule } from '@lernzeit/core/grammar'
 
 /** Text with **bold** and *italic*. */
 export function Inline({ text }: { text: string }) {

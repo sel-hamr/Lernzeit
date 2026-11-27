@@ -1,23 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, DEFAULT_SETTINGS, KV_KEYS } from '@/db/db'
-import type { Settings } from '@/db/types'
+import { db, KV_KEYS, mergeSettings } from '@/db/db'
+import { getDeviceId } from '@/sync/device'
 import { storage } from '@/lib/browser'
 import { Dialog } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/form'
 import { useFeedback } from '@/components/ui/feedback'
-import { handleRequest } from '@/bridge/actions'
-import { browserKind, useBridgeConfig } from '@/bridge/config'
-import { connectBridge } from '@/bridge/connection'
-import { setBridgeStatus } from '@/bridge/status'
 import { useActiveTimer, usePendingNote, useSettings, useTopics } from '@/data/hooks'
 import { useTodayProgress } from '@/data/progress'
 import { completePhase, resolvePendingNote } from '@/data/timer'
+import { recordTimeZone } from '@/data/timeZone'
+import { useAccount } from '@/sync/account'
 import { showNotification } from '@/lib/notify'
 import { playEndSound } from '@/lib/sound'
-import { formatHM, formatMinutesShort, formatTimer, parseTimeOfDay } from '@/lib/time'
-import { elapsedMs, isPaused, isPhaseComplete, phaseEndAt, remainingMs } from '@/lib/timer'
+import { formatHM, formatMinutesShort, formatTimer, parseTimeOfDay } from '@lernzeit/core/time'
+import { elapsedMs, isPaused, isPhaseComplete, ownsTimer, phaseEndAt, remainingMs } from '@lernzeit/core/timer'
 
 /**
  * Watches the running timer. Phases end by timestamp, so this also catches up
@@ -28,9 +26,14 @@ export function TimerEngine() {
   const settings = useSettings()
   const topics = useTopics(true)
   const busy = useRef(false)
+  const [deviceId, setDeviceId] = useState<string>()
+  useEffect(() => {
+    void getDeviceId().then(setDeviceId)
+  }, [])
 
   useEffect(() => {
-    if (!timer) return
+    // Another device's timer is shown but never ended or announced here.
+    if (!timer || !deviceId || !ownsTimer(timer, deviceId)) return
     const topicName = topics.find((t) => t.id === timer.topicId)?.name ?? 'Study'
 
     const check = async () => {
@@ -65,7 +68,7 @@ export function TimerEngine() {
       if (exact) clearTimeout(exact)
       document.removeEventListener('visibilitychange', check)
     }
-  }, [timer, settings.endSound, topics])
+  }, [timer, deviceId, settings.endSound, topics])
 
   // Show the countdown in the browser tab title.
   useEffect(() => {
@@ -129,36 +132,11 @@ export function ReminderEngine() {
   return null
 }
 
-/** Keeps this tab connected to the Lernzeit MCP server while Settings → AI connection is on. */
-export function BridgeEngine() {
-  const { enabled, name, token, port } = useBridgeConfig()
-
-  useEffect(() => {
-    if (!enabled || !token.trim()) {
-      setBridgeStatus(enabled ? 'no_token' : 'off')
-      return
-    }
-    setBridgeStatus('waiting')
-    let disconnect: (() => void) | undefined
-    // The settings fields save on every key, so reconnect only once typing pauses.
-    const start = setTimeout(() => {
-      const kind = browserKind()
-      disconnect = connectBridge({ port, token: token.trim(), name: name.trim() || kind, kind, onRequest: handleRequest, onStatus: setBridgeStatus })
-    }, 400)
-    return () => {
-      clearTimeout(start)
-      disconnect?.()
-    }
-  }, [enabled, name, token, port])
-
-  return null
-}
-
 /** Applies the theme preference and remembers it for the pre-paint script. */
 export function ThemeSync() {
   // null while loading: keep the theme the pre-paint script chose until the real setting arrives.
-  const row = useLiveQuery(() => db.kv.get(KV_KEYS.settings), [], null)
-  const theme = row === null ? null : ((row?.value as Partial<Settings> | undefined)?.theme ?? DEFAULT_SETTINGS.theme)
+  const rows = useLiveQuery(() => db.kv.bulkGet([KV_KEYS.settings, KV_KEYS.deviceSettings]), [], null)
+  const theme = rows === null ? null : mergeSettings(rows[0]?.value, rows[1]?.value).theme
   useEffect(() => {
     if (!theme) return
     const media = window.matchMedia('(prefers-color-scheme: dark)')
@@ -233,4 +211,13 @@ export function SessionNoteDialog() {
       </form>
     </Dialog>
   )
+}
+
+/** Once per start, when signed in: shares this browser's time zone so the Worker can date sessions. */
+export function TimeZoneEngine() {
+  const signedIn = Boolean(useAccount())
+  useEffect(() => {
+    if (signedIn) void recordTimeZone().catch(() => {})
+  }, [signedIn])
+  return null
 }

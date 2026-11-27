@@ -1,16 +1,16 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { createBrowserRouter, Navigate, Route, RouterProvider, Routes, useLocation } from 'react-router'
 import { FeedbackProvider } from '@/components/ui/feedback'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { UIProvider } from './ui'
 import { AppShell } from './layout/AppShell'
-import { BridgeEngine, ReminderEngine, SessionNoteDialog, ThemeSync, TimerEngine } from './engines'
+import { TimeZoneEngine, ReminderEngine, SessionNoteDialog, ThemeSync, TimerEngine } from './engines'
 import { useStarterUpdates } from './useStarterUpdates'
 import { StarterDialog } from './StarterDialog'
 import { TourEngine } from './Tour'
-import { useStoredToggle } from '@/lib/browser'
 import { LoginPage } from '@/features/login/LoginPage'
-import { SIGNED_IN_KEY } from '@/features/login/login'
+import { MergeDialog } from '@/features/login/MergeDialog'
+import { opensApp, startAccountSync, stopAccountSync, useAccount, useMergeProgress } from '@/sync/account'
 import { useFeatures } from './plugins'
 
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'))
@@ -36,8 +36,25 @@ function Pages() {
   )
 }
 
+/**
+ * The app opens once this browser has an account and its library is in the cloud. That is read
+ * from this browser alone, so offline it opens on its own data. A first merge that cannot reach the
+ * cloud can be put off: the app then opens on this browser's data, with sync off until it merges.
+ */
 function Root() {
-  const [signedIn, setSignedIn] = useStoredToggle(SIGNED_IN_KEY, false)
+  const account = useAccount()
+  const merge = useMergeProgress()
+  const signedIn = opensApp(account, merge)
+  const syncs = Boolean(account?.merged)
+
+  useEffect(() => {
+    if (!syncs) return
+    startAccountSync()
+    return stopAccountSync
+  }, [syncs])
+
+  // Reading the account takes a moment; showing the sign-in page meanwhile would flash it.
+  if (account === undefined) return null
   return (
     <FeedbackProvider>
       <UIProvider>
@@ -46,7 +63,7 @@ function Root() {
           <>
             <TimerEngine />
             <ReminderEngine />
-            <BridgeEngine />
+            <TimeZoneEngine />
             <SessionNoteDialog />
             <StarterDialog />
             <TourEngine />
@@ -56,7 +73,10 @@ function Root() {
           </>
         ) : (
           // Not a route: whatever address you opened is still there once you sign in.
-          <LoginPage onSignIn={() => setSignedIn(true)} />
+          <>
+            <LoginPage />
+            {account && <MergeDialog />}
+          </>
         )}
       </UIProvider>
     </FeedbackProvider>

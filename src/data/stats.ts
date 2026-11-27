@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import type { Card, CardReview } from '@/db/types'
-import { indexMinutes, topicStreak, type Streak } from '@/lib/goals'
-import { State } from '@/lib/srs'
+import type { Card } from '@lernzeit/core/types'
+import { indexMinutes, topicStreak, type Streak } from '@lernzeit/core/goals'
+import { pickWordOfTheDay } from '@lernzeit/core/today'
 import { useAllReviews, useAllSessions, useCards, useToday, useTopics } from './hooks'
 
 /** Current and longest goal streak per topic id. */
@@ -16,27 +16,7 @@ export function useStreaks(): Map<string, Streak> | undefined {
   }, [topics, sessions, today])
 }
 
-function dayHash(day: string): number {
-  let h = 0
-  for (const ch of day) h = (h * 31 + ch.charCodeAt(0)) >>> 0
-  return h
-}
-
-/**
- * A different learned word each day (stable through the day). Falls back to
- * any word with an image while nothing has been learned yet.
- */
-export function pickWordOfTheDay(cards: Card[], reviews: CardReview[], day: string): Card | undefined {
-  const learned = new Set(reviews.filter((r) => r.state === State.Review).map((r) => r.cardId))
-  const words = cards.filter((c) => c.type === 'word').sort((a, b) => a.id.localeCompare(b.id))
-  const pictured = (c: Card) => !!c.imageId || !!c.emoji
-  // Nouns with a picture make the nicest word of the day.
-  let pool = words.filter((c) => learned.has(c.id) && pictured(c))
-  if (!pool.length) pool = words.filter((c) => learned.has(c.id))
-  if (!pool.length) pool = words.filter((c) => pictured(c) && (c.gender || c.partOfSpeech === 'noun'))
-  if (!pool.length) pool = words
-  return pool.length ? pool[dayHash(day) % pool.length] : undefined
-}
+export { pickWordOfTheDay }
 
 export function useWordOfTheDay(): { card?: Card; loaded: boolean } {
   const cards = useCards()

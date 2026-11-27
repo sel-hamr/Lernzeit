@@ -1,4 +1,4 @@
-import type { ImageFit } from '@/db/types'
+import type { ImageFit } from '@lernzeit/core/types'
 
 export const MAX_IMAGE_WIDTH = 600
 

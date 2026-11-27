@@ -1,4 +1,4 @@
-import type { Card, CardReview, Deck, ReviewLog } from '@/db/types'
+import type { Card, CardReview, Deck, ReviewLog } from '@lernzeit/core/types'
 
 export function groupByCard(reviews: CardReview[]): Map<string, CardReview[]> {
   const map = new Map<string, CardReview[]>()

@@ -36,7 +36,7 @@ GitHub-style Markdown: headings, lists, tables, task lists, quotes, footnotes, l
 | Headings | [src/features/docs/headings.ts](../src/features/docs/headings.ts) | Heading ids, shared by the renderer and the table of contents |
 | Pages | [src/features/docs/](../src/features/docs) | Library and folder pages, reader, editor |
 | Styles | [src/index.css](../src/index.css) | `.doc-prose` and the code colours |
-| AI | [src/bridge/actions.ts](../src/bridge/actions.ts), [mcp/src/tools.ts](../mcp/src/tools.ts) | `list_docs`, `read_doc`, `create_doc` |
+| AI | [packages/core/src/actions/](../packages/core/src/actions), [worker/src/mcp/tools.ts](../worker/src/mcp/tools.ts) | `list_docs`, `read_doc`, `create_doc` |
 
 The Markdown code is a lazy route, so it loads only when Docs opens.
 
