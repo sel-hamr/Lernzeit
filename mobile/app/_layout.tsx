@@ -3,7 +3,7 @@ import { Geist_400Regular } from '@expo-google-fonts/geist/400Regular'
 import { Geist_500Medium } from '@expo-google-fonts/geist/500Medium'
 import { Geist_600SemiBold } from '@expo-google-fonts/geist/600SemiBold'
 import { useFonts } from 'expo-font'
-import { Stack } from 'expo-router'
+import { Stack, type ErrorBoundaryProps } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import * as SystemUI from 'expo-system-ui'
@@ -12,6 +12,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { useReducedMotion } from 'react-native-reanimated'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { AccountProvider, backfillLastAccount, useAccount } from '../src/account'
+import { CrashScreen } from '../src/components/CrashScreen'
 import { stackAnimation } from '../src/motion'
 import { createServices } from '../src/services'
 import { LocalLibraryProvider } from '../src/store/live'
@@ -24,6 +25,18 @@ import { ThemeProvider, useTheme, type ThemePreference } from '../src/theme'
 function SettingsTheme({ children }: { children: ReactNode }) {
   const theme = useLiveQuery(['kv'], (l) => l.get<{ value?: { theme?: ThemePreference } }>('kv', 'deviceSettings')?.value?.theme, [])
   return <ThemeProvider preference={theme ?? 'system'}>{children}</ThemeProvider>
+}
+
+/**
+ * A screen that throws while drawing shows a calm "Something went wrong" page with Try again instead
+ * of a blank screen (expo-router wraps this layout, and so every screen, in it).
+ */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  // A crash before the fonts loaded would otherwise leave the splash over this page.
+  useEffect(() => {
+    SplashScreen.hideAsync().catch(() => {})
+  }, [])
+  return <CrashScreen error={error} onRetry={retry} />
 }
 
 // The splash stays up until Geist is loaded, so no text shows in the fallback font first.

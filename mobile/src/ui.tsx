@@ -26,7 +26,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
 import { scheduleOnRN } from 'react-native-worklets'
 import { haptics, listEnter, listExit, listLayout, Pressable, springs, type HapticKind } from './motion'
-import { useTheme } from './theme'
+import { CHROME_FONT_SCALE, useTheme } from './theme'
 
 export type ButtonVariant = 'primary' | 'accent' | 'soft' | 'ghost' | 'danger' | 'outline'
 
@@ -81,7 +81,7 @@ export function Button({
       ]}
     >
       {busy ? <ActivityIndicator size="small" color={tone.fg} /> : icon}
-      <Text style={[size === 'sm' ? type.small : type.button, { color: tone.fg }]} numberOfLines={1}>
+      <Text style={[size === 'sm' ? type.small : type.button, { color: tone.fg }]} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_SCALE}>
         {label}
       </Text>
     </Pressable>
@@ -158,7 +158,7 @@ export function Chip({ label, selected, onPress, color, icon, testID }: { label:
     >
       {color ? <View style={[styles.dot, { backgroundColor: color }]} /> : null}
       {icon}
-      <Text style={[type.small, { color: selected ? colors.onPrimary : colors.ink2 }]} numberOfLines={1}>
+      <Text style={[type.small, { color: selected ? colors.onPrimary : colors.ink2 }]} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_SCALE}>
         {label}
       </Text>
     </Pressable>
@@ -187,7 +187,7 @@ export function Segmented<T extends string>({ options, value, onChange, testID }
         const on = v === value
         return (
           <Pressable key={v} onPress={() => onChange(v)} haptic="select" scaleTo={0.96} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: on }} style={styles.segment}>
-            <Text style={[type.small, { color: on ? colors.ink : colors.ink2, fontFamily: on ? fonts.semibold : fonts.medium }]} numberOfLines={1}>
+            <Text style={[type.small, { color: on ? colors.ink : colors.ink2, fontFamily: on ? fonts.semibold : fonts.medium }]} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_SCALE}>
               {label}
             </Text>
           </Pressable>
@@ -238,7 +238,7 @@ export function Badge({ label, tone = 'accent', icon }: { label: string; tone?: 
   return (
     <View style={[styles.badge, { backgroundColor: t.bg, borderRadius: radius.pill }]}>
       {icon}
-      <Text style={[type.chip, { color: t.fg, fontFamily: fonts.semibold }]} numberOfLines={1}>
+      <Text style={[type.chip, { color: t.fg, fontFamily: fonts.semibold }]} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_SCALE}>
         {label}
       </Text>
     </View>
@@ -513,7 +513,7 @@ export function SectionHeader({ title, detail, action }: { title: string; detail
   const { colors, type, spacing } = useTheme()
   return (
     <View style={[styles.sectionHeader, { paddingHorizontal: 4, gap: spacing.md }]}>
-      <Text style={[type.section, { color: colors.ink, flexShrink: 1 }]} accessibilityRole="header" numberOfLines={1}>
+      <Text style={[type.section, { color: colors.ink, flexShrink: 1 }]} accessibilityRole="header" numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_SCALE}>
         {title}
       </Text>
       {action ? (

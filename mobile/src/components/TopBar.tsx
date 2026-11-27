@@ -8,7 +8,7 @@ import { useAccount } from '../account'
 import { featureById } from '../features'
 import { FadeInUp, Pressable } from '../motion'
 import { useLiveQuery } from '../store/live'
-import { useTheme } from '../theme'
+import { CHROME_FONT_SCALE, useTheme } from '../theme'
 import { useNow } from '../timer/hooks'
 import { greeting, hourIn } from '../today/greeting'
 import { IconButton } from '../ui'
@@ -47,7 +47,7 @@ export function TopBar() {
           </Pressable>
         ) : null}
         <FadeInUp key={title} style={styles.grow}>
-          <Text testID="page-title" accessibilityRole="header" numberOfLines={1} style={[today ? type.section : type.title, { color: colors.ink }, today && styles.greeting]}>
+          <Text testID="page-title" accessibilityRole="header" numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_SCALE} style={[today ? type.section : type.title, { color: colors.ink }, today && styles.greeting]}>
             {title}
           </Text>
           {today ? (

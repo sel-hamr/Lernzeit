@@ -25,7 +25,7 @@ import { useLocalLibrary } from '../store/live'
 import { useActiveTimer } from '../timer/hooks'
 import { zoneOf } from '../timer/timerStore'
 import { AnimatedBar, AnimatedCheck, FadeInUp, haptics, Pressable, RollingNumber, springs, SWEEP_DELAY_MS, timings } from '../motion'
-import { numbers, useTheme } from '../theme'
+import { CHROME_FONT_SCALE, numbers, useTheme } from '../theme'
 import { Button, Chip, EmptyState, IconButton, Sheet, ToggleRow } from '../ui'
 import { checkTyped, expectedAnswer, practisesDeck, roundFor, startRound, type Progress } from './round'
 import { markExample } from './example'
@@ -490,10 +490,10 @@ function Chunky({
     >
       <View style={[styles.lip, { top: LIP, height, borderRadius: r, backgroundColor: edge ?? bg }]}>{edge ? null : <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0, 0, 0, 0.24)' }]} />}</View>
       <Animated.View style={[styles.chunk, { height, borderRadius: r, backgroundColor: bg, borderColor: ring ?? 'transparent' }, face]}>
-        <Text style={[type.button, { color: fg, fontFamily: fonts.semibold, fontSize: round ? 16 : 15 }]} numberOfLines={1}>
+        <Text style={[type.button, { color: fg, fontFamily: fonts.semibold, fontSize: round ? 16 : 15 }]} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_SCALE}>
           {label}
         </Text>
-        {caption ? <Text style={[type.chip, numbers, { color: sub ?? fg, opacity: 0.75 }]}>{caption}</Text> : null}
+        {caption ? <Text style={[type.chip, numbers, { color: sub ?? fg, opacity: 0.75 }]} maxFontSizeMultiplier={CHROME_FONT_SCALE}>{caption}</Text> : null}
       </Animated.View>
     </RNPressable>
   )
@@ -520,8 +520,8 @@ function Counter({ value, label, tone, pull }: { value: number; label: string; t
   return (
     <Animated.View accessible accessibilityLabel={`${label}: ${value}`} style={[styles.row, styles.counter, { backgroundColor: c.bg, gap: 5 }, pill]}>
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.counterRing, { borderColor: c.ring }, ring]} />
-      <Text style={[type.bodyMedium, numbers, { color: c.fg, fontFamily: fonts.semibold }]}>{value}</Text>
-      <Text style={[type.chip, { color: c.fg }]} numberOfLines={1}>{label}</Text>
+      <Text style={[type.bodyMedium, numbers, { color: c.fg, fontFamily: fonts.semibold }]} maxFontSizeMultiplier={CHROME_FONT_SCALE}>{value}</Text>
+      <Text style={[type.chip, { color: c.fg }]} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_SCALE}>{label}</Text>
     </Animated.View>
   )
 }

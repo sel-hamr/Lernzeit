@@ -7,6 +7,7 @@ import { failureMessage, useAccount, useAccountService } from '../src/account'
 import { Screen } from '../src/components/Screen'
 import { levelColor, useSyncIndicator } from '../src/components/syncIndicator'
 import { FadeInUp } from '../src/motion'
+import { appVersionLabel } from '../src/settings/version'
 import { DataGroup, TourGroup } from '../src/settings/DataGroup'
 import { AppearanceGroup, AudioGroup, DecksGroup, FeaturesGroup, RemindersGroup, TimerGroup, TopicsGroup } from '../src/settings/groups'
 import { useLocalLibrary } from '../src/store/live'
@@ -39,7 +40,18 @@ export default function SettingsPage() {
           <Group />
         </FadeInUp>
       ))}
+      <VersionLine />
     </Screen>
+  )
+}
+
+/** Which build this is, for bug reports. */
+function VersionLine() {
+  const { colors, type } = useTheme()
+  return (
+    <Text testID="app-version" style={[type.chip, { color: colors.muted, textAlign: 'center' }]} selectable>
+      {appVersionLabel()}
+    </Text>
   )
 }
 

@@ -57,6 +57,8 @@ Status: **Fixed (motion)**, **Fixed (audit)** and **Fixed (prod)** name the comm
 | L9 | Back gesture | Android's predictive back animation is not on. | Left: it needs a check on a device that every sheet still closes before the page (BackHandler and the Modal's `onRequestClose`). Back already closes sheets first. | Left |
 | L10 | Card editor | Leaving with unsaved changes drops them without asking. | Left: a discard prompt is a behaviour change, and this pass keeps behaviour the same. | Left |
 | L11 | Stories | The ⋯ menu holds a single item (Add starter stories). | Left: it matches Questions and Docs, and more items come with the web's features. | Left |
+| L12 | Dependencies | expo-doctor: `expo` 58.0 instead of 58.1, and patch drift in expo-notifications, expo-router, expo-sharing, expo-splash-screen and jest-expo. | `npx expo install --fix` for those packages only (same SDK 58). expo-doctor now passes everything except the duplicates. | Fixed (prod) |
+| L13 | Dependencies | expo-doctor: newer gesture-handler, reanimated and worklets in the repo-root node_modules besides the app's own. | Left: they come from the root workspace, not the app. `autolinkingModuleResolution` already makes the app build and bundle its own copies. Deduplicating means changing root dependencies. | Left |
 
 ## Checked and fine
 

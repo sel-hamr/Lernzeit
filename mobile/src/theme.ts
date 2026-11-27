@@ -235,6 +235,9 @@ export const fonts = {
   semibold: 'Geist_600SemiBold',
 } as const
 
+/** How far dense chrome (buttons, chips, badges, tiles, counters) grows with large system text; body text is not capped. */
+export const CHROME_FONT_SCALE = 1.3
+
 /** Times and numbers line up. */
 export const numbers: TextStyle = { fontVariant: ['tabular-nums'] }
 

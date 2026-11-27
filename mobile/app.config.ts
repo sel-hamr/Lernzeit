@@ -13,9 +13,10 @@ export function versionCode(version: string): number {
   return major * 10000 + minor * 100 + patch
 }
 
-// Off-white and dark app backgrounds (SPEC §11 `bg-sidebar`), shown behind the splash and the app.
-const LIGHT_BACKGROUND = '#F7F7F4'
-const DARK_BACKGROUND = '#141816'
+// The Lime canvas (src/theme.ts `canvas`), light and dark: behind the splash, the app and the
+// adaptive icon, so nothing changes colour between the splash and the first screen.
+const LIGHT_BACKGROUND = '#F2F2F4'
+const DARK_BACKGROUND = '#0E0F11'
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -28,6 +29,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   userInterfaceStyle: 'automatic',
   icon: './assets/icon.png',
   backgroundColor: LIGHT_BACKGROUND,
+  // Edge-to-edge is always on from SDK 54 (Android 16 makes it mandatory), so there is no
+  // `android.edgeToEdgeEnabled` to set: prebuild warns when the key is present. The status bar style
+  // follows the in-app theme (app/_layout.tsx) and the window background follows the canvas.
   android: {
     package: 'com.selhamr.lernzeit',
     versionCode: versionCode(pkg.version),
