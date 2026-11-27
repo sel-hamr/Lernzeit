@@ -6,7 +6,7 @@ import { pillStart, tabWeight } from '../src/components/BottomBar'
 import { flyTarget, ratingForSwipe } from '../src/practice/swipe'
 import { deckCarousel } from '../src/today/decks'
 import { greeting, hourIn } from '../src/today/greeting'
-import { heroLine, lastPractisedByDeck, practisedLabel, statTiles, weekStrip } from '../src/today/hero'
+import { heroLine, lastPractisedByDeck, practisedLabel, weekStrip } from '../src/today/hero'
 import { flowUnits } from '../src/stories/flow'
 import { tabBarHeight } from '../src/components/BottomBar'
 import type { Piece } from '@lernzeit/core/reader'
@@ -159,22 +159,7 @@ describe('the week strip', () => {
   })
 })
 
-describe('the Today stat tiles', () => {
-  it('shows cards, minutes and streak days with units that agree', () => {
-    expect(statTiles({ ms: 125_000, reviewed: 12 }, { days: 3, topicName: 'German' })).toEqual([
-      { key: 'cards', value: '12', unit: '', label: 'cards practised' },
-      { key: 'time', value: '2', unit: 'min', label: 'practice time' },
-      { key: 'streak', value: '3', unit: 'days', label: 'German streak' },
-    ])
-    const one = statTiles({ ms: 20_000, reviewed: 1 }, { days: 1 })
-    expect(one.map((t) => [t.value, t.unit, t.label])).toEqual([
-      ['1', '', 'card practised'],
-      ['<1', 'min', 'practice time'],
-      ['1', 'day', 'streak'],
-    ])
-    expect(statTiles({ ms: 0, reviewed: 0 }, { days: 0 })[1]!.value).toBe('0')
-  })
-
+describe('the Today hero line', () => {
   it('says something kind under the hero number', () => {
     expect(heroLine(0, 0, 0)).toBe('A free day. Enjoy it')
     expect(heroLine(20, 0, 0)).toBe('No goal today, so every minute is a bonus')

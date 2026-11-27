@@ -52,13 +52,13 @@ const session = (id: string, topicId: string, minutes: number, start: number, ex
 })
 
 describe('Today, with nothing yet', () => {
-  it('shows the hero, zero stats and the empty states', async () => {
+  it('shows the hero and the empty states', async () => {
     await open(setup())
     expect(screen.getByText('No goals today')).toBeTruthy()
     expect(screen.getByText('0:00')).toBeTruthy()
     expect(screen.getByText('A free day. Enjoy it')).toBeTruthy()
     expect(screen.queryByText(/h goal$/)).toBeNull()
-    expect(within(screen.getByTestId('stat-cards')).getByText('cards practised')).toBeTruthy()
+    expect(screen.queryByTestId('stat-cards')).toBeNull()
     expect(screen.getByText('No topics yet')).toBeTruthy()
     expect(screen.getByText('No sessions yet today')).toBeTruthy()
     expect(screen.getByText('Add flashcards and a learned word will show up here every day.')).toBeTruthy()
@@ -89,23 +89,13 @@ describe('Today, filled', () => {
     expect(bar.props.accessibilityValue).toMatchObject({ min: 0, max: 100, now: 47 })
   })
 
-  it('shows the stats strip', async () => {
+  it('shows the hero with the week strip', async () => {
     const library = setup()
     fill(library)
     await open(library)
     expect(screen.getByText('2:10')).toBeTruthy()
     expect(screen.getByText('of 3:30 h goal')).toBeTruthy()
     expect(screen.getByRole('progressbar', { name: "Today's goals progress" }).props.accessibilityValue).toMatchObject({ now: 62 })
-    const time = within(screen.getByTestId('stat-time'))
-    expect(time.getByText('2')).toBeTruthy()
-    expect(time.getByText('min')).toBeTruthy()
-    const cards = within(screen.getByTestId('stat-cards'))
-    expect(cards.getByText('12')).toBeTruthy()
-    expect(cards.getByText('cards practised')).toBeTruthy()
-    const streak = within(screen.getByTestId('stat-streak'))
-    expect(streak.getByText('0')).toBeTruthy()
-    expect(streak.getByText('days')).toBeTruthy()
-    expect(streak.getByText('German streak')).toBeTruthy()
     expect(within(screen.getByTestId('week-strip')).getByLabelText('Thu: 2:10 h of 3:30 h')).toBeTruthy()
   })
 

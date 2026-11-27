@@ -5,7 +5,7 @@ import { formatHM, formatTimer } from '@lernzeit/core/time'
 import { pastelIndex, type TodaySession, type TodayView, type TopicProgress } from '@lernzeit/core/today'
 import type { Card, TopicColor } from '@lernzeit/core/types'
 import { useRouter } from 'expo-router'
-import { BookOpen, Check, Clock3, Flame, Layers, Play, Target, Zap } from 'lucide-react-native'
+import { BookOpen, Check, Clock3, Flame, Layers, Play, Target } from 'lucide-react-native'
 import { useEffect, useMemo, useRef } from 'react'
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue, type SharedValue } from 'react-native-reanimated'
@@ -18,7 +18,7 @@ import { numbers, useTheme } from '../theme'
 import { useActiveTimer, useNow } from '../timer/hooks'
 import { Badge, Button, EmptyState, GroupedList, Row, SectionHeader, Tile } from '../ui'
 import { deckCarousel, type CarouselDeck } from './decks'
-import { heroLine, practisedLabel, statTiles, type StatTile, type WeekBar } from './hero'
+import { heroLine, practisedLabel, type WeekBar } from './hero'
 import { useTodayView, type TodayScreenView } from './useTodayView'
 
 /** Today: the hero with today's time, your decks, the goals, the sessions and the word, live from the local store. */
@@ -33,18 +33,15 @@ export function TodayScreen() {
         <Hero view={view} />
       </FadeInUp>
       <FadeInUp index={1}>
-        <Stats view={view} />
-      </FadeInUp>
-      <FadeInUp index={2}>
         <Decks today={view.today} lastPractised={view.lastPractised} />
       </FadeInUp>
-      <FadeInUp index={3}>
+      <FadeInUp index={2}>
         <DailyGoals rows={view.progress.topics} />
       </FadeInUp>
-      <FadeInUp index={4}>
+      <FadeInUp index={3}>
         <TodaysSessions sessions={view.sessions} />
       </FadeInUp>
-      <FadeInUp index={5}>
+      <FadeInUp index={4}>
         <WordOfTheDay card={view.word} />
       </FadeInUp>
     </ScrollView>
@@ -155,42 +152,6 @@ function WeekStrip({ bars }: { bars: WeekBar[] }) {
           )
         })}
       </View>
-    </View>
-  )
-}
-
-/** Cards practised today, practice minutes and the streak, as three tiles with tinted icon chips. */
-function Stats({ view }: { view: TodayView }) {
-  const { colors, topics } = useTheme()
-  const tiles = statTiles(view.practised, view.streak)
-  const look = {
-    cards: { icon: Layers, bg: colors.accentSoft, fg: colors.accentInk },
-    time: { icon: Clock3, bg: topics.blue.soft, fg: topics.blue.ink },
-    streak: { icon: Flame, bg: topics.clay.soft, fg: topics.clay.ink },
-  }
-  return (
-    <View style={styles.tiles}>
-      {tiles.map((tile) => (
-        <StatTileView key={tile.key} tile={tile} {...look[tile.key]} />
-      ))}
-    </View>
-  )
-}
-
-function StatTileView({ tile, icon: Icon, bg, fg }: { tile: StatTile; icon: typeof Zap; bg: string; fg: string }) {
-  const { colors, type, spacing, radius, shadow } = useTheme()
-  return (
-    <View testID={`stat-${tile.key}`} style={[styles.tile, { backgroundColor: colors.card, borderRadius: radius.block + 4, padding: spacing.md + 2, gap: spacing.sm }, shadow.card]}>
-      <Tile bg={bg} size={32}>
-        <Icon size={16} strokeWidth={2} color={fg} />
-      </Tile>
-      <View style={[styles.rowEnd, { gap: 3 }]}>
-        <RollingNumber value={tile.value} fit style={[type.figure, styles.figure, { color: colors.ink }]} />
-        {tile.unit ? <Text style={[type.small, { color: colors.muted, marginBottom: 4 }]}>{tile.unit}</Text> : null}
-      </View>
-      <Text style={[type.chip, { color: colors.muted }]} numberOfLines={2}>
-        {tile.label}
-      </Text>
     </View>
   )
 }
@@ -451,10 +412,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
   rowEnd: { flexDirection: 'row', alignItems: 'flex-end' },
   big: { fontSize: 52, lineHeight: 58, letterSpacing: -2.2 },
-  figure: { fontSize: 26, lineHeight: 30 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5 },
-  tiles: { flexDirection: 'row', gap: 10 },
-  tile: { flex: 1 },
   day: { flex: 1, alignItems: 'center', gap: 6 },
   dayTrack: { width: '100%', maxWidth: 28, height: 52, borderRadius: 8, overflow: 'hidden', justifyContent: 'flex-end' },
   goalTick: { position: 'absolute', left: 4, right: 4, height: 2, borderRadius: 1 },

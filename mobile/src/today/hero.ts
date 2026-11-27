@@ -49,25 +49,6 @@ export function weekStrip(topics: readonly Topic[], sessions: readonly Session[]
   })
 }
 
-/** A tile in the Today stats row: a figure, its unit and what it counts. */
-export interface StatTile {
-  key: 'cards' | 'time' | 'streak'
-  value: string
-  unit: string
-  label: string
-}
-
-/** Cards practised today, minutes practised and the streak, with units that agree with the number. */
-export function statTiles(practised: { ms: number; reviewed: number }, streak: { days: number; topicName?: string }): StatTile[] {
-  const minutes = Math.round(practised.ms / 60_000)
-  const time = practised.ms > 0 && minutes < 1 ? '<1' : String(minutes)
-  return [
-    { key: 'cards', value: String(practised.reviewed), unit: '', label: practised.reviewed === 1 ? 'card practised' : 'cards practised' },
-    { key: 'time', value: time, unit: 'min', label: 'practice time' },
-    { key: 'streak', value: String(streak.days), unit: streak.days === 1 ? 'day' : 'days', label: streak.topicName ? `${streak.topicName} streak` : 'streak' },
-  ]
-}
-
 /** The newest day each deck was practised on, from the practice log. */
 export function lastPractisedByDeck(runs: readonly Pick<PracticeRun, 'day' | 'decks'>[]): Map<string, string> {
   const last = new Map<string, string>()
