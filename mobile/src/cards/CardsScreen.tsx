@@ -3,7 +3,7 @@ import { directionsFor } from '@lernzeit/core/srs'
 import { ALL_DIRECTIONS } from '@lernzeit/core/practice'
 import type { Card, Direction } from '@lernzeit/core/types'
 import { useRouter } from 'expo-router'
-import { ArrowUpDown, ChevronDown, ChevronRight, Copy, Ellipsis, History, Play, Plus, Search, SearchX, Upload, X } from 'lucide-react-native'
+import { ChevronDown, ChevronRight, Copy, Ellipsis, History, Play, Plus, Search, SearchX, SlidersHorizontal, Upload, X } from 'lucide-react-native'
 import { useMemo, useState } from 'react'
 import { count } from '@lernzeit/core/text'
 import { FlatList, StyleSheet, Text, TextInput, View } from 'react-native'
@@ -11,7 +11,7 @@ import { Pressable } from '../motion'
 import { useTabBarSpace } from '../components/BottomBar'
 import { useLocalLibrary } from '../store/live'
 import { numbers, useTheme } from '../theme'
-import { Button, Chip, EmptyState, Field, IconButton, OptionRow, Segmented, Sheet, Tile } from '../ui'
+import { Button, Chip, EmptyState, Field, IconButton, OptionRow, Sheet, Tile } from '../ui'
 import { CardPicture, GermanLine } from './CardPicture'
 import { INCOMPLETE_TAG, quickAddCard, useCards, useDecks } from './data'
 import { cardMatches } from './search'
@@ -25,13 +25,13 @@ const SORTS: [Sort, string][] = [
   ['english', 'English A-Z'],
 ]
 const FILTERS: [Filter, string][] = [
-  ['all', 'All'],
+  ['all', 'All cards'],
   ['incomplete', 'Incomplete'],
   ['nopicture', 'No picture'],
 ]
 const DIRECTION_LABEL: Record<Direction, string> = { imageToDe: 'Picture to German', enToDe: 'English to German', deToEn: 'German to English', cloze: 'Fill the gap' }
 
-/** The Cards tab: the deck card with Practise, search with sort, the filter segments, one grouped card list and the add button. */
+/** The Cards tab: the deck card with Practise, search with a filter button (show and sort in a sheet), one grouped card list and the add button. */
 export function CardsScreen() {
   const { colors, type, spacing, radius, shadow, fonts, sizes } = useTheme()
   const router = useRouter()
@@ -42,7 +42,7 @@ export function CardsScreen() {
   const cards = useCards()
   const [deckId, setDeckId] = useState('all')
   const [deckSheet, setDeckSheet] = useState(false)
-  const [sortSheet, setSortSheet] = useState(false)
+  const [filterSheet, setFilterSheet] = useState(false)
   const [menu, setMenu] = useState(false)
   const [practise, setPractise] = useState(false)
   const [add, setAdd] = useState(false)
@@ -76,7 +76,9 @@ export function CardsScreen() {
   const total = deck ? (counts.get(deck.id) ?? 0) : cards.length
   const targetDeck = deck?.id ?? decks[0]?.id ?? ''
   const sortLabel = SORTS.find(([s]) => s === sort)?.[1] ?? 'Newest'
-  const countLine = `${shown.length === total ? count(total, 'card') : `${shown.length} of ${count(total, 'card')}`} · ${sortLabel.toLowerCase()} first`
+  const filterLabel = FILTERS.find(([f]) => f === filter)?.[1] ?? 'All cards'
+  const filtered = filter !== 'all' || sort !== 'newest'
+  const countLine = `${shown.length === total ? count(total, 'card') : `${shown.length} of ${count(total, 'card')}`}${sort === 'newest' ? '' : ` · ${sortLabel}`}`
   const header = (
     <View style={{ gap: spacing.md, paddingBottom: spacing.md }}>
       <View style={[styles.row, { gap: spacing.sm }]}>
@@ -104,30 +106,43 @@ export function CardsScreen() {
         </View>
         <IconButton icon={Ellipsis} label="More" onPress={() => setMenu(true)} />
       </View>
-      <View style={[styles.search, { backgroundColor: colors.card, borderRadius: radius.pill, paddingLeft: spacing.lg, paddingRight: 4, gap: spacing.sm }]}>
-        <Search size={18} strokeWidth={1.8} color={colors.muted} />
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search cards"
-          placeholderTextColor={colors.muted}
-          accessibilityLabel="Search cards"
-          autoCapitalize="none"
-          autoCorrect={false}
-          returnKeyType="search"
-          selectionColor={colors.ink}
-          cursorColor={colors.ink}
-          style={[type.body, styles.grow, { color: colors.ink, paddingVertical: 0 }]}
-        />
-        {search ? (
-          <Pressable onPress={() => setSearch('')} scaleTo={0.85} accessibilityRole="button" accessibilityLabel="Clear the search" hitSlop={12}>
-            <X size={18} strokeWidth={1.8} color={colors.muted} />
-          </Pressable>
-        ) : null}
-        <View style={[styles.divider, { backgroundColor: colors.line }]} />
-        <IconButton icon={ArrowUpDown} label={`Sort: ${sortLabel}`} variant="ghost" size={40} iconSize={18} badge={sort === 'newest' ? undefined : colors.accent} onPress={() => setSortSheet(true)} />
+      <View style={[styles.row, { gap: spacing.sm }]}>
+        <View style={[styles.search, styles.grow, { backgroundColor: colors.card, borderRadius: radius.pill, paddingLeft: spacing.lg, paddingRight: spacing.md, gap: spacing.sm }, shadow.card]}>
+          <Search size={18} strokeWidth={1.8} color={colors.muted} />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search cards"
+            placeholderTextColor={colors.muted}
+            accessibilityLabel="Search cards"
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+            selectionColor={colors.ink}
+            cursorColor={colors.ink}
+            style={[type.body, styles.grow, { color: colors.ink, paddingVertical: 0 }]}
+          />
+          {search ? (
+            <Pressable onPress={() => setSearch('')} scaleTo={0.85} accessibilityRole="button" accessibilityLabel="Clear the search" hitSlop={12}>
+              <X size={18} strokeWidth={1.8} color={colors.muted} />
+            </Pressable>
+          ) : null}
+        </View>
+        <IconButton icon={SlidersHorizontal} label={filtered ? `Filter and sort: ${filterLabel}, ${sortLabel}` : 'Filter and sort'} size={48} badge={filtered ? colors.accent : undefined} onPress={() => setFilterSheet(true)} />
       </View>
-      <Segmented options={FILTERS} value={filter} onChange={setFilter} />
+      {filter !== 'all' ? (
+        <Pressable
+          onPress={() => setFilter('all')}
+          haptic="select"
+          scaleTo={0.95}
+          accessibilityRole="button"
+          accessibilityLabel={`Remove the filter ${filterLabel}`}
+          style={[styles.row, styles.chip, { backgroundColor: colors.primary, borderRadius: radius.pill, gap: 6 }]}
+        >
+          <Text style={[type.chip, { color: colors.onPrimary, fontFamily: fonts.semibold }]}>{filterLabel}</Text>
+          <X size={14} strokeWidth={2.2} color={colors.onPrimary} />
+        </Pressable>
+      ) : null}
       {shown.length ? <Text style={[type.small, numbers, { color: colors.muted, paddingHorizontal: 4, paddingTop: spacing.xs }]}>{countLine}</Text> : null}
     </View>
   )
@@ -185,17 +200,34 @@ export function CardsScreen() {
         ))}
       </Sheet>
 
-      <Sheet open={sortSheet} onClose={() => setSortSheet(false)} title="Sort">
+      <Sheet
+        open={filterSheet}
+        onClose={() => setFilterSheet(false)}
+        title="Filter"
+        footer={
+          <View style={[styles.row, { gap: spacing.sm }]}>
+            {filtered ? (
+              <Button
+                label="Reset"
+                variant="soft"
+                onPress={() => {
+                  setFilter('all')
+                  setSort('newest')
+                }}
+                style={styles.grow}
+              />
+            ) : null}
+            <Button label="Done" onPress={() => setFilterSheet(false)} style={styles.grow} />
+          </View>
+        }
+      >
+        <Text style={[type.small, styles.group, { color: colors.muted, paddingHorizontal: spacing.lg }]}>Show</Text>
+        {FILTERS.map(([f, label]) => (
+          <OptionRow key={f} label={label} selected={filter === f} onPress={() => setFilter(f)} />
+        ))}
+        <Text style={[type.small, styles.group, { color: colors.muted, paddingHorizontal: spacing.lg, paddingTop: spacing.lg }]}>Sort</Text>
         {SORTS.map(([s, label]) => (
-          <OptionRow
-            key={s}
-            label={label}
-            selected={sort === s}
-            onPress={() => {
-              setSort(s)
-              setSortSheet(false)
-            }}
-          />
+          <OptionRow key={s} label={label} selected={sort === s} onPress={() => setSort(s)} />
         ))}
       </Sheet>
 
@@ -373,7 +405,8 @@ const styles = StyleSheet.create({
   deckCard: { flex: 1, height: 64, flexDirection: 'row', alignItems: 'center' },
   search: { height: 48, flexDirection: 'row', alignItems: 'center' },
   clip: { overflow: 'hidden' },
-  divider: { width: StyleSheet.hairlineWidth, height: 24 },
+  chip: { alignSelf: 'flex-start', height: 32, paddingLeft: 14, paddingRight: 10 },
+  group: { paddingBottom: 4 },
   rowLine: { position: 'absolute', top: 0, right: 0, height: StyleSheet.hairlineWidth },
   fab: { position: 'absolute', width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
 })

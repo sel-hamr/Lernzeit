@@ -182,3 +182,22 @@ The owner's phone screenshots showed a patchy reader, a thin Today and a crowded
 Tests: new pure helpers in `test/redesign.test.ts` (week strip, stat tiles, hero line, last practised, practised label, word flow, bar height); the Today tests follow the new hero and tiles; a reader test drives the mini player. Mobile: 22 suites, 227 tests. Root: vitest 651, worker 195.
 
 Left: not seen on a device after this pass (the owner tests live over Expo). Dotted underlines use a 2 px dotted box, as Android draws dotted borders only on whole boxes.
+
+## Stage R6: Cards filter sheet and Practice redesign
+
+The owner: the Cards filter tab "has no meaning, delete it"; Practice still not good, redo it after the best flashcard apps.
+
+- **Cards:** the All / Incomplete / No picture `Segmented` is gone. One row: the search pill (grows) and a round sliders button (lime dot while a filter or a sort other than Newest is on). The button opens a Filter sheet with two groups of check rows, Show (All cards / Incomplete / No picture) and Sort (the four sorts), Reset and Done. A filter on shows one black chip under the row ("Incomplete" with an x) that removes it; the count line names the sort only when it is not Newest. Filtering logic unchanged.
+- **Practice** (`PracticeScreen`, `SwipeCard`):
+  - Top bar: X, "12 / 40", ⋯ (Audio, Typing, Listening, speed, Edit card); a thin full-width bar under it. Below, Quizlet's counters: Again (soft red) left, Good + Easy (soft sage) right; each bumps on a spring when it goes up, and swells and rings as the card is dragged its way. The deck and direction sit between them.
+  - Card: white, radius 32, deep soft shadow, two ghost cards behind (0.95 / 0.90, dropped from the bottom, fainter) that come forward as the card leaves; the next card springs up from the first ghost. Front: big rounded picture, prompt big and centred, "Tap to flip" with an icon. Back: a real 3D flip (two faces, perspective 1200, rotateY on a spring, back faces hidden plus an opacity switch at 90° so Android never shows a mirrored face); German big with the article in its colour, Plural, English, the example with the word marked (`markExample`), audio in the top-right corner. Each face scrolls on its own; with long content only sideways swipes rate.
+  - Drag (after the flip): follows the finger, tilts up to ±12° (`tiltFor`), the edge tints sage / red / lime (`leanFor`), a stamp ("Good", "Again", "Easy") fades in at the top, the side counter pulses. Past the threshold it flies off at the fling's speed (`flyDuration`), else springs back. Before the flip a swipe only turns the card (kept from before: a rating always comes after seeing the answer); in typing modes it does nothing until Check.
+  - Bottom: a chunky black "Show answer" pill; after the flip four chunky tiles (Again red soft, Hard plain, Good black, Easy lime) on a darker 4 px lip that compresses on press, the interval under each label. Undo is a small round button on the left of the hint line above.
+  - Typing / listening: the field and ä ö ü ß sit at the bottom of the card front. Check flips the card and slides up a Duolingo panel: green "Correct" / "Almost" or red "Not quite" with the answer and the typed diff, a Continue pill that rates the suggested grade (Again when wrong, else Good, as before), and "Choose a rating" to pick a tile instead.
+  - End: a big headline (`roundSummary`: Perfect round / Great work / Nice going / Good practice), a segmented ring of Again / Hard / Good / Easy that sweeps in around the self-drawing check, "12 cards practised in 4 min" (`practiceTime`), a legend card, then Practise again and Done (and Undo).
+  - Haptics (`ratingHaptic`): select on flip, light on Good / Easy, warning on Again, a tick on Hard. Reduce motion: the flip and the fly-off cross-fade, counters do not bump, the ring is just there.
+  - Scheduling, ratings, intervals, undo, round saving, review time and history are unchanged.
+
+Tests: `test/practice.test.ts` (tilt, lean, fly duration, haptics, side counts, "12 / 40", time, ring segments and headline, example marking) and `test/practice.screen.test.tsx` (the Cards filter sheet and chip; a one-card round: Show answer, Easy, the summary, one review log). Mobile: 24 suites, 241 tests. Root: vitest 651, worker 195.
+
+Left: not seen on a device after this pass. The ring's segments use butt ends with a 3 px gap (round ends would overlap at small counts).

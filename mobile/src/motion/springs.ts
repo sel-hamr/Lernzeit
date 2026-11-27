@@ -16,6 +16,10 @@ export const springs = {
   sheet: { damping: 24, stiffness: 260, mass: 1 },
   /** A flashcard springing back to the middle, or up from the stack. */
   card: { damping: 16, stiffness: 200, mass: 0.9 },
+  /** A flashcard turning over: quick, with a small settle at the end. */
+  flip: { damping: 20, stiffness: 170, mass: 1 },
+  /** A counter bumping when it goes up. */
+  bump: { damping: 9, stiffness: 420, mass: 0.6 },
 } as const satisfies Record<string, WithSpringConfig>
 
 /** Short timings for things that should not bounce (fades, the flip's first half, a card flying off). */
