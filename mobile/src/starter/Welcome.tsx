@@ -5,6 +5,7 @@ import { BackHandler, Image, KeyboardAvoidingView, ScrollView, StyleSheet, Text,
 import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import mark from '../../assets/splash-icon.png'
+import markDark from '../../assets/splash-icon-dark.png'
 import { FadeInUp } from '../motion'
 import { useLocalLibrary } from '../store/live'
 import { useTheme } from '../theme'
@@ -26,7 +27,7 @@ export function Welcome() {
 }
 
 function WelcomePages() {
-  const { colors, type, spacing, radius, shadow } = useTheme()
+  const { colors, type, spacing, radius, shadow, scheme } = useTheme()
   const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()
   const library = useLocalLibrary()
@@ -102,7 +103,7 @@ function WelcomePages() {
             <FadeInUp index={0}>
               <View style={[styles.heroTile, { backgroundColor: colors.accent, borderRadius: radius.card }]}>
                 <View style={[styles.markTile, { backgroundColor: colors.card, borderRadius: radius.block }, shadow.card]}>
-                  <Image source={mark} style={styles.mark} accessibilityIgnoresInvertColors />
+                  <Image source={scheme === 'dark' ? markDark : mark} style={styles.mark} accessibilityIgnoresInvertColors />
                 </View>
               </View>
             </FadeInUp>

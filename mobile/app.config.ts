@@ -13,10 +13,12 @@ export function versionCode(version: string): number {
   return major * 10000 + minor * 100 + patch
 }
 
-// The Lime canvas (src/theme.ts `canvas`), light and dark: behind the splash, the app and the
-// adaptive icon, so nothing changes colour between the splash and the first screen.
+// The Lime canvas (src/theme.ts `canvas`), light and dark: behind the splash and the app, so
+// nothing changes colour between the splash and the first screen.
 const LIGHT_BACKGROUND = '#F2F2F4'
 const DARK_BACKGROUND = '#0E0F11'
+// The Lime accent behind the launcher icon (the black mark sits on it).
+const ICON_BACKGROUND = '#D4F24A'
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -38,7 +40,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       monochromeImage: './assets/adaptive-icon-monochrome.png',
-      backgroundColor: LIGHT_BACKGROUND,
+      backgroundColor: ICON_BACKGROUND,
     },
   },
   plugins: [
@@ -53,9 +55,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-splash-screen',
       {
         image: './assets/splash-icon.png',
-        imageWidth: 88,
+        imageWidth: 96,
         backgroundColor: LIGHT_BACKGROUND,
-        dark: { image: './assets/splash-icon.png', backgroundColor: DARK_BACKGROUND },
+        dark: { image: './assets/splash-icon-dark.png', backgroundColor: DARK_BACKGROUND },
       },
     ],
   ],

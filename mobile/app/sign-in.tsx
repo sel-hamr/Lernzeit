@@ -4,6 +4,7 @@ import { Eye, EyeOff } from 'lucide-react-native'
 import { Alert, Image, KeyboardAvoidingView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import mark from '../assets/splash-icon.png'
+import markDark from '../assets/splash-icon-dark.png'
 import { failureMessage, OtherAccountError, useAccountService } from '../src/account'
 import { useLocalLibrary } from '../src/store/live'
 import { FadeInUp } from '../src/motion'
@@ -21,7 +22,7 @@ export function removalWarning(waiting: number): string {
  * itself. The password lives only in this field's state while typing: never logged, never saved.
  */
 export default function SignIn() {
-  const { colors, type, spacing, radius, shadow } = useTheme()
+  const { colors, type, spacing, radius, shadow, scheme } = useTheme()
   const insets = useSafeAreaInsets()
   const service = useAccountService()
   const library = useLocalLibrary()
@@ -80,7 +81,7 @@ export default function SignIn() {
       >
         <FadeInUp index={0} style={{ gap: spacing.md }}>
           <View style={[styles.markTile, { backgroundColor: colors.card, borderRadius: radius.block }, shadow.card]}>
-            <Image source={mark} style={styles.mark} accessibilityIgnoresInvertColors />
+            <Image source={scheme === 'dark' ? markDark : mark} style={styles.mark} accessibilityIgnoresInvertColors />
           </View>
           <Text style={[type.title, styles.bigTitle, { color: colors.ink }]} accessibilityRole="header">
             Welcome back
