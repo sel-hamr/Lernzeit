@@ -271,7 +271,7 @@ export function PracticeScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas, paddingTop: insets.top }}>
       <View style={[styles.top, { paddingHorizontal: spacing.pageX, gap: spacing.sm }]}>
-        <IconButton icon={X} label="End" onPress={leave} />
+        <IconButton icon={X} label="End round" onPress={leave} />
         <View style={[styles.grow, styles.position]} accessible accessibilityLabel={over ? 'Round done' : `Card ${positionLabel(progress.reviewed, remaining).replace(' / ', ' of ')}`}>
           <RollingNumber value={over ? 'Done' : positionLabel(progress.reviewed, remaining)} style={[type.section, numbers, styles.center, { color: colors.ink }]} />
         </View>
@@ -433,7 +433,7 @@ function rateTones(colors: ReturnType<typeof useTheme>['colors'], scheme: 'light
     1: { bg: colors.dangerSoft, fg: colors.dangerInk, sub: colors.dangerInk },
     2: { bg: colors.card, fg: colors.ink, sub: colors.muted, edge: colors.lineStrong },
     3: { ...good, sub: good.fg },
-    4: { bg: colors.accent, fg: colors.onAccent, sub: colors.accentInk, edge: '#A9C73A' },
+    4: { bg: colors.accent, fg: colors.onAccent, sub: colors.onAccent, edge: '#A9C73A' },
   }
 }
 

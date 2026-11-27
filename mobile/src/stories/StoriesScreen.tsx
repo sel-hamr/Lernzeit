@@ -39,7 +39,7 @@ export function StoriesScreen() {
         <IconButton icon={Ellipsis} label="More" onPress={() => setMenu(true)} />
       </View>
       <View style={[styles.row, { gap: spacing.sm }]}>
-        <Button label="Write with AI" icon={<WandSparkles size={16} strokeWidth={1.9} color={colors.onPrimary} />} onPress={() => setAi(true)} style={styles.grow} />
+        <Button label="Write with AI" icon={<WandSparkles size={16} strokeWidth={1.8} color={colors.onPrimary} />} onPress={() => setAi(true)} style={styles.grow} />
         <Button label="New story" variant="soft" icon={<Plus size={17} strokeWidth={2} color={colors.ink} />} onPress={() => router.push('/story/edit')} style={styles.grow} />
       </View>
     </View>
@@ -62,7 +62,7 @@ export function StoriesScreen() {
               body="Read short German stories with your decks. Words you are learning light up, and any word can become a card."
               action={
                 <View style={{ gap: spacing.sm, alignItems: 'center' }}>
-                  <Button label="Add starter stories" icon={<Sparkles size={15} strokeWidth={1.9} color={colors.onPrimary} />} busy={starter.busy} onPress={starter.install} />
+                  <Button label="Add starter stories" icon={<Sparkles size={15} strokeWidth={1.8} color={colors.onPrimary} />} busy={starter.busy} onPress={starter.install} />
                   <View style={[styles.row, { gap: spacing.sm }]}>
                     <Button label="Write with AI" variant="soft" size="sm" onPress={() => setAi(true)} />
                     <Button label="Write a story" variant="soft" size="sm" onPress={() => router.push('/story/edit')} />

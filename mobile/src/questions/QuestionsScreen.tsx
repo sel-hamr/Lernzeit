@@ -50,7 +50,7 @@ export function QuestionsScreen() {
             body="Practise answering German questions, like in the speaking part of an exam. Write your own answer once, then answer from memory and compare."
             action={
               <View style={{ gap: spacing.sm, alignItems: 'center' }}>
-                <Button label="Add starter questions" icon={<Sparkles size={15} strokeWidth={1.9} color={colors.onPrimary} />} busy={starter.busy} onPress={starter.install} />
+                <Button label="Add starter questions" icon={<Sparkles size={15} strokeWidth={1.8} color={colors.onPrimary} />} busy={starter.busy} onPress={starter.install} />
                 <Button label="Write a question" variant="soft" size="sm" onPress={() => setEditing({})} />
               </View>
             }

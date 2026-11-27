@@ -121,7 +121,7 @@ export const palettes: Record<ColorScheme, Palette> = {
     chip: '#E9E9ED',
     ink: '#16181A',
     ink2: '#3B3F44',
-    muted: '#8A8F96',
+    muted: '#686D75',
     line: '#E7E7EB',
     lineStrong: '#D6D6DC',
     track: '#EDEDF0',

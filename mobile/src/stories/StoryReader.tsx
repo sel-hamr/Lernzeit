@@ -388,7 +388,7 @@ function MiniPlayer({ player, total, minutes, bottom }: { player: ReturnType<typ
       </View>
       {round(SkipBack, 'Paragraph before', () => player.step(-1), current === null || current === 0)}
       {round(SkipForward, 'Next paragraph', () => player.step(1), current !== null && current >= total - 1)}
-      <Pressable onPress={player.nextSpeed} scaleTo={0.9} hitSlop={4} accessibilityRole="button" accessibilityLabel={`Speed ${speed} times`} style={[styles.speed, { borderColor: 'rgba(255,255,255,0.22)', borderRadius: radius.pill }]}>
+      <Pressable onPress={player.nextSpeed} scaleTo={0.9} hitSlop={7} accessibilityRole="button" accessibilityLabel={`Speed ${speed} times`} style={[styles.speed, { borderColor: 'rgba(255,255,255,0.22)', borderRadius: radius.pill }]}>
         <Text style={[type.chip, numbers, { color: colors.onInverse, fontFamily: fonts.semibold }]}>{`${speed}×`}</Text>
       </Pressable>
     </View>

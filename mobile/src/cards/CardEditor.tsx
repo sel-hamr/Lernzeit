@@ -98,7 +98,7 @@ export function CardEditor() {
       },
     ])
 
-  const small = (label: string, Icon: typeof Camera, onPress: () => void) => <Button label={label} variant="soft" size="sm" icon={<Icon size={15} strokeWidth={1.9} color={colors.ink} />} onPress={onPress} />
+  const small = (label: string, Icon: typeof Camera, onPress: () => void) => <Button label={label} variant="soft" size="sm" icon={<Icon size={15} strokeWidth={1.8} color={colors.ink} />} onPress={onPress} />
 
   return (
     <Screen

@@ -3,7 +3,7 @@ import { directionsFor } from '@lernzeit/core/srs'
 import { ALL_DIRECTIONS } from '@lernzeit/core/practice'
 import type { Card, Direction } from '@lernzeit/core/types'
 import { useRouter } from 'expo-router'
-import { ChevronDown, ChevronRight, Copy, Ellipsis, History, Play, Plus, Search, SearchX, SlidersHorizontal, Upload, X } from 'lucide-react-native'
+import { Check, ChevronDown, ChevronRight, Copy, Ellipsis, History, Play, Plus, Search, SearchX, SlidersHorizontal, Upload, X } from 'lucide-react-native'
 import { memo, useCallback, useMemo, useState } from 'react'
 import { count } from '@lernzeit/core/text'
 import { Platform, StyleSheet, Text, TextInput, View } from 'react-native'
@@ -272,8 +272,8 @@ export function CardsScreen() {
         />
         <MenuRow
           icon={<Upload size={20} strokeWidth={1.8} color={colors.ink} />}
-          label="Import cards from CSV"
-          accessibilityLabel="Import CSV"
+          label="Import cards from a CSV"
+          accessibilityLabel="Import cards from a CSV"
           onPress={() => {
             setMenu(false)
             router.push({ pathname: '/import-csv', params: { deckId: targetDeck } })
@@ -347,9 +347,13 @@ function QuickAddSheet({ open, onClose, deckId, deckName, onAdd, onFull }: { ope
   const { spacing, colors, type } = useTheme()
   const [english, setEnglish] = useState('')
   const [german, setGerman] = useState('')
+  // The last card added, so you see it went in while the fields clear for the next.
+  const [added, setAdded] = useState<string>()
+  if (!open && added) setAdded(undefined)
   const submit = () => {
     if (!deckId || !english.trim() || !german.trim()) return
     onAdd({ english, german, deckId })
+    setAdded(german.trim())
     setEnglish('')
     setGerman('')
   }
@@ -367,6 +371,12 @@ function QuickAddSheet({ open, onClose, deckId, deckName, onAdd, onFull }: { ope
     >
       <View style={{ gap: spacing.md, paddingHorizontal: spacing.md, paddingBottom: spacing.xs }}>
         <Text style={[type.small, { color: colors.muted }]}>{`Goes into ${deckName ?? 'your deck'}, marked incomplete. Add the rest later.`}</Text>
+        {added ? (
+          <Animated.View key={added} entering={listEnter} style={[styles.row, { gap: spacing.xs }]}>
+            <Check size={15} strokeWidth={2.2} color={colors.accentInk} />
+            <Text style={[type.small, { color: colors.ink2, flexShrink: 1 }]} numberOfLines={1} accessibilityLiveRegion="polite">{`Added «${added}»`}</Text>
+          </Animated.View>
+        ) : null}
         <Field label="English" value={english} onChangeText={setEnglish} autoCapitalize="none" autoFocus />
         <Field label="German (with article if a noun)" value={german} onChangeText={setGerman} autoCapitalize="none" onSubmitEditing={submit} />
         {onFull ? (

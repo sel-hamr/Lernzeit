@@ -124,7 +124,7 @@ function AiStoryForm({ onClose, onRead }: { onClose: () => void; onRead: (storyI
             }}
           />
         ) : (
-          <Button label={shared ? 'Share again' : 'Share prompt'} icon={<Share2 size={16} strokeWidth={1.9} color={colors.onPrimary} />} onPress={() => void share()} haptic="tap" />
+          <Button label={shared ? 'Share again' : 'Share prompt'} icon={<Share2 size={16} strokeWidth={1.8} color={colors.onPrimary} />} onPress={() => void share()} haptic="tap" />
         )}
       </View>
     </View>

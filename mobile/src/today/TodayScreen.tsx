@@ -335,7 +335,7 @@ function SessionRow({ session }: { session: TodaySession }) {
       testID="session-row"
       left={
         <Tile bg={session.topicColor ? palette.soft : colors.raised}>
-          <Clock3 size={18} strokeWidth={1.9} color={session.topicColor ? palette.ink : colors.ink2} />
+          <Clock3 size={18} strokeWidth={1.8} color={session.topicColor ? palette.ink : colors.ink2} />
         </Tile>
       }
       title={session.topicName ?? 'Deleted topic'}

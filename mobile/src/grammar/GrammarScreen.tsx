@@ -49,7 +49,7 @@ export function GrammarScreen() {
             body="Each topic has the rule, examples and exercises. The starter topics cover A1 to B1."
             action={
               <View style={{ gap: spacing.sm, alignItems: 'center' }}>
-                <Button label="Add starter topics" icon={<Sparkles size={15} strokeWidth={1.9} color={colors.onPrimary} />} busy={starter.busy} onPress={starter.install} />
+                <Button label="Add starter topics" icon={<Sparkles size={15} strokeWidth={1.8} color={colors.onPrimary} />} busy={starter.busy} onPress={starter.install} />
                 <Button label="Write a topic" variant="soft" size="sm" onPress={() => router.push('/grammar/edit')} />
               </View>
             }
@@ -155,7 +155,7 @@ function Course({ topics, progressOf, statsById, mastered }: { topics: GrammarTo
                 ? `Nothing due. The next one is due ${formatNextReview(nextDue, now).toLowerCase()}.`
                 : 'Practise a topic, and its exercises come back here to stay learned.'}
           </Text>
-          <Button label="Start review" variant={due ? 'primary' : 'soft'} disabled={!due} icon={<RotateCcw size={15} strokeWidth={1.9} color={due ? colors.onPrimary : colors.ink} />} onPress={() => router.push({ pathname: '/grammar/practice', params: { review: '1' } })} style={{ marginTop: spacing.xs }} />
+          <Button label="Start review" variant={due ? 'primary' : 'soft'} disabled={!due} icon={<RotateCcw size={15} strokeWidth={1.8} color={due ? colors.onPrimary : colors.ink} />} onPress={() => router.push({ pathname: '/grammar/practice', params: { review: '1' } })} style={{ marginTop: spacing.xs }} />
         </Card>
       </FadeInUp>
     </>

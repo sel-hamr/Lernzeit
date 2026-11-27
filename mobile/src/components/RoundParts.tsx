@@ -32,7 +32,7 @@ export function RoundTop({ title, done, total, onEnd, right }: { title: string; 
   return (
     <View style={{ paddingTop: insets.top }}>
       <View style={[styles.top, { paddingHorizontal: spacing.pageX, gap: spacing.md }]}>
-        <IconButton icon={X} label="End" onPress={onEnd} />
+        <IconButton icon={X} label="End round" onPress={onEnd} />
         <Segments done={done} total={total} pct={total ? done / total : 0} />
         {right}
       </View>

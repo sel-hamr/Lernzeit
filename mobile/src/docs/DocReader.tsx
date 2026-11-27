@@ -137,8 +137,8 @@ function Reader({ doc }: { doc: Doc }) {
         </View>
       </ScrollView>
       <View style={[styles.row, { paddingHorizontal: spacing.pageX, paddingTop: spacing.sm, paddingBottom: insets.bottom + spacing.md, gap: spacing.sm }]}>
-        <Button label={isRead ? 'Mark to read' : 'Mark as read'} variant={isRead ? 'soft' : 'primary'} size="lg" icon={isRead ? <RotateCcw size={16} strokeWidth={1.9} color={colors.ink} /> : <Check size={17} strokeWidth={2.2} color={colors.onPrimary} />} onPress={toggleRead} style={styles.grow} />
-        <Button label="Edit" variant="soft" size="lg" icon={<Pencil size={16} strokeWidth={1.9} color={colors.ink} />} onPress={() => router.push({ pathname: '/doc/edit', params: { id: doc.id } })} />
+        <Button label={isRead ? 'Mark to read' : 'Mark as read'} variant={isRead ? 'soft' : 'primary'} size="lg" icon={isRead ? <RotateCcw size={16} strokeWidth={1.8} color={colors.ink} /> : <Check size={17} strokeWidth={2.2} color={colors.onPrimary} />} onPress={toggleRead} style={styles.grow} />
+        <Button label="Edit" variant="soft" size="lg" icon={<Pencil size={16} strokeWidth={1.8} color={colors.ink} />} onPress={() => router.push({ pathname: '/doc/edit', params: { id: doc.id } })} />
       </View>
 
       <Sheet open={menu} onClose={() => setMenu(false)} title={doc.title}>
