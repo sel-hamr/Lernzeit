@@ -9,8 +9,10 @@ import { StatusBar } from 'expo-status-bar'
 import * as SystemUI from 'expo-system-ui'
 import { useEffect, useState, type ReactNode } from 'react'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { useReducedMotion } from 'react-native-reanimated'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { AccountProvider, backfillLastAccount, useAccount } from '../src/account'
+import { stackAnimation } from '../src/motion'
 import { createServices } from '../src/services'
 import { LocalLibraryProvider } from '../src/store/live'
 import { SyncEngineProvider } from '../src/sync/engineContext'
@@ -71,6 +73,8 @@ function Screens() {
   const signedIn = useAccount() !== null
 
   // The window behind the screens (seen during transitions and the keyboard) matches the theme.
+  const reduced = useReducedMotion()
+
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(colors.canvas).catch(() => {})
   }, [colors.canvas])
@@ -78,7 +82,8 @@ function Screens() {
   return (
     <>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.canvas } }}>
+      {/* Pages slide in from the right, practice and editors rise from the bottom, search fades (motion/transitions.ts). */}
+      <Stack screenOptions={({ route }) => ({ headerShown: false, contentStyle: { backgroundColor: colors.canvas }, animation: stackAnimation(route.name, reduced) })}>
         <Stack.Protected guard={signedIn}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="more/[id]" />

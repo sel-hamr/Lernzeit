@@ -4,10 +4,13 @@ import { ALL_DIRECTIONS } from '@lernzeit/core/practice'
 import type { Card, Direction } from '@lernzeit/core/types'
 import { useRouter } from 'expo-router'
 import { ChevronDown, ChevronRight, Copy, Ellipsis, History, Play, Plus, Search, SearchX, SlidersHorizontal, Upload, X } from 'lucide-react-native'
-import { useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { count } from '@lernzeit/core/text'
-import { FlatList, StyleSheet, Text, TextInput, View } from 'react-native'
-import { Pressable } from '../motion'
+import { Platform, StyleSheet, Text, TextInput, View } from 'react-native'
+import Animated from 'react-native-reanimated'
+import { listEnter, listExit, listLayout, Pressable } from '../motion'
+import { CardListSkeleton } from '../components/Skeletons'
+import { useFirstSync } from '../sync/status'
 import { useTabBarSpace } from '../components/BottomBar'
 import { useLocalLibrary } from '../store/live'
 import { numbers, useTheme } from '../theme'
@@ -51,6 +54,8 @@ export function CardsScreen() {
   const [sort, setSort] = useState<Sort>('newest')
 
   const deck = decks.find((d) => d.id === deckId)
+  const firstSync = useFirstSync()
+  const openCard = useCallback((id: string) => router.push(`/card/${id}`), [router])
   const counts = useMemo(() => {
     const m = new Map<string, number>()
     for (const c of cards) m.set(c.deckId, (m.get(c.deckId) ?? 0) + 1)
@@ -130,17 +135,20 @@ export function CardsScreen() {
         <IconButton icon={SlidersHorizontal} label={filtered ? `Filter and sort: ${filterLabel}, ${sortLabel}` : 'Filter and sort'} size={48} badge={filtered ? colors.accent : undefined} onPress={() => setFilterSheet(true)} />
       </View>
       {filter !== 'all' ? (
+        <Animated.View entering={listEnter} exiting={listExit} style={styles.chipWrap}>
         <Pressable
           onPress={() => setFilter('all')}
           haptic="select"
           scaleTo={0.95}
           accessibilityRole="button"
           accessibilityLabel={`Remove the filter ${filterLabel}`}
+          hitSlop={6}
           style={[styles.row, styles.chip, { backgroundColor: colors.primary, borderRadius: radius.pill, gap: 6 }]}
         >
           <Text style={[type.chip, { color: colors.onPrimary, fontFamily: fonts.semibold }]}>{filterLabel}</Text>
           <X size={14} strokeWidth={2.2} color={colors.onPrimary} />
         </Pressable>
+        </Animated.View>
       ) : null}
       {shown.length ? <Text style={[type.small, numbers, { color: colors.muted, paddingHorizontal: 4, paddingTop: spacing.xs }]}>{countLine}</Text> : null}
     </View>
@@ -148,16 +156,18 @@ export function CardsScreen() {
 
   return (
     <View style={[styles.grow, { backgroundColor: colors.canvas }]}>
-      <FlatList
+      <Animated.FlatList
         data={shown}
-        keyExtractor={(c) => c.id}
+        keyExtractor={cardKey}
         ListHeaderComponent={header}
         ListEmptyComponent={
-          cards.length === 0 ? (
+          cards.length === 0 && firstSync ? (
+            <CardListSkeleton />
+          ) : cards.length === 0 ? (
             <EmptyState
               icon={Copy}
               title="No cards yet"
-              body={decks.length ? 'Add one, or import a CSV from the menu.' : 'Make a deck on the web first, then add cards here.'}
+              body={decks.length ? 'Add a card or import a CSV from the ⋯ menu.' : 'Make a deck on the web first, then add cards here.'}
               action={decks.length ? <Button label="Import a CSV" variant="soft" size="sm" icon={<Upload size={15} color={colors.ink} />} onPress={() => router.push({ pathname: '/import-csv', params: { deckId: targetDeck } })} /> : undefined}
             />
           ) : (
@@ -167,10 +177,13 @@ export function CardsScreen() {
         contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: spacing.xs, paddingBottom: barSpace + sizes.fab }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        renderItem={({ item, index }) => {
-          // One grouped list: rows do not move on their own, so the group never shows seams.
-          return <CardRow card={item} first={index === 0} last={index === shown.length - 1} onPress={() => router.push(`/card/${item.id}`)} />
-        }}
+        // A card added or deleted slides the rows around it; not while typing a search, where every key would reshuffle the list.
+        itemLayoutAnimation={search ? undefined : listLayout}
+        initialNumToRender={12}
+        maxToRenderPerBatch={12}
+        windowSize={9}
+        removeClippedSubviews={Platform.OS === 'android'}
+        renderItem={({ item, index }) => <CardRow card={item} first={index === 0} last={index === shown.length - 1} onOpen={openCard} />}
       />
       <Pressable
         onPress={() => setPractise(true)}
@@ -283,14 +296,16 @@ export function CardsScreen() {
   )
 }
 
+const cardKey = (c: Card) => c.id
+
 /** One row of the card list, which reads as one white grouped list: the picture, the German with a coloured article, the English. */
-function CardRow({ card, first, last, onPress }: { card: Card; first: boolean; last: boolean; onPress: () => void }) {
+const CardRow = memo(function CardRow({ card, first, last, onOpen }: { card: Card; first: boolean; last: boolean; onOpen: (id: string) => void }) {
   const { colors, type, spacing, radius, topics, fonts } = useTheme()
   const incomplete = card.tags.includes(INCOMPLETE_TAG)
   const r = radius.block + 4
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => onOpen(card.id)}
       scaleTo={1}
       android_ripple={{ color: colors.line }}
       accessibilityRole="button"
@@ -315,7 +330,7 @@ function CardRow({ card, first, last, onPress }: { card: Card; first: boolean; l
       <ChevronRight size={18} strokeWidth={1.8} color={colors.muted} />
     </Pressable>
   )
-}
+})
 
 function MenuRow({ icon, label, onPress, accessibilityLabel }: { icon: React.ReactNode; label: string; onPress: () => void; accessibilityLabel?: string }) {
   const { colors, type, spacing, radius } = useTheme()
@@ -413,7 +428,8 @@ const styles = StyleSheet.create({
   deckCard: { flex: 1, height: 64, flexDirection: 'row', alignItems: 'center' },
   search: { height: 48, flexDirection: 'row', alignItems: 'center' },
   clip: { overflow: 'hidden' },
-  chip: { alignSelf: 'flex-start', height: 32, paddingLeft: 14, paddingRight: 10 },
+  chipWrap: { alignSelf: 'flex-start' },
+  chip: { height: 32, paddingLeft: 14, paddingRight: 10 },
   group: { paddingBottom: 4 },
   rowLine: { position: 'absolute', top: 0, right: 0, height: StyleSheet.hairlineWidth },
   fab: { position: 'absolute', height: 56, paddingHorizontal: 24, borderRadius: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },

@@ -14,7 +14,7 @@ import { CircleCheck, CircleX, Ellipsis, Layers, RotateCw, Undo2, Volume2, X } f
 import { count } from '@lernzeit/core/text'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { KeyboardAvoidingView, Pressable as RNPressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
-import Animated, { Easing, FadeIn, SlideInDown, useAnimatedProps, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated'
+import Animated, { FadeIn, SlideInDown, useAnimatedProps, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated'
 import Svg, { Circle, G } from 'react-native-svg'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { CardPicture, GermanLine, germanWrap } from '../cards/CardPicture'
@@ -24,7 +24,7 @@ import { newId } from '../data/ids'
 import { useLocalLibrary } from '../store/live'
 import { useActiveTimer } from '../timer/hooks'
 import { zoneOf } from '../timer/timerStore'
-import { AnimatedBar, AnimatedCheck, FadeInUp, haptics, Pressable, springs } from '../motion'
+import { AnimatedBar, AnimatedCheck, FadeInUp, haptics, Pressable, RollingNumber, springs, SWEEP_DELAY_MS, timings } from '../motion'
 import { numbers, useTheme } from '../theme'
 import { Button, Chip, EmptyState, IconButton, Sheet, ToggleRow } from '../ui'
 import { checkTyped, expectedAnswer, practisesDeck, roundFor, startRound, type Progress } from './round'
@@ -272,9 +272,9 @@ export function PracticeScreen() {
     <View style={{ flex: 1, backgroundColor: colors.canvas, paddingTop: insets.top }}>
       <View style={[styles.top, { paddingHorizontal: spacing.pageX, gap: spacing.sm }]}>
         <IconButton icon={X} label="End" onPress={leave} />
-        <Text style={[type.section, numbers, styles.grow, styles.center, { color: colors.ink }]} accessibilityLabel={over ? 'Round done' : `Card ${positionLabel(progress.reviewed, remaining).replace(' / ', ' of ')}`}>
-          {over ? 'Done' : positionLabel(progress.reviewed, remaining)}
-        </Text>
+        <View style={[styles.grow, styles.position]} accessible accessibilityLabel={over ? 'Round done' : `Card ${positionLabel(progress.reviewed, remaining).replace(' / ', ' of ')}`}>
+          <RollingNumber value={over ? 'Done' : positionLabel(progress.reviewed, remaining)} style={[type.section, numbers, styles.center, { color: colors.ink }]} />
+        </View>
         <IconButton icon={Ellipsis} label="More" onPress={() => setMenu(true)} />
       </View>
       <AnimatedBar value={pct} height={4} color={colors.primary} track={colors.track} label="Round progress" style={{ marginHorizontal: spacing.pageX }} />
@@ -479,10 +479,10 @@ function Chunky({
     <RNPressable
       onPress={onPress}
       onPressIn={() => {
-        down.value = withTiming(1, { duration: 50 })
+        down.value = withTiming(1, timings.pressDown)
       }}
       onPressOut={() => {
-        down.value = withTiming(0, { duration: 110 })
+        down.value = withTiming(0, timings.pressUp)
       }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
@@ -506,7 +506,7 @@ function Counter({ value, label, tone, pull }: { value: number; label: string; t
   const bump = useSharedValue(1)
   const last = useRef(value)
   useEffect(() => {
-    if (value > last.current && !reduced) bump.value = withSequence(withTiming(1.25, { duration: 90 }), withSpring(1, springs.bump))
+    if (value > last.current && !reduced) bump.value = withSequence(withTiming(1.25, timings.bumpUp), withSpring(1, springs.bump))
     last.current = value
   }, [value, reduced, bump])
   const c = {
@@ -703,7 +703,7 @@ function Feedback({ check, typed, answer, onContinue, onRateSelf }: { check: Che
   const title = check.verdict === 'exact' ? 'Correct' : check.verdict === 'close' ? 'Almost' : 'Not quite'
   return (
     <Animated.View
-      entering={reduced ? FadeIn.duration(180) : SlideInDown.springify().damping(20).stiffness(220)}
+      entering={reduced ? FadeIn.duration(timings.fade.duration) : SlideInDown.springify().damping(springs.sheet.damping).stiffness(springs.sheet.stiffness).mass(springs.sheet.mass)}
       style={[styles.feedback, { backgroundColor: tone.bg, borderTopLeftRadius: radius.card, borderTopRightRadius: radius.card, padding: spacing.xl, paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.xs, gap: spacing.md }]}
     >
       <View style={[styles.row, { gap: spacing.sm }]}>
@@ -762,7 +762,7 @@ function Donut({ segments, colorOf, size = 184, stroke = 16, label, children }: 
   const reduced = useReducedMotion()
   const sweep = useSharedValue(reduced ? 1 : 0)
   useEffect(() => {
-    sweep.value = reduced ? 1 : withDelay(150, withTiming(1, { duration: 900, easing: Easing.out(Easing.cubic) }))
+    sweep.value = reduced ? 1 : withDelay(SWEEP_DELAY_MS, withTiming(1, timings.sweep))
   }, [reduced, sweep])
   const gap = segments.length > 1 ? 3 : 0
   return (
@@ -841,6 +841,7 @@ const styles = StyleSheet.create({
   grow: { flex: 1 },
   row: { flexDirection: 'row', alignItems: 'center' },
   center: { textAlign: 'center' },
+  position: { alignItems: 'center' },
   top: { height: 56, flexDirection: 'row', alignItems: 'center' },
   tools: { minHeight: 40 },
   answerInput: { height: 56, textAlign: 'center' },

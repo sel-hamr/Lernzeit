@@ -57,7 +57,7 @@ export function TopicsGroup() {
   const fmt = (m: number) => formatHM(m)
   return (
     <>
-      <Section title="Topics and daily goals" hint="Study time is logged against a topic; each has a goal per weekday.">
+      <Section animate title="Topics and daily goals" hint="Study time is logged against a topic; each has a goal per weekday.">
         {[
           ...topics.map((t) => (
             <View key={t.id} style={{ opacity: t.archived ? 0.55 : 1 }}>

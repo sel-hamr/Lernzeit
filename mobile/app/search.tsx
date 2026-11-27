@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router'
 import { ChevronLeft, ChevronRight, Search, SearchX, X } from 'lucide-react-native'
 import { useMemo, useState } from 'react'
 import { count } from '@lernzeit/core/text'
-import { FlatList, KeyboardAvoidingView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { CardPicture, GermanLine } from '../src/cards/CardPicture'
 import { useCards, useDecks } from '../src/cards/data'
@@ -75,8 +75,12 @@ export default function SearchPage() {
             )}
           </FadeInUp>
         }
+        initialNumToRender={10}
+        windowSize={7}
+        removeClippedSubviews={Platform.OS === 'android'}
         renderItem={({ item, index }) => (
-          <FadeInUp index={Math.min(index, 8)}>
+          // Only the first screenful rises in; results further down just show.
+          <FadeInUp index={index} still={index >= 8}>
             <Pressable
               onPress={() => router.push(`/card/${item.id}`)}
               scaleTo={0.98}

@@ -66,3 +66,16 @@ export function useSyncStatus(): SyncStatusView {
   )
   return { ...(signedIn ? current : { state: 'signedOut' }), pending, stuck, lastSyncedAt }
 }
+
+/**
+ * The phone's very first sync is under way: nothing has come down yet, so an empty list means
+ * "on its way", not "you have none". Screens show a loading skeleton then instead of an empty state.
+ */
+export function isFirstSync(status: Pick<SyncStatusView, 'state' | 'lastSyncedAt'>): boolean {
+  return status.state === 'syncing' && status.lastSyncedAt === undefined
+}
+
+/** `isFirstSync` for the current status, live. */
+export function useFirstSync(): boolean {
+  return isFirstSync(useSyncStatus())
+}

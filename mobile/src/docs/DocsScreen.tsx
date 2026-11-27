@@ -144,7 +144,7 @@ export function DocsScreen({ folderId }: { folderId?: string }) {
           {tiles.length ? (
             <FadeInUp index={1} style={{ gap: spacing.sm }}>
               <SectionHeader title="Continue reading" />
-              <GroupedList>
+              <GroupedList animate>
                 {tiles.map((d) => (
                   <DocRow key={d.id} doc={d} path={folderPath(folders, d.folderId)} onPress={() => openDoc(d)} />
                 ))}
@@ -154,7 +154,7 @@ export function DocsScreen({ folderId }: { folderId?: string }) {
           {subfolders.length ? (
             <FadeInUp index={2} style={{ gap: spacing.sm }}>
               <SectionHeader title="Folders" detail={String(subfolders.length)} />
-              <GroupedList>
+              <GroupedList animate>
                 {subfolders.map((f) => (
                   <Row
                     key={f.id}
@@ -175,7 +175,7 @@ export function DocsScreen({ folderId }: { folderId?: string }) {
           {here.length ? (
             <FadeInUp index={3} style={{ gap: spacing.sm }}>
               <SectionHeader title={folder ? 'Docs' : 'All at the top'} detail={String(here.length)} />
-              <GroupedList>
+              <GroupedList animate>
                 {here.map((d) => (
                   <DocRow key={d.id} doc={d} onPress={() => openDoc(d)} />
                 ))}

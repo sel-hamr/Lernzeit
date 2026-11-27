@@ -13,7 +13,9 @@ import { CardPicture, germanWrap } from '../cards/CardPicture'
 import { useCards, useDecks } from '../cards/data'
 import { useHiddenFeatures } from '../features'
 import { useTabBarSpace } from '../components/BottomBar'
-import { AnimatedBar, AnimatedRing, FadeInUp, haptics, Pressable, RollingNumber } from '../motion'
+import { AnimatedBar, AnimatedRing, FadeInUp, GrowBar, haptics, Pressable, RollingNumber } from '../motion'
+import { DeckCarouselSkeleton } from '../components/Skeletons'
+import { useFirstSync } from '../sync/status'
 import { numbers, useTheme } from '../theme'
 import { useActiveTimer, useNow } from '../timer/hooks'
 import { Badge, Button, EmptyState, GroupedList, Row, SectionHeader, Tile } from '../ui'
@@ -138,14 +140,14 @@ function WeekStrip({ bars }: { bars: WeekBar[] }) {
         <Text style={[type.chip, numbers, { color: colors.ink2, fontFamily: fonts.semibold }]}>{`${formatHM(total)} h`}</Text>
       </View>
       <View style={[styles.row, { gap: spacing.sm }]}>
-        {bars.map((b) => {
+        {bars.map((b, i) => {
           const fill = b.minutes >= 1 ? Math.max(6, b.fill * STRIP_HEIGHT) : 0
           const color = b.today ? colors.accent : b.hit ? colors.heat[3] : colors.meter
           return (
             <View key={b.day} style={styles.day} accessible accessibilityLabel={`${b.short}: ${formatHM(b.minutes)} h${b.goal ? ` of ${formatHM(b.goal)} h` : ''}`}>
               <View style={[styles.dayTrack, { backgroundColor: b.today ? colors.accentSoft : colors.raised }]}>
                 {b.goal > 0 && b.goalAt < 1 ? <View style={[styles.goalTick, { bottom: b.goalAt * STRIP_HEIGHT, backgroundColor: colors.lineStrong }]} /> : null}
-                {fill ? <View style={{ height: fill, borderRadius: 8, backgroundColor: color, opacity: b.today || b.hit ? 1 : 0.78 }} /> : null}
+                <GrowBar value={fill} max={STRIP_HEIGHT} index={i} color={color} opacity={b.today || b.hit ? 1 : 0.78} />
               </View>
               <Text style={[type.chip, { color: b.today ? colors.ink : colors.muted, fontFamily: b.today ? fonts.semibold : fonts.medium }]}>{b.letter}</Text>
             </View>
@@ -164,6 +166,7 @@ function Decks({ today, lastPractised }: { today: string; lastPractised: Map<str
   const { spacing } = useTheme()
   const { width } = useWindowDimensions()
   const items = useMemo(() => deckCarousel(decks, cards), [decks, cards])
+  const firstSync = useFirstSync()
   const scrollX = useSharedValue(0)
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollX.value = e.contentOffset.x
@@ -174,7 +177,9 @@ function Decks({ today, lastPractised }: { today: string; lastPractised: Map<str
   return (
     <View style={{ gap: spacing.md }}>
       <SectionHeader title="Your decks" action={{ label: 'See all', onPress: () => router.navigate('/flashcards') }} />
-      {items.length === 0 ? (
+      {items.length === 0 && firstSync ? (
+        <DeckCarouselSkeleton />
+      ) : items.length === 0 ? (
         <EmptyState icon={Layers} title="No decks yet" body="Make a deck on the web, then add cards in the Cards tab." />
       ) : (
         <Animated.ScrollView
@@ -310,7 +315,7 @@ function DailyGoals({ rows }: { rows: TopicProgress[] }) {
         <EmptyState icon={Target} title="No topics yet" body="Topics hold your daily goals. Add one in Settings and it shows up here." />
       ) : (
         <>
-          <GroupedList>
+          <GroupedList animate>
             {rows.map((row) => (
               <GoalRow key={row.topic.id} row={row} />
             ))}
@@ -359,7 +364,7 @@ function TodaysSessions({ sessions }: { sessions: TodaySession[] }) {
       {sessions.length === 0 ? (
         <EmptyState icon={Clock3} title="No sessions yet today" body="Time you log with the timer shows up here." />
       ) : (
-        <GroupedList>
+        <GroupedList animate>
           {sessions.map((s) => (
             <SessionRow key={s.id} session={s} />
           ))}

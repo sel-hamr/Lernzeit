@@ -14,10 +14,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { BookOpen, Check, ChevronLeft, Ellipsis, Highlighter, Languages, Pause, Pencil, Play, SkipBack, SkipForward } from 'lucide-react-native'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable as RNPressable, ScrollView, type ScrollViewInstance, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated'
+import Animated from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useSettings } from '../data/settings'
-import { FadeInUp, haptics, Pressable } from '../motion'
+import { FadeInUp, haptics, listEnter, listExit, Pressable } from '../motion'
 import { notice } from '../notice'
 import { useSay } from '../speech'
 import { useLocalLibrary } from '../store/live'
@@ -197,7 +197,7 @@ function Reader({ story }: { story: Story }) {
         <IconButton icon={ChevronLeft} label="Back" variant="raised" iconSize={22} onPress={() => (router.canGoBack() ? router.back() : router.replace('/stories'))} />
         <View style={[styles.grow, { alignItems: 'center' }]}>
           {compact ? (
-            <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)} style={{ alignItems: 'center', gap: 4, maxWidth: '100%' }}>
+            <Animated.View entering={listEnter} exiting={listExit} style={{ alignItems: 'center', gap: 4, maxWidth: '100%' }}>
               <Text style={[type.small, { color: colors.ink, fontFamily: theme.fonts.semibold }]} numberOfLines={1}>
                 {story.title}
               </Text>

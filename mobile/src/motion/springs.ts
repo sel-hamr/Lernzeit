@@ -28,9 +28,26 @@ export const timings = {
   flipHalf: { duration: 130, easing: Easing.in(Easing.quad) },
   flyOff: { duration: 220, easing: Easing.in(Easing.quad) },
   draw: { duration: 520, easing: Easing.out(Easing.cubic) },
+  /** Something leaving: quicker than it came. */
+  fadeOut: { duration: 120, easing: Easing.in(Easing.quad) },
+  /** A chunky button sinking into its lip, and coming back up. */
+  pressDown: { duration: 50, easing: Easing.out(Easing.quad) },
+  pressUp: { duration: 110, easing: Easing.out(Easing.quad) },
+  /** The first half of a counter's bump, before the spring settles it. */
+  bumpUp: { duration: 90, easing: Easing.out(Easing.quad) },
+  /** The end-of-round ring sweeping round. */
+  sweep: { duration: 900, easing: Easing.out(Easing.cubic) },
+  /** One pass of a loading shimmer. */
+  shimmer: { duration: 1100, easing: Easing.inOut(Easing.quad) },
+  /** Tab pages cross-fading (React Navigation runs it; see transitions.ts). */
+  tab: { duration: 220, easing: Easing.out(Easing.cubic) },
 } as const satisfies Record<string, WithTimingConfig>
 
 /** Entrance stagger between cards. */
 export const STAGGER_MS = 40
 /** How far a card rises when it enters. */
 export const RISE_PX = 12
+/** How far a tab page shifts sideways while it cross-fades. */
+export const TAB_SHIFT_PX = 14
+/** The end-of-round ring waits this long after the page opens. */
+export const SWEEP_DELAY_MS = 150

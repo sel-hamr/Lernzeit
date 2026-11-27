@@ -21,11 +21,11 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { GestureDetector, GestureHandlerRootView, usePanGesture } from 'react-native-gesture-handler'
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated'
+import Animated, { LayoutAnimationConfig, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
 import { scheduleOnRN } from 'react-native-worklets'
-import { haptics, Pressable, springs, timings, type HapticKind } from './motion'
+import { haptics, listEnter, listExit, listLayout, Pressable, springs, type HapticKind } from './motion'
 import { useTheme } from './theme'
 
 export type ButtonVariant = 'primary' | 'accent' | 'soft' | 'ghost' | 'danger' | 'outline'
@@ -358,9 +358,13 @@ export function OptionRow({ label, detail, selected, onPress, icon }: { label: s
   )
 }
 
+/** A closed sheet slides away before it unmounts; under Jest it goes at once, so tests see it gone. */
+const ANIMATE_CLOSE = process.env.NODE_ENV !== 'test'
+
 /**
- * A bottom sheet on a dimmed backdrop. It slides up on a spring, can be dragged down by its top to
- * close, and closes on Android back and on a tap outside. Fields in it stay above the keyboard.
+ * A bottom sheet on a dimmed backdrop. It slides up on a spring and back down when it closes, can
+ * be dragged down by its top to close, and closes on Android back (before the page behind it) and
+ * on a tap outside. Fields in it stay above the keyboard.
  */
 export function Sheet({
   open,
@@ -386,6 +390,10 @@ export function Sheet({
   const reduced = useReducedMotion()
   const { height: screen } = useWindowDimensions()
   const offset = useSharedValue(screen)
+  // Still on screen while it slides away after `open` turns false.
+  const [shown, setShown] = useState(open)
+  const [height, setHeight] = useState(screen * 0.5)
+  const away = height + insets.bottom + 24
 
   const drag = usePanGesture({
     onUpdate: (e) => {
@@ -396,32 +404,45 @@ export function Sheet({
     onDeactivate: (e) => {
       'worklet'
       if (e.translationY > 120 || e.velocityY > 900) {
-        offset.value = withTiming(screen, timings.flyOff, () => scheduleOnRN(onClose))
+        // Thrown down: it keeps the fling's speed on the way out.
+        offset.value = withSpring(away, { ...springs.sheet, velocity: e.velocityY, overshootClamping: true }, () => scheduleOnRN(onClose))
       } else offset.value = withSpring(0, springs.sheet)
     },
   })
 
-  // Each time it opens it rises from below. (After the drag above, which writes the same offset.)
+  // Each time it opens it rises from below on a spring, and on close it springs back down before
+  // the modal goes; the backdrop's dim follows the sheet's height. With "remove animations" on, the
+  // modal itself fades in and out.
+  const slides = !reduced && ANIMATE_CLOSE
+  if (open && !shown) setShown(true)
+  else if (!open && shown && !slides) setShown(false)
   useEffect(() => {
-    if (!open) return
-    if (reduced) offset.value = 0
-    else {
-      offset.value = screen * 0.5
-      offset.value = withSpring(0, springs.sheet)
+    if (open) {
+      if (reduced) offset.value = 0
+      else {
+        offset.value = away
+        offset.value = withSpring(0, springs.sheet)
+      }
+    } else if (slides) {
+      offset.value = withSpring(away, { ...springs.sheet, overshootClamping: true }, (done) => {
+        if (done) scheduleOnRN(setShown, false)
+      })
     }
-  }, [open, reduced, screen, offset])
+    // Only when it opens or closes: `away` is read, not watched.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, reduced])
 
   const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: offset.value }] }))
-  const backdropStyle = useAnimatedStyle(() => ({ opacity: Math.max(0, 1 - offset.value / (screen * 0.6)) }))
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: reduced ? 1 : Math.max(0, 1 - offset.value / away) }))
 
   return (
-    <Modal testID={testID} visible={open} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
-      <GestureHandlerRootView style={styles.fill}>
+    <Modal testID={testID} visible={shown} transparent animationType={reduced ? 'fade' : 'none'} onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
+      <GestureHandlerRootView style={styles.fill} pointerEvents={open ? 'auto' : 'none'}>
         <KeyboardAvoidingView style={styles.end} behavior="padding">
           <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.scrim }, backdropStyle]}>
             <RNPressable style={styles.fill} onPress={onClose} accessibilityRole="button" accessibilityLabel={closeLabel} />
           </Animated.View>
-          <Animated.View style={[styles.sheet, { backgroundColor: colors.card, borderTopLeftRadius: radius.card, borderTopRightRadius: radius.card, paddingBottom: insets.bottom + spacing.md }, shadow.float, sheetStyle]}>
+          <Animated.View onLayout={(e) => setHeight(e.nativeEvent.layout.height)} style={[styles.sheet, { backgroundColor: colors.card, borderTopLeftRadius: radius.card, borderTopRightRadius: radius.card, paddingBottom: insets.bottom + spacing.md }, shadow.float, sheetStyle]}>
             <GestureDetector gesture={drag}>
               <View style={{ paddingTop: spacing.sm, paddingHorizontal: spacing.xl, paddingBottom: title ? spacing.sm : spacing.xs }}>
                 <View style={[styles.handle, { backgroundColor: colors.lineStrong }]} />
@@ -508,12 +529,31 @@ export function SectionHeader({ title, detail, action }: { title: string; detail
   )
 }
 
-/** A white card of rows with hairlines between them, like iOS grouped lists. */
-export function GroupedList({ children, style, testID }: { children: ReactNode; style?: StyleProp<ViewStyle>; testID?: string }) {
+/**
+ * A white card of rows with hairlines between them, like iOS grouped lists. With `animate`, a row
+ * that is added or removed later fades, and the others slide to make room (keyed rows only); the
+ * rows there when it first shows just show.
+ */
+export function GroupedList({ children, style, testID, animate }: { children: ReactNode; style?: StyleProp<ViewStyle>; testID?: string; animate?: boolean }) {
   const { colors, radius, shadow, spacing } = useTheme()
   const rows = Children.toArray(children).filter(isValidElement)
+  const card = [{ backgroundColor: colors.card, borderRadius: radius.card, paddingHorizontal: spacing.lg, paddingVertical: spacing.xs }, shadow.card, style]
+  if (animate) {
+    return (
+      <LayoutAnimationConfig skipEntering>
+        <Animated.View testID={testID} layout={listLayout} style={card}>
+          {rows.map((row, i) => (
+            <Animated.View key={row.key ?? i} entering={listEnter} exiting={listExit} layout={listLayout}>
+              {i > 0 ? <View style={[styles.hairline, { backgroundColor: colors.line }]} /> : null}
+              {row}
+            </Animated.View>
+          ))}
+        </Animated.View>
+      </LayoutAnimationConfig>
+    )
+  }
   return (
-    <View testID={testID} style={[{ backgroundColor: colors.card, borderRadius: radius.card, paddingHorizontal: spacing.lg, paddingVertical: spacing.xs }, shadow.card, style]}>
+    <View testID={testID} style={card}>
       {rows.map((row, i) => (
         <Fragment key={row.key ?? i}>
           {i > 0 ? <View style={[styles.hairline, { backgroundColor: colors.line }]} /> : null}
@@ -525,12 +565,12 @@ export function GroupedList({ children, style, testID }: { children: ReactNode; 
 }
 
 /** A titled grouped list on the canvas, with an optional muted line under it (Settings' groups). */
-export function Section({ title, hint, children, testID }: { title: string; hint?: string; children: ReactNode; testID?: string }) {
+export function Section({ title, hint, children, testID, animate }: { title: string; hint?: string; children: ReactNode; testID?: string; /** Rows added or removed later fade and slide (GroupedList). */ animate?: boolean }) {
   const { colors, type, spacing } = useTheme()
   return (
     <View testID={testID} style={{ gap: spacing.sm }}>
       <SectionHeader title={title} />
-      <GroupedList>{children}</GroupedList>
+      <GroupedList animate={animate}>{children}</GroupedList>
       {hint ? <Text style={[type.small, { color: colors.muted, paddingHorizontal: spacing.xs }]}>{hint}</Text> : null}
     </View>
   )

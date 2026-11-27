@@ -6,10 +6,11 @@ import { count } from '@lernzeit/core/text'
 import type { Question } from '@lernzeit/core/types'
 import { useRouter } from 'expo-router'
 import { ChevronDown, Ellipsis, MessageCircleQuestionMark, Play, Plus, Sparkles } from 'lucide-react-native'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated'
 import { Screen } from '../components/Screen'
-import { FadeInUp, Pressable } from '../motion'
+import { FadeInUp, listEnter, listExit, listLayout, Pressable, RollingNumber, springs } from '../motion'
 import { useStarterPart } from '../starter/useStarterPart'
 import { numbers, useTheme } from '../theme'
 import { Badge, Button, Card, EmptyState, GroupedList, IconButton, OptionRow, Row, Sheet, Tile } from '../ui'
@@ -61,7 +62,7 @@ export function QuestionsScreen() {
             <Card style={{ gap: spacing.md }}>
               <Text style={[type.small, { color: colors.muted }]}>Your questions</Text>
               <View style={[styles.row, { gap: spacing.sm, alignItems: 'baseline' }]}>
-                <Text style={[type.hero, { color: colors.ink }]}>{String(questions.length)}</Text>
+                <RollingNumber value={String(questions.length)} style={[type.hero, { color: colors.ink }]} />
                 <Text style={[type.body, numbers, { color: colors.muted }]}>{`${count(sets.length, 'set')} · ${prepared} with your answer`}</Text>
               </View>
               <Button label="Practise all" icon={<Play size={14} color={colors.onPrimary} fill={colors.onPrimary} />} onPress={() => practise()} haptic="tap" />
@@ -70,7 +71,8 @@ export function QuestionsScreen() {
           {sets.map(({ set, questions: items, line }, i) => {
             const open = expanded.includes(set)
             return (
-              <FadeInUp key={set} index={1 + i} style={{ gap: spacing.sm }}>
+              <Animated.View key={set} layout={listLayout}>
+              <FadeInUp index={1 + i} style={{ gap: spacing.sm }}>
                 <Card style={{ gap: spacing.md }}>
                   <View style={[styles.row, { gap: spacing.md }]}>
                     <View style={[styles.grow, { gap: 2 }]}>
@@ -85,15 +87,19 @@ export function QuestionsScreen() {
                       onPress={() => setExpanded(open ? expanded.filter((s) => s !== set) : [...expanded, set])}
                       accessibilityRole="button"
                       accessibilityLabel={open ? 'Hide questions' : 'Show questions'}
+                      accessibilityState={{ expanded: open }}
+                      hitSlop={4}
                       style={[styles.row, styles.toggle, { gap: 4, backgroundColor: colors.chip, borderRadius: 999, paddingHorizontal: spacing.lg }]}
                     >
                       <Text style={[type.small, { color: colors.ink }]}>{open ? 'Hide' : 'Show'}</Text>
-                      <ChevronDown size={15} strokeWidth={1.8} color={colors.ink} style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }} />
+                      <Turn open={open}>
+                        <ChevronDown size={15} strokeWidth={1.8} color={colors.ink} />
+                      </Turn>
                     </Pressable>
                   </View>
                 </Card>
                 {open ? (
-                  <FadeInUp>
+                  <Animated.View entering={listEnter} exiting={listExit}>
                     <GroupedList>
                       {items.map((q) => (
                         <Row
@@ -109,9 +115,10 @@ export function QuestionsScreen() {
                         />
                       ))}
                     </GroupedList>
-                  </FadeInUp>
+                  </Animated.View>
                 ) : null}
               </FadeInUp>
+              </Animated.View>
             )
           })}
         </>
@@ -134,6 +141,17 @@ export function QuestionsScreen() {
       </Sheet>
     </Screen>
   )
+}
+
+/** A chevron that turns over on a spring when its section opens. */
+function Turn({ open, children }: { open: boolean; children: ReactNode }) {
+  const reduced = useReducedMotion()
+  const turn = useSharedValue(open ? 1 : 0)
+  useEffect(() => {
+    turn.value = reduced ? (open ? 1 : 0) : withSpring(open ? 1 : 0, springs.snappy)
+  }, [open, reduced, turn])
+  const style = useAnimatedStyle(() => ({ transform: [{ rotate: `${turn.value * 180}deg` }] }))
+  return <Animated.View style={style}>{children}</Animated.View>
 }
 
 const styles = StyleSheet.create({

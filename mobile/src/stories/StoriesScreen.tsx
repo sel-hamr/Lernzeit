@@ -2,10 +2,12 @@ import type { Story } from '@lernzeit/core/types'
 import { count } from '@lernzeit/core/text'
 import { useRouter } from 'expo-router'
 import { BookOpen, Ellipsis, Plus, Sparkles, WandSparkles } from 'lucide-react-native'
-import { useMemo, useState } from 'react'
-import { FlatList, StyleSheet, Text, View } from 'react-native'
+import { memo, useCallback, useMemo, useState } from 'react'
+import { FlatList, Platform, StyleSheet, Text, View } from 'react-native'
 import { FadeInUp, Pressable } from '../motion'
 import { useTabBarSpace } from '../components/BottomBar'
+import { StoryListSkeleton } from '../components/Skeletons'
+import { useFirstSync } from '../sync/status'
 import { useStarterPart } from '../starter/useStarterPart'
 import { useTheme } from '../theme'
 import { Badge, Button, EmptyState, IconButton, OptionRow, Sheet, Tile } from '../ui'
@@ -25,6 +27,8 @@ export function StoriesScreen() {
   const starter = useStarterPart('stories', ['story', 'stories'])
   const barSpace = useTabBarSpace()
   const read = stories.filter((s) => s.readCount > 0).length
+  const firstSync = useFirstSync()
+  const openStory = useCallback((id: string) => router.push(`/story/${id}`), [router])
 
   const header = (
     <View style={{ gap: spacing.md, paddingBottom: spacing.sm }}>
@@ -45,9 +49,12 @@ export function StoriesScreen() {
     <View style={[styles.grow, { backgroundColor: colors.canvas }]}>
       <FlatList
         data={stories}
-        keyExtractor={(s) => s.id}
+        keyExtractor={storyKey}
         ListHeaderComponent={stories.length ? header : undefined}
         ListEmptyComponent={
+          firstSync ? (
+            <StoryListSkeleton />
+          ) : (
           <FadeInUp>
             <EmptyState
               icon={BookOpen}
@@ -64,11 +71,16 @@ export function StoriesScreen() {
               }
             />
           </FadeInUp>
+          )
         }
         contentContainerStyle={{ paddingHorizontal: spacing.pageX, paddingTop: spacing.xs, paddingBottom: barSpace, gap: spacing.cardGap }}
+        initialNumToRender={6}
+        windowSize={7}
+        removeClippedSubviews={Platform.OS === 'android'}
         renderItem={({ item, index }) => {
-          const tile = <StoryTile story={item} vocabulary={vocabulary} onPress={() => router.push(`/story/${item.id}`)} />
-          return index < 8 ? <FadeInUp index={index}>{tile}</FadeInUp> : tile
+          // Only the first screenful rises in; tiles scrolled to later just show.
+          const tile = <StoryTile story={item} vocabulary={vocabulary} onOpen={openStory} />
+          return index < 6 ? <FadeInUp index={index}>{tile}</FadeInUp> : tile
         }}
       />
       <Sheet open={menu} onClose={() => setMenu(false)} title="Stories">
@@ -91,12 +103,14 @@ export function StoriesScreen() {
   )
 }
 
-function StoryTile({ story, vocabulary, onPress }: { story: Story; vocabulary: Vocabulary; onPress: () => void }) {
+const storyKey = (s: Story) => s.id
+
+const StoryTile = memo(function StoryTile({ story, vocabulary, onOpen }: { story: Story; vocabulary: Vocabulary; onOpen: (id: string) => void }) {
   const { colors, type, spacing, radius, shadow } = useTheme()
   const tile = useMemo(() => storyTile(story, vocabulary), [story, vocabulary])
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => onOpen(story.id)}
       scaleTo={0.98}
       accessibilityRole="button"
       accessibilityLabel={[story.title, story.level, tile.difficulty?.label, tile.meta].filter(Boolean).join(', ')}
@@ -123,7 +137,7 @@ function StoryTile({ story, vocabulary, onPress }: { story: Story; vocabulary: V
       </View>
     </Pressable>
   )
-}
+})
 
 const styles = StyleSheet.create({
   grow: { flex: 1 },
