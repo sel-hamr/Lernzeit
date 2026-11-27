@@ -24,6 +24,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Lernzeit',
   slug: 'lernzeit',
+  // The EAS project on expo.dev (cloud builds, see docs/android.md).
+  owner: 'sel-hamri',
   scheme: 'lernzeit',
   version: pkg.version,
   platforms: ['android'],
@@ -44,6 +46,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
   },
   plugins: [
+    './plugins/withReleaseSigning',
     'expo-router',
     'expo-font',
     'expo-status-bar',
@@ -68,5 +71,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   extra: {
     apiUrl: process.env.LERNZEIT_API_URL || DEFAULT_API_URL,
+    eas: { projectId: 'ab3fc4ea-861e-435c-978f-6156c67be937' },
   },
 })
