@@ -9,6 +9,12 @@ export function sideCounts(ratings: RoundRatings): { again: number; good: number
   return { again: c[1], good: c[3] + c[4] }
 }
 
+/** How many cards got each rating so far, for the four counters above the card. */
+export function gradeCounts(ratings: RoundRatings): Record<1 | 2 | 3 | 4, number> {
+  const c = countRatings(ratings)
+  return { 1: c[1], 2: c[2], 3: c[3], 4: c[4] }
+}
+
 /** "12 / 40": the card being shown out of the round, or the last one once the round is over. */
 export function positionLabel(reviewed: number, remaining: number): string {
   const total = reviewed + remaining

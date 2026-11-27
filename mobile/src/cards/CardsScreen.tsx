@@ -31,7 +31,7 @@ const FILTERS: [Filter, string][] = [
 ]
 const DIRECTION_LABEL: Record<Direction, string> = { imageToDe: 'Picture to German', enToDe: 'English to German', deToEn: 'German to English', cloze: 'Fill the gap' }
 
-/** The Cards tab: the deck card with Practise, search with a filter button (show and sort in a sheet), one grouped card list and the add button. */
+/** The Cards tab: the deck card with Practise, search with a filter button (show and sort in a sheet), one grouped card list and the floating Practise button (adding cards is in the ⋯ menu). */
 export function CardsScreen() {
   const { colors, type, spacing, radius, shadow, fonts, sizes } = useTheme()
   const router = useRouter()
@@ -102,7 +102,6 @@ export function CardsScreen() {
               </Text>
             </View>
           </Pressable>
-          <Button label="Practise" size="sm" icon={<Play size={13} color={colors.onPrimary} fill={colors.onPrimary} />} disabled={cards.length === 0} onPress={() => setPractise(true)} />
         </View>
         <IconButton icon={Ellipsis} label="More" onPress={() => setMenu(true)} />
       </View>
@@ -174,15 +173,16 @@ export function CardsScreen() {
         }}
       />
       <Pressable
-        onPress={() => setAdd(true)}
-        disabled={decks.length === 0}
+        onPress={() => setPractise(true)}
+        disabled={cards.length === 0}
         haptic="tap"
-        scaleTo={0.9}
+        scaleTo={0.94}
         accessibilityRole="button"
-        accessibilityLabel="Quick add a card"
-        style={[styles.fab, { backgroundColor: colors.accent, right: spacing.pageX, bottom: fabBottom, opacity: decks.length ? 1 : 0.4 }, shadow.float]}
+        accessibilityLabel={`Practise ${deck?.name ?? 'all decks'}`}
+        style={[styles.fab, { backgroundColor: colors.accent, right: spacing.pageX, bottom: fabBottom, opacity: cards.length ? 1 : 0.4, gap: spacing.sm }, shadow.float]}
       >
-        <Plus size={26} strokeWidth={2.2} color={colors.onAccent} />
+        <Play size={18} color={colors.onAccent} fill={colors.onAccent} />
+        <Text style={[type.button, { color: colors.onAccent, fontFamily: fonts.semibold }]}>Practise</Text>
       </Pressable>
 
       <Sheet open={deckSheet} onClose={() => setDeckSheet(false)} title="Deck">
@@ -232,6 +232,14 @@ export function CardsScreen() {
       </Sheet>
 
       <Sheet open={menu} onClose={() => setMenu(false)} title="Cards">
+        <MenuRow
+          icon={<Plus size={20} strokeWidth={1.8} color={colors.ink} />}
+          label="Quick add a card"
+          onPress={() => {
+            setMenu(false)
+            setAdd(true)
+          }}
+        />
         <MenuRow
           icon={<Plus size={20} strokeWidth={1.8} color={colors.ink} />}
           label="New card with every field"
@@ -408,5 +416,5 @@ const styles = StyleSheet.create({
   chip: { alignSelf: 'flex-start', height: 32, paddingLeft: 14, paddingRight: 10 },
   group: { paddingBottom: 4 },
   rowLine: { position: 'absolute', top: 0, right: 0, height: StyleSheet.hairlineWidth },
-  fab: { position: 'absolute', width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
+  fab: { position: 'absolute', height: 56, paddingHorizontal: 24, borderRadius: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
 })

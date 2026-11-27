@@ -4,7 +4,7 @@ import type { CheckResult } from '@lernzeit/core/answer'
 import { germanText, isPluralOnly, parseCloze, stripCloze, wordKind } from '@lernzeit/core/german'
 import { addDeckTime, addRating, readPlan, type ReviewPlan } from '@lernzeit/core/practice'
 import { LEARN_AHEAD_MS, pickNextReview, requeueAfterRating, studiesAhead } from '@lernzeit/core/queue'
-import { directionLabel, GRADE_LABEL, GRADES, previewGrades, State } from '@lernzeit/core/srs'
+import { GRADE_LABEL, GRADES, previewGrades, State } from '@lernzeit/core/srs'
 import { dayKeyAt } from '@lernzeit/core/today'
 import { formatInterval, MINUTE } from '@lernzeit/core/time'
 import type { Card, CardReview, Deck, Grade, PracticeRun, ReviewLog } from '@lernzeit/core/types'
@@ -29,7 +29,7 @@ import { numbers, useTheme } from '../theme'
 import { Button, Chip, EmptyState, IconButton, Sheet, ToggleRow } from '../ui'
 import { checkTyped, expectedAnswer, practisesDeck, roundFor, startRound, type Progress } from './round'
 import { markExample } from './example'
-import { positionLabel, practiceTime, roundSummary, sideCounts, type RingSegment } from './summary'
+import { gradeCounts, positionLabel, practiceTime, roundSummary, type RingSegment } from './summary'
 import { ratingHaptic } from './swipe'
 import { SwipeCard, type SwipeCardHandle } from './SwipeCard'
 
@@ -99,6 +99,7 @@ export function PracticeScreen() {
   const [rateSelf, setRateSelf] = useState(false)
   const pullAgain = useSharedValue(0)
   const pullGood = useSharedValue(0)
+  const pullNone = useSharedValue(0)
   const shownAt = useRef(Date.now())
   const runId = useRef(newId())
   const topicTime = useRef(new Map<string, { start: number; ms: number }>())
@@ -262,7 +263,7 @@ export function PracticeScreen() {
   const suggested: Grade | null = check ? (check.verdict === 'wrong' ? 1 : 3) : null
   const now = Date.now()
   const preview = review && revealed ? previewGrades(review.fsrs, now, capped(review, now)) : undefined
-  const sides = sideCounts(progress.ratings)
+  const graded = gradeCounts(progress.ratings)
   const over = !progress.current || !card || !review
   const feedback = !!check && revealed && !rateSelf
   const tones = rateTones(colors, scheme)
@@ -283,11 +284,10 @@ export function PracticeScreen() {
       ) : (
         <KeyboardAvoidingView style={styles.grow} behavior="padding">
           <View style={[styles.row, { paddingHorizontal: spacing.pageX, paddingTop: spacing.md, gap: spacing.sm }]}>
-            <Counter value={sides.again} label="Again" tone="again" pull={pullAgain} />
-            <Text style={[type.chip, styles.grow, styles.center, { color: colors.muted }]} numberOfLines={1}>
-              {`${deck?.name ?? ''} · ${listening ? 'Listening' : directionLabel(review.direction, { learning: 'German', native: 'English' })}`}
-            </Text>
-            <Counter value={sides.good} label="Good" tone="good" pull={pullGood} />
+            <Counter value={graded[1]} label="Again" tone="again" pull={pullAgain} />
+            <Counter value={graded[2]} label="Hard" tone="hard" pull={pullNone} />
+            <Counter value={graded[3]} label="Good" tone="good" pull={pullGood} />
+            <Counter value={graded[4]} label="Easy" tone="easy" pull={pullNone} />
           </View>
           <View style={[styles.grow, { paddingHorizontal: spacing.pageX, paddingTop: spacing.lg }]}>
             <SwipeCard
@@ -500,7 +500,7 @@ function Chunky({
 }
 
 /** A counter beside the card (Quizlet's): it bumps when it goes up and swells as the card is dragged its way. */
-function Counter({ value, label, tone, pull }: { value: number; label: string; tone: 'again' | 'good'; pull: SharedValue<number> }) {
+function Counter({ value, label, tone, pull }: { value: number; label: string; tone: 'again' | 'hard' | 'good' | 'easy'; pull: SharedValue<number> }) {
   const { colors, topics, type, fonts } = useTheme()
   const reduced = useReducedMotion()
   const bump = useSharedValue(1)
@@ -509,14 +509,19 @@ function Counter({ value, label, tone, pull }: { value: number; label: string; t
     if (value > last.current && !reduced) bump.value = withSequence(withTiming(1.25, { duration: 90 }), withSpring(1, springs.bump))
     last.current = value
   }, [value, reduced, bump])
-  const c = tone === 'again' ? { bg: colors.dangerSoft, fg: colors.dangerInk, ring: colors.danger } : { bg: topics.sage.soft, fg: topics.sage.ink, ring: topics.sage.dot }
+  const c = {
+    again: { bg: colors.dangerSoft, fg: colors.dangerInk, ring: colors.danger },
+    hard: { bg: colors.card, fg: colors.ink2, ring: colors.lineStrong },
+    good: { bg: topics.sage.soft, fg: topics.sage.ink, ring: topics.sage.dot },
+    easy: { bg: colors.accentSoft, fg: colors.accentInk, ring: colors.accent },
+  }[tone]
   const pill = useAnimatedStyle(() => ({ transform: [{ scale: bump.value * (1 + pull.value * 0.12) }] }))
   const ring = useAnimatedStyle(() => ({ opacity: pull.value }))
   return (
-    <Animated.View accessible accessibilityLabel={`${label}: ${value}`} style={[styles.row, styles.counter, { backgroundColor: c.bg, gap: 6 }, pill]}>
+    <Animated.View accessible accessibilityLabel={`${label}: ${value}`} style={[styles.row, styles.counter, { backgroundColor: c.bg, gap: 5 }, pill]}>
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.counterRing, { borderColor: c.ring }, ring]} />
       <Text style={[type.bodyMedium, numbers, { color: c.fg, fontFamily: fonts.semibold }]}>{value}</Text>
-      <Text style={[type.chip, { color: c.fg }]}>{label}</Text>
+      <Text style={[type.chip, { color: c.fg }]} numberOfLines={1}>{label}</Text>
     </Animated.View>
   )
 }
@@ -846,7 +851,7 @@ const styles = StyleSheet.create({
   corner: { position: 'absolute', top: -4, right: -4, zIndex: 1 },
   lip: { position: 'absolute', left: 0, right: 0, overflow: 'hidden' },
   chunk: { alignItems: 'center', justifyContent: 'center', gap: 1, borderWidth: 2, paddingHorizontal: 4 },
-  counter: { height: 32, paddingHorizontal: 12, borderRadius: 16 },
+  counter: { flex: 1, height: 32, paddingHorizontal: 6, borderRadius: 16, justifyContent: 'center' },
   counterRing: { borderRadius: 16, borderWidth: 1.5 },
   feedback: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   legend: { alignSelf: 'stretch' },

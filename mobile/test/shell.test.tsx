@@ -78,7 +78,7 @@ describe('the bottom bar', () => {
     useServices()
     await open()
     await fireEvent.press(await screen.findByRole('tab', { name: 'Cards' }))
-    expect(await screen.findByLabelText('Quick add a card')).toBeTruthy()
+    expect(await screen.findByLabelText(/^Practise /)).toBeTruthy()
     expect(screen.getByRole('tab', { name: 'Cards' }).props.accessibilityState.selected).toBe(true)
     expect(screen.getByRole('tab', { name: 'Today' }).props.accessibilityState.selected).toBe(false)
   })
